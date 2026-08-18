@@ -11,7 +11,8 @@
  */
 
 import React from 'react';
-import { getCurrentUser, loginAction, logoutAction } from '../lib/auth/current-user';
+import Link from 'next/link';
+import { getCurrentUser, logoutAction } from '../lib/auth/current-user';
 
 export default async function HomePage() {
     const user = await getCurrentUser();
@@ -19,23 +20,26 @@ export default async function HomePage() {
     if (user) {
         return React.createElement(
             'main',
-            { style: { maxWidth: '400px', margin: '4rem auto', fontFamily: 'sans-serif', padding: '1.5rem', border: '1px solid #ccc', borderRadius: '8px' } },
-            React.createElement('h2', null, 'SkillPath Authentication'),
-            React.createElement('p', { style: { color: 'green', fontWeight: 'bold' } }, '✓ Successfully logged in!'),
+            { style: { maxWidth: '400px', margin: '4rem auto', fontFamily: 'sans-serif', padding: '1.5rem', border: '1px solid #ccc', borderRadius: '8px', textAlign: 'center' } },
+            React.createElement('h2', null, 'SkillPath Platform'),
+            React.createElement('p', { style: { color: 'green', fontWeight: 'bold' } }, `Welcome back, ${user.email}!`),
+            React.createElement('p', null, `Role: ${user.role}`),
             React.createElement(
                 'div',
-                { style: { marginBottom: '1rem' } },
-                React.createElement('p', null, `Email: ${user.email}`),
-                React.createElement('p', null, `Role: ${user.role}`),
-                React.createElement('p', null, `Status: ${user.status}`)
-            ),
-            React.createElement(
-                'form',
-                { action: logoutAction },
+                { style: { display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: '1.5rem' } },
                 React.createElement(
-                    'button',
-                    { type: 'submit', style: { width: '100%', padding: '0.6rem', background: '#e53e3e', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' } },
-                    'Log Out'
+                    Link,
+                    { href: user.role === 'admin' ? '/admin' : '/dashboard', style: { padding: '0.6rem', background: '#0070f3', color: 'white', borderRadius: '4px', textDecoration: 'none' } },
+                    'Go to Dashboard'
+                ),
+                React.createElement(
+                    'form',
+                    { action: logoutAction },
+                    React.createElement(
+                        'button',
+                        { type: 'submit', style: { width: '100%', padding: '0.6rem', background: '#e53e3e', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' } },
+                        'Log Out'
+                    )
                 )
             )
         );
@@ -43,38 +47,21 @@ export default async function HomePage() {
 
     return React.createElement(
         'main',
-        { style: { maxWidth: '400px', margin: '4rem auto', fontFamily: 'sans-serif', padding: '1.5rem', border: '1px solid #ccc', borderRadius: '8px' } },
+        { style: { maxWidth: '400px', margin: '4rem auto', fontFamily: 'sans-serif', padding: '1.5rem', border: '1px solid #ccc', borderRadius: '8px', textAlign: 'center' } },
         React.createElement('h2', null, 'SkillPath Authentication'),
+        React.createElement('p', null, 'Please log in or register to access the platform.'),
         React.createElement(
-            'form',
-            { action: loginAction, style: { display: 'flex', flexDirection: 'column', gap: '1rem' } },
+            'div',
+            { style: { display: 'flex', gap: '1rem', justifyContent: 'center', marginTop: '1.5rem' } },
             React.createElement(
-                'div',
-                null,
-                React.createElement('label', { style: { display: 'block', marginBottom: '0.25rem' } }, 'Email:'),
-                React.createElement('input', {
-                    type: 'email',
-                    name: 'email',
-                    placeholder: 'e.g. student@skillpath.ro',
-                    required: true,
-                    style: { width: '100%', padding: '0.5rem', boxSizing: 'border-box' }
-                })
-            ),
-            React.createElement(
-                'div',
-                null,
-                React.createElement('label', { style: { display: 'block', marginBottom: '0.25rem' } }, 'Role:'),
-                React.createElement(
-                    'select',
-                    { name: 'role', style: { width: '100%', padding: '0.5rem' } },
-                    React.createElement('option', { value: 'student' }, 'Student'),
-                    React.createElement('option', { value: 'admin' }, 'Admin')
-                )
-            ),
-            React.createElement(
-                'button',
-                { type: 'submit', style: { padding: '0.6rem', background: '#0070f3', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' } },
+                Link,
+                { href: '/login', style: { padding: '0.6rem 1.2rem', background: '#0070f3', color: 'white', borderRadius: '4px', textDecoration: 'none' } },
                 'Log In'
+            ),
+            React.createElement(
+                Link,
+                { href: '/register', style: { padding: '0.6rem 1.2rem', border: '1px solid #ccc', color: '#333', borderRadius: '4px', textDecoration: 'none' } },
+                'Register'
             )
         )
     );
