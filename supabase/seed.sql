@@ -1,0 +1,5 @@
+-- Optional SQL seed for `supabase db reset`.
+-- Story: SP-102 (the real seeding is scripts/seed.ts — it needs the service role
+-- key and the auth admin API to create users, which plain SQL cannot do).
+--
+-- Keep this to the tracer-bullet minimum: 1 category, 1 question, 4 answers (SP-006).

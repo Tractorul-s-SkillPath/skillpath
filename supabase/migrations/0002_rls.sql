@@ -1,0 +1,25 @@
+-- 0002_rls.sql — row level security, the is_admin() helper, the answer_options view
+-- Story: SP-004
+--
+-- Source of truth: ARCHITECTURE §5. Sketch:
+--
+--   alter table ... enable row level security;   -- EVERY table in public.
+--                                                -- A table without RLS is world-readable.
+--
+--   is_admin()  security definer, stable, search_path=public
+--     -- role lookups must go through this: a profiles policy that selects
+--     -- profiles recurses. revoke from public, grant to authenticated.
+--
+--   The is_correct problem (§5) — RLS filters rows, not columns:
+--     revoke all on public.answers from anon, authenticated;
+--     create view public.answer_options as
+--       select answer_id, question_id, answer_text, position from public.answers;
+--     grant select on public.answer_options to authenticated;
+--
+--   profiles BEFORE UPDATE trigger: reset role/status to OLD unless is_admin()
+--   -- this is SP-013, the escalation guard.
+--
+--   Policy matrix: see the table in ARCHITECTURE §5.
+--
+-- Every policy in here is asserted by a test in tests/db/. If a policy has no
+-- test, it is not done.

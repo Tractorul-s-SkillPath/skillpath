@@ -1,0 +1,24 @@
+-- 0001_init.sql — schema
+-- Story: SP-003
+--
+-- Source of truth: ARCHITECTURE §4.4. Paste it here when you build this story;
+-- do not retype it from the diagram, the six deviations (D1-D6) are deliberate.
+--
+-- Contents:
+--   extension citext
+--   6 enums: user_role user_status skill_level content_status assessment_status plan_status
+--   8 tables: profiles skill_categories questions answers assessments
+--             student_responses category_progress recommendation_plans
+--   invariants that replace tests (§4.1):
+--     answers_one_correct_per_question            partial unique, is_correct
+--     one_active_assessment_per_user_category     partial unique, status='in_progress'
+--     assessment_score_present                    check (submitted) = (score not null)
+--     unique (assessment_id, question_id) / (assessment_id, position)
+--     unique (user_id, category_id) on category_progress
+--   indexes: questions(category_id,difficulty,status), answers(question_id),
+--            assessments(user_id, created_at desc)   -- SP-086 depends on these
+--   trigger: handle_new_user() -> profiles row on auth.users insert (SP-011)
+--
+-- MIGRATIONS ARE APPEND-ONLY (§8). Once this is merged it is frozen.
+-- Open question for the mentor check-in: if assessments are graded on timing,
+-- started_at + time_limit_seconds belong HERE, not in a Week-4 migration (SP-045).
