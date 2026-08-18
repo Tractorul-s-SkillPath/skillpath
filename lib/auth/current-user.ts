@@ -11,6 +11,7 @@
  */
 
 import { cookies } from 'next/headers';
+import { redirect } from 'next/navigation';
 
 export type UserRole = 'student' | 'admin';
 
@@ -36,7 +37,7 @@ export async function getCurrentUser(): Promise<User | null> {
 export async function loginAction(formData: FormData): Promise<void> {
     'use server';
     const email = formData.get('email') as string;
-    const role = formData.get('role') as UserRole;
+    const role = (formData.get('role') as UserRole) || 'student';
 
     const cookieStore = await cookies();
     cookieStore.set('auth_session', JSON.stringify({
@@ -45,10 +46,20 @@ export async function loginAction(formData: FormData): Promise<void> {
         role,
         status: 'active'
     }), { path: '/' });
+
+    // Redirecționare automată după salvarea sesiunii
+    if (role === 'admin') {
+        redirect('/admin');
+    } else {
+        redirect('/dashboard');
+    }
 }
 
 export async function logoutAction(): Promise<void> {
     'use server';
     const cookieStore = await cookies();
     cookieStore.delete('auth_session');
+
+    // Redirecționare către pagina principală după ștergerea sesiunii
+    redirect('/');
 }
