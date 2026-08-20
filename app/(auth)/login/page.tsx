@@ -32,6 +32,20 @@ export default function LoginPage() {
                     style: { width: '100%', padding: '0.5rem', boxSizing: 'border-box' }
                 })
             ),
+
+            React.createElement(
+                'div',
+                null,
+                React.createElement('label', { style: { display: 'block', marginBottom: '0.25rem' } }, 'Password:'),
+                React.createElement('input', {
+                    type: 'password',
+                    name: 'password',
+                    placeholder: 'Enter your password',
+                    required: true,
+                    style: { width: '100%', padding: '0.5rem', boxSizing: 'border-box' }
+                })
+            ),
+
             React.createElement(
                 'div',
                 null,
@@ -43,6 +57,7 @@ export default function LoginPage() {
                     React.createElement('option', { value: 'admin' }, 'Admin')
                 )
             ),
+
             React.createElement(
                 'button',
                 { type: 'submit', style: { padding: '0.6rem', background: '#0070f3', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', marginTop: '0.5rem' } },
