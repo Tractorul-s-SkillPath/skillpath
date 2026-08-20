@@ -15,3 +15,17 @@
  * Deliberately does NOT check role. /admin is guarded by assertAdmin() in the
  * layout AND by RLS; a redirect here would be a third, weakest copy.
  */
+import { NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
+
+export function middleware(request: NextRequest) {
+  // Deocamdată, lăsăm toate rutele să funcționeze normal
+  return NextResponse.next();
+}
+
+// Această configurare îi spune pe ce rute să ruleze middleware-ul
+export const config = {
+  matcher: [
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+  ],
+};
