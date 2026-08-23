@@ -1,90 +1,90 @@
-import { getStudentsListService } from '../../../lib/services/admin.service';
+export const dynamic = 'force-dynamic';
+
+import { getDashboardStatsService, getWeakCategoriesService } from '../../../lib/services/admin.service';
+import OverviewTiles from './overview-tiles';
+import Link from 'next/link';
 
 export default async function AdminDashboardPage() {
-  const students = await getStudentsListService();
+  const [stats, weakCategories] = await Promise.all([
+    getDashboardStatsService(),
+    getWeakCategoriesService()
+  ]);
+
+  // Handle case when no assessments exist yet
+  const weakestCategoryName = weakCategories.length > 0 ? weakCategories[0].category_name : 'N/A';
 
   return (
-    <div className="min-h-screen bg-gray-50/50 p-8">
-      <div className="max-w-7xl mx-auto">
+    <div className="min-h-screen bg-slate-50 p-8 flex flex-col items-center">
+      <div className="w-full max-w-5xl">
 
-        {/* Page Header */}
-        <header className="mb-8">
-          <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">
-            Admin Dashboard
-          </h1>
-          <p className="text-sm text-gray-500 mt-2">
-            Overview of all registered students and their current platform status.
-          </p>
+        {/* Header cu Butoanele de Navigare */}
+        <header className="mb-10 text-center flex flex-col items-center">
+          <h1 className="text-4xl font-extrabold text-slate-800 tracking-tight">Admin Dashboard</h1>
+          <p className="text-base text-slate-500 mt-3 mb-6">Platform activity and performance metrics.</p>
+
+          {/* Containerul cu TOATE cele 3 butoane */}
+          <div className="flex flex-col sm:flex-row gap-4 justify-center flex-wrap">
+            <Link
+              href="/admin/users"
+              className="inline-block px-8 py-3 bg-slate-800 text-white rounded-xl hover:bg-slate-900 font-semibold shadow-md transition-colors"
+            >
+              Manage Users &rarr;
+            </Link>
+
+            {/* NOUL BUTON PENTRU CATEGORII */}
+            <Link
+              href="/admin/categories"
+              className="inline-block px-8 py-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 font-semibold shadow-md transition-colors"
+            >
+              Manage Categories &rarr;
+            </Link>
+
+            <Link
+              href="/admin/results"
+              className="inline-block px-8 py-3 bg-white border-2 border-slate-200 text-slate-700 rounded-xl hover:border-slate-300 hover:bg-slate-100 font-semibold shadow-sm transition-colors"
+            >
+              View All Results &rarr;
+            </Link>
+          </div>
         </header>
 
-        {/* Data Table Card */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm whitespace-nowrap">
+        {/* SP-080: Statistics Tiles */}
+        <OverviewTiles stats={stats} weakestCategory={weakestCategoryName} />
 
-              {/* Table Header (Always Visible) */}
-              <thead className="bg-gray-100/50 text-gray-600 font-semibold border-b border-gray-200">
+        {/* SP-081: Aggregated Weak Categories Chart/Table */}
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+          <div className="p-6 border-b border-slate-200 bg-slate-50/50">
+            <h2 className="text-lg font-bold text-slate-800">Areas Requiring Attention</h2>
+            <p className="text-sm text-slate-500 mt-1">Categories ranked from lowest average score to highest across all students.</p>
+          </div>
+
+          <div className="p-4">
+            <table className="w-full text-left text-sm border-collapse">
+              <thead className="text-slate-500 font-bold uppercase tracking-wider text-xs border-b border-slate-100">
                 <tr>
-                  <th className="px-6 py-4">Full Name</th>
-                  <th className="px-6 py-4">Email</th>
-                  <th className="px-6 py-4">Registration Date</th>
-                  <th className="px-6 py-4 text-center">Status</th>
+                  <th className="pb-3 px-4">Rank</th>
+                  <th className="pb-3 px-4">Category Name</th>
+                  <th className="pb-3 px-4 text-center">Total Assessments</th>
+                  <th className="pb-3 px-4 text-right">Average Score</th>
                 </tr>
               </thead>
-
-              {/* Table Body */}
-              <tbody className="divide-y divide-gray-100">
-                {students.length === 0 ? (
-
-                  /* Empty State Row */
+              <tbody>
+                {weakCategories.length === 0 ? (
                   <tr>
-                    <td colSpan={4} className="px-6 py-20 text-center">
-                      <div className="flex flex-col items-center justify-center text-gray-500">
-                        {/* Users Icon */}
-                        <svg className="w-12 h-12 mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-                        </svg>
-                        <p className="text-base font-medium text-gray-900">
-                          No students found
-                        </p>
-                        <p className="text-sm mt-1">
-                          There are currently no students registered in the database.
-                        </p>
-                      </div>
-                    </td>
+                    <td colSpan={4} className="py-10 text-center text-slate-500">No assessment data available yet.</td>
                   </tr>
-
                 ) : (
-
-                  /* Populated Rows */
-                  students.map((student) => (
-                    <tr key={student.user_id} className="hover:bg-gray-50/80 transition-colors duration-150">
-                      <td className="px-6 py-4">
-                        <span className="font-medium text-gray-900">
-                          {student.first_name} {student.last_name}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-gray-500">
-                        {student.email}
-                      </td>
-                      <td className="px-6 py-4 text-gray-500">
-                        {new Date(student.created_at).toLocaleDateString('en-US', {
-                          year: 'numeric',
-                          month: 'short',
-                          day: 'numeric'
-                        })}
-                      </td>
-                      <td className="px-6 py-4 text-center">
-                        <span
-                          className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${
-                            student.status === 'active'
-                              ? 'bg-green-50 text-green-700 border-green-200'
-                              : 'bg-red-50 text-red-700 border-red-200'
-                          }`}
-                        >
-                          {/* Green/Red dot indicator */}
-                          <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${student.status === 'active' ? 'bg-green-500' : 'bg-red-500'}`}></span>
-                          {student.status === 'active' ? 'Active' : 'Inactive'}
+                  weakCategories.map((category, index) => (
+                    <tr key={category.category_id} className="border-b border-slate-50 last:border-0 hover:bg-slate-50 transition-colors">
+                      <td className="py-4 px-4 font-medium text-slate-400">#{index + 1}</td>
+                      <td className="py-4 px-4 font-bold text-slate-700">{category.category_name}</td>
+                      <td className="py-4 px-4 text-center text-slate-600">{category.assessments_count}</td>
+                      <td className="py-4 px-4 text-right">
+                        <span className={`inline-flex items-center px-2.5 py-1 rounded-md font-bold ${
+                          category.average_score < 50 ? 'bg-red-100 text-red-700' :
+                          category.average_score < 75 ? 'bg-orange-100 text-orange-700' : 'bg-emerald-100 text-emerald-700'
+                        }`}>
+                          {category.average_score}%
                         </span>
                       </td>
                     </tr>
@@ -94,6 +94,7 @@ export default async function AdminDashboardPage() {
             </table>
           </div>
         </div>
+
       </div>
     </div>
   );

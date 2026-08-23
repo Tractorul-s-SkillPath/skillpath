@@ -1,5 +1,4 @@
-/* Tailwind entry + shadcn design tokens. Story: SP-001
- *
- * Sketch: @tailwind base/components/utilities, the shadcn CSS variables
- * (:root and .dark), and nothing else. Component styles live in components.
- */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;

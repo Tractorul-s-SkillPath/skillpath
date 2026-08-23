@@ -1,24 +1,21 @@
-/**
- * Root layout.
- *
- * Layer: PAGE — fetch + render only (§3)
- * Story: SP-001
- *
- * Sketch
- *  - <html lang="en">, font, globals.css, <body> + children
- *  - no session read here; each route group decides its own guard
- */
+// This is the crucial line that loads all styles!
+import './globals.css';
 
- import "./globals.css";
+export const metadata = {
+  title: 'SkillPath',
+  description: 'Skill tracking and assessment platform',
+};
 
- export default function RootLayout({
-   children,
- }: {
-   children: React.ReactNode;
- }) {
-   return (
-     <html lang="ro">
-       <body>{children}</body>
-     </html>
-   );
- }
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <html lang="en">
+      <body className="antialiased text-gray-900 bg-gray-50">
+        {children}
+      </body>
+    </html>
+  );
+}
