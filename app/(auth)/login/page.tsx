@@ -10,13 +10,28 @@
  */
 
 import React from 'react';
-import { loginAction } from '../../../lib/auth/current-user';
+import Link from 'next/link';
+import { loginAction } from './actions';
 
-export default function LoginPage() {
+interface LoginPageProps {
+    searchParams?: Promise<{ error?: string }> | { error?: string };
+}
+
+export default async function LoginPage({ searchParams }: LoginPageProps) {
+    const resolvedParams = searchParams ? await searchParams : undefined;
+    const error = resolvedParams?.error;
+
     return React.createElement(
         'main',
         { style: { maxWidth: '400px', margin: '4rem auto', fontFamily: 'sans-serif', padding: '1.5rem', border: '1px solid #ccc', borderRadius: '8px' } },
         React.createElement('h2', null, 'Log In to SkillPath'),
+
+        error && React.createElement(
+            'div',
+            { style: { backgroundColor: '#ffe6e6', color: '#d9534f', padding: '0.75rem', borderRadius: '4px', marginTop: '1rem', textAlign: 'center', fontSize: '0.9rem', border: '1px solid #f5c6cb' } },
+            'Email sau parolă incorectă. Te rugăm să încerci din nou.'
+        ),
+
         React.createElement(
             'form',
             { action: loginAction, style: { display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1rem' } },
@@ -62,6 +77,29 @@ export default function LoginPage() {
                 'button',
                 { type: 'submit', style: { padding: '0.6rem', background: '#0070f3', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', marginTop: '0.5rem' } },
                 'Log In'
+            )
+        ),
+
+        // Link-ul de Register
+        React.createElement(
+            'div',
+            { style: { textAlign: 'center', marginTop: '1.2rem', fontSize: '0.9rem', color: '#555' } },
+            "Don't have an account? ",
+            React.createElement(
+                Link,
+                { href: '/register', style: { color: '#0070f3', textDecoration: 'none', fontWeight: 'bold' } },
+                'Register'
+            )
+        ),
+
+        // Link-ul de „Back to Home” stilizat la fel ca cel de la Register
+        React.createElement(
+            'div',
+            { style: { textAlign: 'center', marginTop: '0.6rem', fontSize: '0.9rem' } },
+            React.createElement(
+                Link,
+                { href: '/', style: { color: '#0070f3', textDecoration: 'none', fontWeight: 'bold' } },
+                'Back to Home'
             )
         )
     );

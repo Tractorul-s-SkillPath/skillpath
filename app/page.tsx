@@ -48,8 +48,12 @@ export default async function HomePage() {
     return React.createElement(
         'main',
         { style: { maxWidth: '400px', margin: '4rem auto', fontFamily: 'sans-serif', padding: '1.5rem', border: '1px solid #ccc', borderRadius: '8px', textAlign: 'center' } },
-        React.createElement('h2', null, 'SkillPath Authentication'),
-        React.createElement('p', null, 'Please log in or register to access the platform.'),
+        React.createElement('h2', null, 'Welcome to SkillPath!'),
+        React.createElement(
+            'p',
+            { style: { color: '#555', fontSize: '0.95rem', lineHeight: '1.4', margin: '1rem 0' } },
+            'Your personalized platform for professional skill assessment, tracking progress, and continuous growth.'
+        ),
         React.createElement(
             'div',
             { style: { display: 'flex', gap: '1rem', justifyContent: 'center', marginTop: '1.5rem' } },

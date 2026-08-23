@@ -25,7 +25,7 @@ export default function RegisterPage() {
             React.createElement(
                 'div',
                 null,
-                React.createElement('label', { style: { display: 'block', marginBottom: '0.25rem' } }, 'First Name:'),
+                React.createElement('label', { style: { display: 'block', marginBottom: '0.25rem', fontWeight: 'bold' } }, 'First Name:'),
                 React.createElement('input', {
                     type: 'text',
                     name: 'firstName',
@@ -37,7 +37,7 @@ export default function RegisterPage() {
             React.createElement(
                 'div',
                 null,
-                React.createElement('label', { style: { display: 'block', marginBottom: '0.25rem' } }, 'Last Name:'),
+                React.createElement('label', { style: { display: 'block', marginBottom: '0.25rem', fontWeight: 'bold' } }, 'Last Name:'),
                 React.createElement('input', {
                     type: 'text',
                     name: 'lastName',
@@ -92,28 +92,21 @@ export default function RegisterPage() {
             React.createElement(
                 'div',
                 { style: { marginTop: '1rem' } },
-                React.createElement('label', { style: { display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' } }, 'Select Skills of Interest:'),
+                React.createElement('label', { style: { display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' } }, 'Select Skill Categories:'),
                 SKILL_CATEGORIES.map((section) =>
                     React.createElement(
                         'div',
-                        { key: section.category, style: { marginBottom: '1rem', background: '#f9f9f9', padding: '0.75rem', borderRadius: '4px' } },
-                        React.createElement('h4', { style: { margin: '0 0 0.5rem 0', color: '#333' } }, section.category),
+                        { key: section.category, style: { marginBottom: '0.75rem', background: '#f9f9f9', padding: '0.75rem', borderRadius: '4px' } },
                         React.createElement(
-                            'div',
-                            { style: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.4rem' } },
-                            section.skills.map((skill) =>
-                                React.createElement(
-                                    'label',
-                                    { key: skill, style: { display: 'flex', alignItems: 'center', fontSize: '0.85rem', cursor: 'pointer' } },
-                                    React.createElement('input', {
-                                        type: 'checkbox',
-                                        name: 'skills',
-                                        value: skill,
-                                        style: { marginRight: '0.4rem' }
-                                    }),
-                                    skill
-                                )
-                            )
+                            'label',
+                            { style: { display: 'flex', alignItems: 'center', fontSize: '0.95rem', cursor: 'pointer' } },
+                            React.createElement('input', {
+                                type: 'checkbox',
+                                name: 'skills',
+                                value: section.category,
+                                style: { marginRight: '0.5rem' }
+                            }),
+                            section.category
                         )
                     )
                 )
@@ -135,6 +128,17 @@ export default function RegisterPage() {
                     Link,
                     { href: '/login', style: { color: '#0070f3', textDecoration: 'none', fontWeight: 'bold' } },
                     'Log In'
+                )
+            ),
+
+            // Link către Back to Home
+            React.createElement(
+                'div',
+                { style: { textAlign: 'center', marginTop: '0.6rem', fontSize: '0.9rem' } },
+                React.createElement(
+                    Link,
+                    { href: '/', style: { color: '#0070f3', textDecoration: 'none', fontWeight: 'bold' } },
+                    'Back to Home'
                 )
             )
         )
