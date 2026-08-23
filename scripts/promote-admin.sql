@@ -1,9 +1,0 @@
--- Promote a user to admin. Story: SP-015
---
--- Sketch: one update statement against public.profiles by email, run from the
--- Supabase SQL editor or `supabase db execute`. Documented in the README so it
--- is repeatable on a fresh project before the demo.
---
--- Note the BEFORE UPDATE trigger from 0002 blocks self-promotion (SP-013) —
--- this runs as the service role / postgres, which is exactly why the escalation
--- path is closed for everyone else.
