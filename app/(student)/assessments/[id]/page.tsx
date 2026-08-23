@@ -12,3 +12,23 @@
  *  - not owned by this user -> notFound(), courtesy of RLS returning zero rows
  *  - status !== 'in_progress' -> redirect to the results page
  */
+
+import { ComingSoon } from '../../../../components/coming-soon';
+
+export const metadata = { title: 'Assessment · SkillPath' };
+
+export default function AssessmentRunPage() {
+    return (
+        <ComingSoon
+            title="Assessment"
+            description="The timed run: one question set, one sitting, the clock visible."
+            planned={[
+                'Questions in a fixed order, with your selections surviving a refresh',
+                'A countdown, and a submit that asks once before it commits',
+                'Somebody else’s assessment is a 404, not a peek',
+            ]}
+            backHref="/assessments/new"
+            backLabel="Start an assessment"
+        />
+    );
+}

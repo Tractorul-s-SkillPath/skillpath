@@ -11,23 +11,22 @@
  *    never a broken layout, never a crash on zero rows (SP-073)
  */
 
-import React from 'react';
-import { logoutAction } from '../../../lib/auth/current-user';
+import { ComingSoon } from '../../../components/coming-soon';
+
+export const metadata = { title: 'Dashboard · SkillPath' };
 
 export default function DashboardPage() {
-    return React.createElement(
-        'main',
-        { style: { maxWidth: '800px', margin: '2rem auto', fontFamily: 'sans-serif', padding: '1.5rem' } },
-        React.createElement('h1', null, 'Student Dashboard'),
-        React.createElement('p', null, 'Welcome to your SkillPath dashboard!'),
-        React.createElement(
-            'form',
-            { action: logoutAction, style: { marginTop: '2rem' } },
-            React.createElement(
-                'button',
-                { type: 'submit', style: { padding: '0.5rem 1rem', background: '#e53e3e', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' } },
-                'Log Out'
-            )
-        )
+    return (
+        <ComingSoon
+            title="Dashboard"
+            description="Where you stand in every category you follow, in one screen."
+            planned={[
+                'Per category: current level, latest score, plan items done out of total',
+                'Overall completion across every category you follow',
+                'A first-time view that points at your first assessment rather than at zeroes',
+            ]}
+            backHref="/profile"
+            backLabel="Go to your profile"
+        />
     );
 }
