@@ -1,7 +1,51 @@
 # SkillPath — Architecture Specification
 
-**Status:** proposed, pending mentor check-in
+**Status:** partly built. §0 says which parts.
 **Team:** 3 engineers · **Build window:** Weeks 3–5 · **Feature freeze:** Week 6
+
+---
+
+## 0. What is true today
+
+This document was written before the code and describes the system the team
+intended to build. A good deal of it is now accurate. Some of it is not, and a
+specification that quietly disagrees with its own repository costs a new
+teammate a day before they notice.
+
+So the disagreements are listed here rather than left to be discovered. **Where
+this section and the rest of the document conflict, this section is right.**
+
+### Built and accurate
+
+| Area | Where |
+|---|---|
+| The five-layer rule (§3) | Followed by the profile slice end to end |
+| `Result<T, AppError>` across layers (§8) | `lib/result.ts`, `lib/errors.ts` |
+| Repositories as the only supabase-js importers (§3) | `lib/repositories/` |
+| Zod at every Server Action boundary (§5) | `lib/validation/` |
+| Schema, constraints and invariants (§4.1, §4.4) | `supabase/migrations/` |
+| Grading in the database, never the browser (§5) | `grade_assessment()` in `0002` |
+
+### Not true, and why
+
+| §  | The document says | Actually |
+|---|---|---|
+| 2, 4, 5 | Supabase Auth (GoTrue) owns credentials; `profiles.user_id uuid` references `auth.users(id)` | **Not built.** There is a plain `users` table with a `password` column, integer primary keys, and a signed session cookie of our own (`lib/auth/session.ts`). Sign-in verifies **no password at all** — it takes an email and signs you in. This is a deliberate, recorded team decision, not an oversight; see the header of `lib/auth/current-user.ts`. Deviation **D1** was therefore never applied. |
+| 5 | Row Level Security is the real authorization boundary; every table has policies | **Not built.** RLS is off on every table and the anon key — which is public by design — can read and write all of them. Ownership is enforced only by the `.eq('user_id', …)` clause in each repository. The policy set in §5 is the design to apply when this is revisited; it would land as `0003_rls.sql`. |
+| 3 | Three Supabase clients: `server.ts`, `client.ts`, `admin.ts` | Only `server.ts` exists. There is no service-role client, because with RLS off there is nothing for it to bypass. |
+| 4.4 | Table names `profiles`, `skill_categories`, `questions`, `answers`, `assessments`, `student_responses`, `recommendation_plans` | All correct **except** `profiles`, which is `users`. The database originally used singular names (`assessment`, `question`); the restructure renamed them to match this document. |
+| 5 | `answers` is revoked from the API and read through an `answer_options` view | **Not built.** `answers.is_correct` is reachable over PostgREST with the anon key, so the answer key is currently obtainable. Grading itself is safe — it runs inside `grade_assessment()` — but the key is not hidden. Blocked on the same RLS decision. |
+| 6 | Three AI features behind an `AiProvider` interface | **Not built.** `lib/ai/` is a set of scaffolded files with no implementations. |
+| 7 | Vitest, RTL, Playwright, 75% coverage gate | **Not built.** There is no test runner installed and no test in the repository. `tests/` holds ~83 files that describe intended cases in comments; none of them execute. |
+| 8, 9 | CI runs typecheck → lint → coverage → build | **Not built.** `.github/workflows/ci.yml` is a commented-out sketch with no `on:` and no `jobs:`, so it runs nothing. There is no ESLint config either. `tsc --noEmit` does pass. |
+| 8 | Types generated with `supabase gen types` | Hand-written in `lib/supabase/database.types.ts`. The project is not linked to the CLI. A migration and that file must change in the same commit. |
+
+### Slices
+
+Of the twelve slices in §9, one is built: **1 — Auth, roles, middleware, profile
+page**, minus the auth half. The dashboard, plan, assessment and admin routes
+exist as `ComingSoon` placeholders, which is why the header links to pages that
+say so rather than crashing.
 
 ---
 
@@ -19,12 +63,12 @@ features sit *on top of* the rule-based core — never in place of it.
 | Concern | Choice | Why |
 |---|---|---|
 | Framework | Next.js (App Router), TypeScript `strict` | Mandated; Server Components query Postgres without a hand-written API layer |
-| Data + Auth | Supabase (Postgres, GoTrue, RLS) | Mandated; RLS puts authorization *in the database*, where a forgotten `if` can't defeat it |
+| Data + Auth | Supabase (Postgres, GoTrue, RLS) | Mandated; RLS puts authorization *in the database*, where a forgotten `if` can't defeat it. **GoTrue and RLS are both unbuilt — see §0.** |
 | Client lib | `@supabase/ssr` | Cookie sessions that work in RSC, actions and middleware |
 | UI | Tailwind + shadcn/ui | No design bikeshedding, accessible primitives, editable components |
 | Validation | Zod | One schema shared by the client form and the server action |
-| Tests | Vitest + RTL, Playwright for 3 happy paths | Mandated; 75% gate on business logic |
-| CI/CD | GitHub Actions → Vercel | Push to `main` deploys; PRs get preview URLs |
+| Tests | Vitest + RTL, Playwright for 3 happy paths | Mandated; 75% gate on business logic. **Not installed — see §0 and §7.** |
+| CI/CD | GitHub Actions → Vercel | Push to `main` deploys; PRs get preview URLs. **The workflow is a sketch and runs nothing — see §0.** |
 
 **Non-goals for 6 weeks:** real-time, file uploads, i18n, email flows beyond Supabase's built-in
 confirmation, code blocks/images in questions.
@@ -82,10 +126,10 @@ skillpath/
 │   ├── services/         assessment.service.ts question.service.ts …
 │   ├── repositories/     assessment.repo.ts question.repo.ts …
 │   ├── ai/               provider.ts anthropic.ts mock.ts schemas.ts
-│   ├── supabase/         server.ts client.ts admin.ts database.types.ts
+│   ├── supabase/         server.ts database.types.ts env.ts
 │   ├── validation/       zod schemas, shared client+server
 │   └── auth/             assertAuth.ts assertAdmin.ts
-├── supabase/migrations/  NNNN_name.sql — append-only
+├── supabase/migrations/  NNNN_name.sql — append-only. THE schema.
 ├── docs/                 ARCHITECTURE.md BACKLOG.md TESTING.md
 └── e2e/                  Playwright happy paths
 ```
@@ -94,32 +138,51 @@ skillpath/
 
 | File | Key | Use for |
 |---|---|---|
-| `lib/supabase/server.ts` | anon + user cookie | **Default.** Everything a user does as themselves; RLS applies |
+| `lib/supabase/server.ts` | anon + user cookie | **Default.** Everything a user does as themselves |
 | `lib/supabase/client.ts` | anon + user session | Only interactive work that must not round-trip |
 | `lib/supabase/admin.ts` | **service role** | Grading, aggregates, question-bank writes. Guarded by `assertAdmin()` |
 
 `admin.ts` starts with `import 'server-only'`. If the service-role key ever reaches a client bundle,
 the build must fail — that's what the import buys.
 
+> **Only `server.ts` exists.** There is no service-role client and no browser
+> client. With RLS off there is nothing for a service-role key to bypass, so
+> adding one now would be a second way to do exactly what the anon key already
+> does — more key material, no more capability. Build `admin.ts` at the same
+> time as the RLS policies, not before.
+>
+> Grading was the main reason the table lists a service-role client, and it no
+> longer needs one: `grade_assessment()` is `SECURITY DEFINER`, so the answer
+> key is read inside the database and never travels.
+
+One thing `server.ts` does that is easy to miss: it passes the `<Database>`
+generic. Without it the client is `SupabaseClient<any>`, `any` satisfies the
+`SupabaseClient<Database>` annotation every repository declares, and the whole
+repository layer type-checks against nothing — which is how the reads ended up
+needing `data as unknown as Array<…>` to compile.
+
 ---
 
 ## 4. Data model
 
-`Diagrama.pdf` is the contract. Six deviations, each with a reason.
-**Bring this table to the mentor check-in.**
+`Diagrama.pdf` is the contract. Six deviations, each with a reason — and, now
+that the schema is built, where each one actually stands.
 
-| # | Diagram says | We propose | Why |
-|---|---|---|---|
-| D1 | `USER.password string` | Drop it. `profiles.user_id uuid PK → auth.users(id)` | Supabase Auth owns credentials. Our own password column means hashing, resets and lockout are ours to get wrong. `user_id` becomes `uuid` to match `auth.users`. |
-| D2 | `selected_answer_id` implicitly required | Nullable + add `position` | Lets us **pre-create one row per question at generation time**. Refresh mid-assessment re-reads the same rows in the same order. Requirement #5 ("the session must be saved") met with **no extra table**. |
-| D3 | `ASSESSMENT` has no state | Add `status`, `requested_level`, `submitted_at`, `session_id` | An assessment exists before it's scored. The brief requires selecting *a level*. `session_id` groups a multi-category run (§4.2). |
-| D4 | responses store only the choice | Add `is_correct boolean` snapshot | If an admin fixes an answer key next week, a past result must not silently change. Grade once, store the verdict. |
-| D5 | `ai_description` only | Split `rule_description` (always set) + `ai_description` (nullable) + `priority` | The plan must render correctly with AI disabled or failing. Rules decide; AI decorates. |
-| D6 | `float total_score` | `numeric(5,2)`, 0–100 | Floats compare and print badly. Percentages are exact decimals. |
+| # | Diagram says | Decision | Why | Status |
+|---|---|---|---|---|
+| D1 | `USER.password string` | Drop it. `profiles.user_id uuid PK → auth.users(id)` | Supabase Auth owns credentials. Our own password column means hashing, resets and lockout are ours to get wrong. | **Not applied.** `users.password` exists and is never read; sign-in verifies nothing. Deferred by decision — §0. |
+| D2 | `selected_answer_id` implicitly required | Nullable + add `position` | Lets us **pre-create one row per question at generation time**. Refresh mid-assessment re-reads the same rows in the same order. Requirement #5 ("the session must be saved") met with **no extra table**. | Applied |
+| D3 | `ASSESSMENT` has no state | Add `status`, `requested_level`, `submitted_at`, `session_id` | An assessment exists before it's scored. The brief requires selecting *a level*. `session_id` groups a multi-category run (§4.2). | Applied, plus `started_at` and `time_limit_seconds` — see §11 |
+| D4 | responses store only the choice | Add `is_correct boolean` snapshot | If an admin fixes an answer key next week, a past result must not silently change. Grade once, store the verdict. | Applied |
+| D5 | `ai_description` only | Split `rule_description` (always set) + `ai_description` (nullable) + `priority` | The plan must render correctly with AI disabled or failing. Rules decide; AI decorates. | Applied |
+| D6 | `float total_score` | `numeric(5,2)`, 0–100 | Floats compare and print badly. Percentages are exact decimals. | Applied |
 
 Plus two small additions: `skill_categories.status` (turns destructive deletes into deactivation)
 and `questions.source` (`manual`/`ai`, so the dashboard can show which questions the AI drafted —
-cheap, good demo material).
+cheap, good demo material). Both applied.
+
+And one the diagram does not anticipate at all: **`xp_events`**, the XP ledger.
+§4.4 explains why it exists.
 
 ### 4.1 Invariants enforced by the database, not by hope
 
@@ -127,11 +190,21 @@ cheap, good demo material).
   question. An admin *cannot* save two right answers.
 - **`one_active_assessment_per_user_category`** — partial unique on
   `(user_id, category_id) WHERE status='in_progress'`. Two browser tabs cannot start two runs.
-- **`assessment_score_present`** — `CHECK ((status='submitted') = (total_score IS NOT NULL))`.
+- **`assessments_score_present`** — `CHECK ((status='submitted') = (total_score IS NOT NULL))`,
+  and the same shape for `submitted_at`. Grading must go through `grade_assessment()`; setting
+  the status by hand is rejected.
 - `UNIQUE (assessment_id, question_id)` and `UNIQUE (assessment_id, position)` on responses.
 - `UNIQUE (user_id, category_id)` on `category_progress`.
+- `UNIQUE (user_id, category_id, topic_title)` on `recommendation_plans` — re-assessing updates a
+  plan item rather than stacking a duplicate.
+- **`xp_events_assessment_once` / `_plan_item_once` / `_badge_once` / `_quest_once_per_day`** —
+  partial unique indexes on the ledger. Every award path can run twice and pay once, which is what
+  lets the badge write happen on every profile render without a check.
+- `users.email` is `citext` and unique. `'Ana@x.ro'` and `'ana@x.ro'` were two accounts before, and
+  the sign-in lookup used `.maybeSingle()`, which errors outright when two rows come back.
 
-Each of these is a bug we never have to write a test for.
+Each of these is a bug we never have to write a test for — which matters more than usual here,
+because there are no tests (§7).
 
 ### 4.2 Multi-category assessments
 
@@ -157,132 +230,78 @@ Thresholds live in **one** file, `lib/domain/constants.ts`: `<50` beginner, `50�
 `≥80` advanced; weak area `<60`. Never inline these numbers elsewhere — mentors will ask where the
 level comes from, and there should be exactly one answer.
 
-### 4.4 Schema — `supabase/migrations/0001_init.sql`
+### 4.4 Schema
 
-```sql
-create extension if not exists citext;
+**The schema is `supabase/migrations/0001_init.sql` and `0002_functions.sql`.
+It is not reproduced here.**
 
-create type public.user_role         as enum ('student','admin');
-create type public.user_status       as enum ('active','inactive');
-create type public.skill_level       as enum ('beginner','intermediate','advanced');
-create type public.content_status    as enum ('active','inactive');
-create type public.assessment_status as enum ('in_progress','submitted','abandoned');
-create type public.plan_status       as enum ('not_started','in_progress','completed');
+It used to be. This section carried a full `create table` script, and by the
+time anyone read it the script described tables that did not exist: `profiles`
+instead of `users`, uuid keys instead of integers, plural names while the
+database used singular, `not_started` while the database stored `not started`.
+A schema written in two places drifts, and the copy in the prose is always the
+one that loses. Read the migrations; they are commented at least as heavily as
+this was.
 
-create table public.profiles (
-  user_id    uuid primary key references auth.users(id) on delete cascade,
-  first_name text not null default '' check (length(first_name) <= 60),
-  last_name  text not null default '' check (length(last_name)  <= 60),
-  email      citext not null unique,
-  role       public.user_role   not null default 'student',
-  status     public.user_status not null default 'active',
-  created_at timestamptz not null default now()
-);
+What is worth recording here is the *shape* and the reasoning, which the
+migrations then implement.
 
-create table public.skill_categories (
-  category_id bigint generated always as identity primary key,
-  name        text not null unique check (length(trim(name)) between 2 and 60),
-  description text not null default '',
-  status      public.content_status not null default 'active',
-  created_at  timestamptz not null default now()
-);
+**Tables.** `users`, `skill_categories`, `questions`, `answers`, `assessments`,
+`student_responses`, `category_progress`, `recommendation_plans`, `xp_events`.
 
-create table public.questions (
-  question_id bigint generated always as identity primary key,
-  category_id bigint not null references public.skill_categories(category_id) on delete restrict,
-  text        text not null check (length(trim(text)) between 5 and 1000),
-  difficulty  public.skill_level    not null,
-  status      public.content_status not null default 'active',
-  source      text not null default 'manual' check (source in ('manual','ai')),
-  created_by  uuid references public.profiles(user_id) on delete set null,
-  created_at  timestamptz not null default now()
-);
-create index on public.questions (category_id, difficulty, status);
+**Views.** `user_xp_totals` (a SUM over the ledger) and `leaderboard` (that
+total, ranked, for active students).
 
-create table public.answers (
-  answer_id   bigint generated always as identity primary key,
-  question_id bigint not null references public.questions(question_id) on delete cascade,
-  answer_text text not null check (length(trim(answer_text)) between 1 and 500),
-  is_correct  boolean not null default false,
-  position    smallint not null default 0
-);
-create index on public.answers (question_id);
-create unique index answers_one_correct_per_question
-  on public.answers (question_id) where is_correct;
+**Functions.** `grade_assessment(assessment_id)`, `current_streak(user_id)`,
+`level_for_score(score)`, and the three XP amounts as immutable functions.
 
-create table public.assessments (
-  assessment_id   bigint generated always as identity primary key,
-  user_id         uuid   not null references public.profiles(user_id) on delete cascade,
-  category_id     bigint not null references public.skill_categories(category_id) on delete restrict,
-  session_id      uuid,
-  requested_level public.skill_level not null,
-  status          public.assessment_status not null default 'in_progress',
-  total_score     numeric(5,2) check (total_score between 0 and 100),
-  created_at      timestamptz not null default now(),
-  submitted_at    timestamptz,
-  constraint assessment_score_present
-    check ((status = 'submitted') = (total_score is not null))
-);
-create index on public.assessments (user_id, created_at desc);
-create unique index one_active_assessment_per_user_category
-  on public.assessments (user_id, category_id) where status = 'in_progress';
+**Triggers.** `updated_at` on five tables; XP awarded on assessment submission
+and on plan-item completion; `completed_at` kept consistent with
+`progress_status`; `category_progress` updated from a graded assessment.
 
-create table public.student_responses (
-  student_response_id bigint generated always as identity primary key,
-  assessment_id      bigint not null references public.assessments(assessment_id) on delete cascade,
-  question_id        bigint not null references public.questions(question_id)     on delete restrict,
-  selected_answer_id bigint references public.answers(answer_id) on delete restrict,
-  position           smallint not null,
-  is_correct         boolean,
-  answered_at        timestamptz,
-  unique (assessment_id, question_id),
-  unique (assessment_id, position)
-);
+#### XP is stored, not recomputed
 
-create table public.category_progress (
-  progress_id   bigint generated always as identity primary key,
-  user_id       uuid   not null references public.profiles(user_id)              on delete cascade,
-  category_id   bigint not null references public.skill_categories(category_id)  on delete cascade,
-  current_level public.skill_level not null default 'beginner',
-  last_score    numeric(5,2),
-  updated_at    timestamptz not null default now(),
-  unique (user_id, category_id)
-);
+The one addition the diagram does not anticipate. `xp_events` is an append-only
+ledger: every award is a row carrying its amount, its reason, the assessment or
+plan item that caused it, and when. A total is a `SUM`.
 
-create table public.recommendation_plans (
-  recommendation_id bigint generated always as identity primary key,
-  user_id          uuid   not null references public.profiles(user_id)             on delete cascade,
-  category_id      bigint not null references public.skill_categories(category_id) on delete cascade,
-  assessment_id    bigint references public.assessments(assessment_id) on delete set null,
-  topic_title      text not null,
-  rule_description text not null default '',
-  ai_description   text,
-  priority         smallint not null default 3 check (priority between 1 and 5),
-  progress_status  public.plan_status not null default 'not_started',
-  created_at       timestamptz not null default now(),
-  updated_at       timestamptz not null default now(),
-  unique (user_id, category_id, topic_title)
-);
+It exists because the first implementation derived XP, badges, streaks and daily
+quests from raw rows on every render and stored none of it. That was honest
+about its own limits — its header admitted a badge could only know the date it
+was earned when some other row happened to carry one, which was rarely — but the
+limits were real: no streak that counted anything except assessments, no history,
+no way to tell a member *why* they had the XP they had, and a leaderboard that
+had to read every assessment and every plan row for every student to produce a
+number.
 
--- profile auto-created on signup
-create function public.handle_new_user() returns trigger
-language plpgsql security definer set search_path = public as $$
-begin
-  insert into public.profiles (user_id, first_name, last_name, email)
-  values (new.id,
-          coalesce(new.raw_user_meta_data->>'first_name',''),
-          coalesce(new.raw_user_meta_data->>'last_name',''),
-          new.email);
-  return new;
-end $$;
-
-create trigger on_auth_user_created after insert on auth.users
-for each row execute function public.handle_new_user();
-```
-
----
+The trade is that XP amounts now live in SQL as well as in
+`lib/domain/constants.ts`, and nothing enforces that the two agree. See the note
+at the top of that file.
 
 ## 5. Security model
+
+> ### Status: this section is a design, not a description
+>
+> **Row Level Security is not enabled on any table**, and the `answer_options`
+> view below does not exist. The anon key — which is public by design and
+> intended to reach the browser — can read and write every table directly
+> through PostgREST, including `users` and including `answers.is_correct`.
+>
+> What actually protects data today is (a) the session cookie, which is
+> HMAC-signed so it cannot be edited into a different user or role, (b) the
+> `assertAuth()` / `assertAdmin()` guard at the top of every protected page and
+> Server Action, and (c) the explicit `.eq('user_id', …)` clause in every
+> repository query. That is authorization in application code — exactly what
+> the opening line of this section says not to rely on.
+>
+> This is a **recorded team decision to defer**, taken knowingly, not a gap
+> nobody noticed. Everything below is the design to apply when it is revisited;
+> it would land as `0003_rls.sql`. Until then, treat the database as public and
+> do not put anything in it that matters.
+>
+> One thing to keep in mind while it is deferred: **every `.eq('user_id', …)`
+> in `lib/repositories/` is load-bearing.** With RLS on, forgetting one is a
+> redundant clause. Without it, forgetting one is a data leak.
 
 Authorization lives in three places, deliberately.
 
@@ -342,7 +361,10 @@ Same shape of problem on `profiles`: a student must edit their name but not set 
 can't restrict a column, so a `BEFORE UPDATE` trigger resets `role` and `status` to their old values
 unless `is_admin()`.
 
-### Policy sketch — `supabase/migrations/0002_rls.sql`
+### Policy sketch — would be `supabase/migrations/0003_rls.sql`
+
+Table names below follow the Supabase Auth design, where `users` becomes
+`profiles`. Read `profiles` as `users` against today's schema.
 
 | Table | Student | Admin |
 |---|---|---|
@@ -400,6 +422,30 @@ Four rules that turn "we called an LLM" into a 4–5 point feature:
 
 ## 7. Testing strategy
 
+> ### Status: nothing here is built
+>
+> There is **no test runner installed** — no Vitest, no Playwright, no
+> `vitest.config.ts` — and **no test in the repository executes**.
+>
+> `tests/` contains roughly 83 files named `*.test.ts`. Every one of them is a
+> docblock describing the cases it intends to cover, with no code beneath it.
+> They are useful as specifications and they are the right list of cases. They
+> are not tests, and a directory that looks like a 83-file suite is worth being
+> explicit about, because at a glance it does not look like zero.
+>
+> `package.json` has no `test`, `typecheck` or `lint` script, so the commands
+> `.github/workflows/ci.yml` refers to do not exist either — and that workflow
+> is itself entirely commented out, with no `on:` and no `jobs:`, so it runs
+> nothing on any push.
+>
+> **This is a deliberate deferral for now, not an oversight.** The consequence
+> worth stating: the two places where a business number is duplicated between
+> SQL and TypeScript (XP amounts, level thresholds) have nothing checking that
+> the copies agree. See the note at the top of `lib/domain/constants.ts`.
+>
+> What is below is the plan for when tests arrive. It is a good plan; the
+> aiming of the coverage gate in particular is the part worth keeping.
+
 The requirement is 75% **on business logic**, and the brief says explicitly not to inflate it with
 artificial UI tests. So aim the gate precisely:
 
@@ -429,8 +475,10 @@ Design for the test at the moment you write the service.
 - **Migrations are append-only.** `supabase/migrations/NNNN_description.sql`. Never edit a merged
   migration — add a new one. Claim your number in team chat first; it's the one file where conflicts
   genuinely hurt.
-- **Types are generated:** `supabase gen types typescript … > lib/supabase/database.types.ts`,
-  committed. Regenerate after every migration.
+- **Types are hand-written, for now:** `lib/supabase/database.types.ts` is maintained by hand,
+  because the project is not linked to the Supabase CLI and `supabase gen types` has nothing to
+  point at. **A migration and that file change in the same commit** — otherwise the app compiles
+  against a schema that is not there and fails at runtime. Wiring up generation is the real fix.
 - **snake_case in SQL, camelCase in TS.** Mapping happens in the repository and nowhere else.
 - **Errors:** services return `Result<T, AppError>`, not thrown exceptions across layers. Actions map
   to form state; unexpected throws hit `error.tsx`.
@@ -438,7 +486,7 @@ Design for the test at the moment you write the service.
 - **Branches:** `feat/<slice>-<short>` → PR into `main`, one approval, CI green. Nobody approves
   their own.
 - **CI in Week 3, not Week 6:** typecheck → lint → `vitest --coverage` (fails under threshold) →
-  `next build`.
+  `next build`. *(Not built — see §7. `tsc --noEmit` passes and is currently run by hand.)*
 
 ---
 
@@ -485,11 +533,22 @@ both of which are small and reviewed together.
 
 ## 11. Open questions for the mentor check-in
 
-Both change the schema and are cheapest to decide before any code is written.
+**Question 2 is now closed.** `time_limit_seconds` and `started_at` are in
+`0001_init.sql`, on the reasoning given below — the columns cost nothing unused,
+and bolting them on mid-build would have cost a migration and a backfill.
+Nothing enforces a limit yet; the columns are there for the assessment slice.
 
 1. **Multi-category runs** — is `session_id` grouping acceptable, or do they expect a true
    `assessment_categories` join table? Our recommendation is the former; it respects the given
-   diagram.
-2. **Timed assessments** — the brief says "timed" but the diagram has no time fields. If timing is
-   graded, add `time_limit_seconds` and `started_at` to `assessments` in migration `0001` rather
-   than bolting it on in Week 4.
+   diagram. `assessments.session_id` is in the schema and nullable, so either answer is cheap.
+2. ~~**Timed assessments**~~ — decided; see above.
+
+Two questions have been added by the build, and both are bigger than the two above:
+
+3. **Authentication.** The product currently signs anyone in with an email address and no
+   credential. Is that acceptable through the demo, or does a password check need to land? The
+   answer decides whether `users` stays or becomes `profiles` on top of Supabase Auth (deviation
+   D1), which is a schema change and not a small one.
+4. **RLS.** Same shape of question, same deadline. The policy set is designed (§5) and unapplied.
+   Applying it is roughly one migration plus the `answer_options` view; leaving it means the
+   database stays publicly writable for the demo.

@@ -1,8 +1,28 @@
 # Testing — SkillPath
 
-> Stub. Fill as part of SP-100 / SP-103.
+> ## Status: not built. This is the plan, not a description.
+>
+> There is no test runner installed — no Vitest, no Playwright, no
+> `vitest.config.ts` — and nothing in `tests/` executes. `package.json` has no
+> `test` script.
+>
+> `tests/` holds ~83 files named `*.test.ts`, each a docblock listing the cases
+> it intends to cover with no code beneath it. They are a good specification and
+> they are worth keeping. They are not a suite, and the directory listing makes
+> it easy to assume otherwise.
+>
+> Deferred by decision for now. The one consequence worth carrying in your head
+> until it changes: the XP amounts and the level thresholds are duplicated
+> between `supabase/migrations/0002_functions.sql` and `lib/domain/constants.ts`,
+> and nothing checks that the copies agree.
+>
+> **To pick this up:** install `vitest`, `@vitest/coverage-v8`, `jsdom`,
+> `@vitejs/plugin-react` and the Testing Library packages; add
+> `vitest.config.ts` with the gate aimed as described below; add `test` and
+> `test:coverage` scripts; then turn the docblocks into real cases, starting
+> with `lib/domain` because it is pure and needs no database.
 
-## Sketch
+## The plan
 
 - **Where tests live:** `tests/` mirrors the source tree one-for-one.
   `lib/domain/scoring.ts` -> `tests/lib/domain/scoring.test.ts`.

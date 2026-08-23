@@ -5,64 +5,48 @@
  * Story: SP-012
  *
  * Sketch
- *  - anonymous -> short marketing blurb + links to /login and /register
+ *  - anonymous -> the marketing page (components/marketing/*)
  *  - student   -> redirect /dashboard
  *  - admin     -> redirect /admin
+ *
+ * A signed-in member has no use for the pitch, so they never see it: this
+ * redirects rather than rendering a "welcome back" variant, which is what the
+ * placeholder that used to live here did.
  */
 
-import React from 'react';
-import Link from 'next/link';
-import { getCurrentUser, logoutAction } from '../lib/auth/current-user';
+import { redirect } from 'next/navigation';
+import { getCurrentUser } from '../lib/auth/current-user';
+import { LandingHeader } from '../components/marketing/landing-header';
+import { Hero } from '../components/marketing/hero';
+import { HowItWorks } from '../components/marketing/how-it-works';
+import { FeatureGrid } from '../components/marketing/feature-grid';
+import { ProgressPreview } from '../components/marketing/progress-preview';
+import { FinalCta } from '../components/marketing/final-cta';
+import { LandingFooter } from '../components/marketing/landing-footer';
+
+// getCurrentUser reads the session cookie, so this can never be static.
+export const dynamic = 'force-dynamic';
 
 export default async function HomePage() {
     const user = await getCurrentUser();
 
     if (user) {
-        return React.createElement(
-            'main',
-            { style: { maxWidth: '400px', margin: '4rem auto', fontFamily: 'sans-serif', padding: '1.5rem', border: '1px solid #ccc', borderRadius: '8px', textAlign: 'center' } },
-            React.createElement('h2', null, 'SkillPath Platform'),
-            React.createElement('p', { style: { color: 'green', fontWeight: 'bold' } }, `Welcome back, ${user.email}!`),
-            React.createElement('p', null, `Role: ${user.role}`),
-            React.createElement(
-                'div',
-                { style: { display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: '1.5rem' } },
-                React.createElement(
-                    Link,
-                    { href: user.role === 'admin' ? '/admin' : '/dashboard', style: { padding: '0.6rem', background: '#0070f3', color: 'white', borderRadius: '4px', textDecoration: 'none' } },
-                    'Go to Dashboard'
-                ),
-                React.createElement(
-                    'form',
-                    { action: logoutAction },
-                    React.createElement(
-                        'button',
-                        { type: 'submit', style: { width: '100%', padding: '0.6rem', background: '#e53e3e', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' } },
-                        'Log Out'
-                    )
-                )
-            )
-        );
+        redirect(user.role === 'admin' ? '/admin' : '/dashboard');
     }
 
-    return React.createElement(
-        'main',
-        { style: { maxWidth: '400px', margin: '4rem auto', fontFamily: 'sans-serif', padding: '1.5rem', border: '1px solid #ccc', borderRadius: '8px', textAlign: 'center' } },
-        React.createElement('h2', null, 'SkillPath Authentication'),
-        React.createElement('p', null, 'Please log in or register to access the platform.'),
-        React.createElement(
-            'div',
-            { style: { display: 'flex', gap: '1rem', justifyContent: 'center', marginTop: '1.5rem' } },
-            React.createElement(
-                Link,
-                { href: '/login', style: { padding: '0.6rem 1.2rem', background: '#0070f3', color: 'white', borderRadius: '4px', textDecoration: 'none' } },
-                'Log In'
-            ),
-            React.createElement(
-                Link,
-                { href: '/register', style: { padding: '0.6rem 1.2rem', border: '1px solid #ccc', color: '#333', borderRadius: '4px', textDecoration: 'none' } },
-                'Register'
-            )
-        )
+    return (
+        <div className="min-h-dvh bg-background">
+            <LandingHeader />
+
+            <main>
+                <Hero />
+                <HowItWorks />
+                <FeatureGrid />
+                <ProgressPreview />
+                <FinalCta />
+            </main>
+
+            <LandingFooter />
+        </div>
     );
 }
