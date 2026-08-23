@@ -1,14 +1,27 @@
 /**
- * assertAdmin() — the third authorization layer (§5c).
+ * assertAdmin() — the service-layer half of authorization.
  *
- * Stories: SP-012, SP-037
+ * Story: SP-030
  *
- * Sketch: assertAuth, then require role='admin' AND status='active'; otherwise
- * a 403 AppError. Mirrors the SQL is_admin() exactly — if one changes, both change.
- *
- * This exists for the two things RLS structurally cannot do: guarding
- * service-role writes to the question bank, and guarding admin aggregates.
- * It is not a substitute for a policy anywhere a policy would work.
+ * ARCHITECTURE §5c: RLS covers user-owned rows, but the question bank runs
+ * through the service-role client (because `answers` is unreachable over the
+ * API), and the service-role client answers to nobody. This is the check that
+ * gates it.
  *
  * Test: tests/lib/auth/assertAdmin.test.ts
  */
+
+import 'server-only';
+import { redirect } from 'next/navigation';
+import { assertAuth } from './assertAuth';
+import type { CurrentUser } from './current-user';
+
+export async function assertAdmin(): Promise<CurrentUser> {
+    const user = await assertAuth();
+
+    if (user.role !== 'admin') {
+        redirect('/dashboard');
+    }
+
+    return user;
+}
