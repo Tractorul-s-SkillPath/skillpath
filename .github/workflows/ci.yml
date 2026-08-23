@@ -1,5 +1,19 @@
 # CI — SP-005
 #
+# ############################################################################
+# THIS WORKFLOW DOES NOT RUN. The entire file is commented out: there is no
+# `on:` trigger and no `jobs:` block, so GitHub Actions parses it, finds
+# nothing to do, and does nothing. It is a design note that happens to live at
+# a path where a working pipeline would go.
+#
+# It also refers to `npm run typecheck`, `npm run lint` and
+# `npm run test:coverage`, none of which exist in package.json, and to a test
+# suite that has not been written (docs/TESTING.md).
+#
+# Left in place deliberately as the plan for when tests land — not because it
+# is protecting `main`. Nothing is protecting `main`.
+# ############################################################################
+#
 # Sketch: one workflow, runs on every PR and on push to main.
 #
 #   jobs.verify:
