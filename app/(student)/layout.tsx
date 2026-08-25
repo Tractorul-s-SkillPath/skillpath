@@ -23,7 +23,8 @@ export default async function StudentLayout({ children }: { children: React.Reac
     return (
         <div className="min-h-dvh bg-background">
             <SiteHeader user={user.user} xp={xp} />
-            <main>{children}</main>
+            {/* Target of the skip link in app/layout.tsx. */}
+            <main id="main">{children}</main>
         </div>
     );
 }

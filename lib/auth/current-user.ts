@@ -266,5 +266,9 @@ export async function logoutAction(): Promise<void> {
     // Without this the router cache can still render the signed-in header
     // after the redirect (SP-010 AC3).
     revalidatePath('/', 'layout');
-    redirect('/login');
+
+    // The landing page, not /login. Signing out is not the start of signing
+    // back in — app/page.tsx only redirects members who still hold a session,
+    // and this one no longer does, so they land on the marketing page.
+    redirect('/');
 }

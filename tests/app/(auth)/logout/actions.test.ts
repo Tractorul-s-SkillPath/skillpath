@@ -6,6 +6,6 @@
  * Cases
  *  - signOut is called and the auth cookies are cleared
  *  - revalidatePath('/', 'layout') runs, so no cached RSC payload survives
- *  - redirect to /login
+ *  - redirect to / (the landing page)
  *  - calling it while already logged out is a no-op, not an error
  */

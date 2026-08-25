@@ -23,7 +23,7 @@ import { createClient } from '../../../lib/supabase/server';
 import { listActiveCategories } from '../../../lib/repositories/profile.repo';
 import { unwrapOr } from '../../../lib/result';
 import { Field, Input, Label } from '../../../components/ui/field';
-import { Button } from '../../../components/ui/button';
+import { SubmitButton } from '../../../components/submit-button';
 
 export const metadata = { title: 'Create an account' };
 
@@ -136,9 +136,13 @@ export default async function RegisterPage() {
                     </fieldset>
                 ) : null}
 
-                <Button type="submit" variant="primary" className="w-full justify-center">
+                <SubmitButton
+                    variant="primary"
+                    pendingLabel="Creating account…"
+                    className="w-full justify-center"
+                >
                     Create account
-                </Button>
+                </SubmitButton>
             </form>
 
             <p className="mt-5 text-center text-[0.8125rem] text-muted-foreground">

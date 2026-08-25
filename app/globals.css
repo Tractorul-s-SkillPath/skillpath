@@ -158,10 +158,117 @@
     }
 }
 
+@layer base {
+    /* First tab stop on every page. Off-screen until focused, then it parks
+     * itself over the header — a keyboard user should not have to walk the
+     * whole nav to reach the content on every single navigation. */
+    .skip-link {
+        position: fixed;
+        top: 0.5rem;
+        left: 0.5rem;
+        z-index: 50;
+        transform: translateY(-200%);
+        border-radius: 0.5rem;
+        background-color: var(--accent);
+        color: var(--accent-foreground);
+        padding: 0.5rem 0.875rem;
+        font-size: 0.8125rem;
+        font-weight: 500;
+        transition: transform 150ms ease-out;
+    }
+
+    /* `:focus`, not `:focus-visible`. The heuristics behind focus-visible do
+     * not always fire for programmatic focus, and a skip link that is focused
+     * but still parked off-screen is a link the user cannot see they are on. */
+    .skip-link:focus {
+        transform: translateY(0);
+    }
+}
+
 @layer utilities {
     /* Numbers that change in place — XP, scores, streak counts — must not
      * make the layout jitter as digits swap. */
     .tabular {
         font-variant-numeric: tabular-nums;
+    }
+
+    /* Content arriving on a server-rendered page. One shared curve so a card,
+     * a row and a panel all settle the same way instead of each picking its
+     * own timing. Purely additive: the element is at its final position by
+     * frame one of the animation ending, so nothing depends on it running. */
+    .rise {
+        animation: rise 320ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
+    }
+
+    /* Staggering a list: .rise .stagger-1 … .stagger-6 on successive items.
+     * Capped at six because past that the last item feels late rather than
+     * choreographed. */
+    .stagger-1 { animation-delay: 40ms; }
+    .stagger-2 { animation-delay: 80ms; }
+    .stagger-3 { animation-delay: 120ms; }
+    .stagger-4 { animation-delay: 160ms; }
+    .stagger-5 { animation-delay: 200ms; }
+    .stagger-6 { animation-delay: 240ms; }
+
+    /* A card that responds to the pointer without moving the layout: the
+     * border and background carry the state, never the box size. */
+    .interactive {
+        transition:
+            border-color 150ms ease-out,
+            background-color 150ms ease-out,
+            box-shadow 150ms ease-out,
+            transform 150ms ease-out;
+    }
+}
+
+/* Modal entrance. Here rather than as a class on the element: `.rise` is
+ * hand-written CSS, so `open:rise` would not compile — Tailwind variants only
+ * compose with utilities it generates itself. Neutralised by the
+ * reduced-motion block below like everything else. */
+@layer base {
+    dialog[open] {
+        animation: rise 200ms cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    dialog[open]::backdrop {
+        animation: fade 200ms ease-out;
+    }
+}
+
+@keyframes fade {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes rise {
+    from {
+        opacity: 0;
+        transform: translateY(6px);
+    }
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}
+
+/* The whole motion layer is opt-out in one place.
+ *
+ * `reduce` is not "no feedback" — hover and focus states still change colour,
+ * because losing them costs a user more than the animation ever gave them.
+ * What goes is movement: travel, scaling, and the stagger delays that make a
+ * list appear to assemble itself. */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-delay: 0ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
     }
 }

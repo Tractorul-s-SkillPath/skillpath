@@ -95,8 +95,14 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: S
                         description="Try a shorter search, or reset the filters."
                     />
                 ) : (
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-sm">
+                    /* The negative margins let the scroll region run to the
+                       card's edges, so a cut-off column looks like something
+                       that continues rather than something that is broken.
+                       min-w on the table is what makes the container scroll
+                       instead of the whole page — without it the columns crush
+                       to unreadable widths and then overflow anyway. */
+                    <div className="-mx-5 overflow-x-auto px-5 sm:-mx-6 sm:px-6">
+                        <table className="w-full min-w-[38rem] text-sm">
                             <thead>
                                 <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-subtle-foreground">
                                     <th scope="col" className="pb-2 pr-4 font-medium">Name</th>
@@ -108,7 +114,10 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: S
                             </thead>
                             <tbody>
                                 {items.map((user) => (
-                                    <tr key={user.userId} className="border-b border-border last:border-0">
+                                    <tr
+                                        key={user.userId}
+                                        className="interactive border-b border-border last:border-0 hover:bg-surface-muted"
+                                    >
                                         <td className="py-3 pr-4 font-medium text-foreground">
                                             {fullName(user.firstName, user.lastName)}
                                         </td>

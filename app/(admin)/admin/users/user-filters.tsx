@@ -13,7 +13,8 @@
  */
 
 import { Input } from '../../../../components/ui/field';
-import { Button, buttonClass } from '../../../../components/ui/button';
+import { buttonClass } from '../../../../components/ui/button';
+import { SubmitButton } from '../../../../components/submit-button';
 
 interface UserFiltersProps {
     search: string;
@@ -63,9 +64,9 @@ export function UserFilters({ search, role, status }: UserFiltersProps) {
             </div>
 
             <div className="flex gap-2">
-                <Button type="submit" variant="primary">
+                <SubmitButton variant="primary" pendingLabel="Filtering…">
                     Apply
-                </Button>
+                </SubmitButton>
                 <a href="/admin/users" className={buttonClass('ghost')}>
                     Reset
                 </a>

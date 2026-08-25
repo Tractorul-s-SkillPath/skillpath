@@ -33,7 +33,7 @@
 import Link from 'next/link';
 import { loginAction } from './actions';
 import { Field, Input } from '../../../components/ui/field';
-import { Button } from '../../../components/ui/button';
+import { SubmitButton } from '../../../components/submit-button';
 
 export const metadata = { title: 'Sign in' };
 
@@ -97,9 +97,16 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
                     />
                 </Field>
 
-                <Button type="submit" variant="primary" className="w-full justify-center">
+                {/* The round trip hits the database and then redirects. A plain
+                    Button gave a second of no feedback on the most-used form in
+                    the app, and nothing stopped a second click. */}
+                <SubmitButton
+                    variant="primary"
+                    pendingLabel="Signing in…"
+                    className="w-full justify-center"
+                >
                     Sign in
-                </Button>
+                </SubmitButton>
             </form>
 
             <p className="mt-5 text-center text-[0.8125rem] text-muted-foreground">
