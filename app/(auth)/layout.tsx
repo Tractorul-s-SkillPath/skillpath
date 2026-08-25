@@ -20,6 +20,7 @@ import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { getCurrentUser } from '../../lib/auth/current-user';
+import { ThemeToggle } from '../../components/theme-toggle';
 
 export const dynamic = 'force-dynamic';
 
@@ -32,13 +33,15 @@ export default async function AuthLayout({ children }: { children: ReactNode }) 
 
     return (
         <div className="flex min-h-dvh flex-col bg-background">
-            <header className="px-4 py-5 sm:px-6">
+            <header className="flex items-center justify-between px-4 py-5 sm:px-6">
                 <Link href="/" className="text-sm font-semibold tracking-tight">
                     SkillPath
                 </Link>
+
+                <ThemeToggle />
             </header>
 
-            <main className="flex flex-1 items-start justify-center px-4 pb-16 sm:px-6">
+            <main id="main" className="flex flex-1 items-start justify-center px-4 pb-16 sm:px-6">
                 <div className="w-full max-w-sm">{children}</div>
             </main>
         </div>

@@ -24,7 +24,8 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { logoutAction } from './actions';
 import { getCurrentUser } from '../../lib/auth/current-user';
-import { Button, buttonClass } from '../../components/ui/button';
+import { buttonClass } from '../../components/ui/button';
+import { SubmitButton } from '../../components/submit-button';
 
 export const metadata = { title: 'Sign out' };
 
@@ -38,7 +39,10 @@ export default async function LogoutPage() {
     }
 
     return (
-        <main className="mx-auto flex min-h-dvh max-w-sm flex-col items-center justify-center px-4 sm:px-6">
+        <main
+            id="main"
+            className="mx-auto flex min-h-dvh max-w-sm flex-col items-center justify-center px-4 sm:px-6"
+        >
             <div className="w-full rounded-[var(--radius-card)] border border-border bg-surface px-5 py-6 text-center sm:px-6">
                 <h1 className="text-base font-semibold tracking-tight">Sign out of SkillPath?</h1>
 
@@ -47,9 +51,13 @@ export default async function LogoutPage() {
                 </p>
 
                 <form action={logoutAction} className="mt-5 space-y-2">
-                    <Button type="submit" variant="primary" className="w-full justify-center">
+                    <SubmitButton
+                        variant="primary"
+                        pendingLabel="Signing out…"
+                        className="w-full justify-center"
+                    >
                         Sign out
-                    </Button>
+                    </SubmitButton>
                 </form>
 
                 <Link

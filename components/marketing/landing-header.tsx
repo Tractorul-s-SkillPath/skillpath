@@ -15,6 +15,7 @@
 
 import Link from 'next/link';
 import { buttonClass } from '../ui/button';
+import { ThemeToggle } from '../theme-toggle';
 
 const SECTIONS = [
     { href: '#how-it-works', label: 'How it works' },
@@ -43,6 +44,10 @@ export function LandingHeader() {
                 </nav>
 
                 <div className="ml-auto flex items-center gap-2">
+                    {/* The icon variant, not the three options: a signed-out
+                        visitor has no menu to put them in. */}
+                    <ThemeToggle />
+
                     <Link href="/login" className={buttonClass('ghost', 'sm')}>
                         Sign in
                     </Link>

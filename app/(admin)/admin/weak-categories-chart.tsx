@@ -26,6 +26,17 @@ function toneFor(score: number): string {
     return 'bg-accent';
 }
 
+/**
+ * The key for the bar colours. Kept next to `toneFor` on purpose — the two have
+ * to agree about where the boundaries are, and they will not stay in agreement
+ * if they live at opposite ends of the file.
+ */
+const LEGEND = [
+    { label: 'Beginner', range: 'under 50%', tone: 'bg-[color:var(--danger)]' },
+    { label: 'Intermediate', range: '50–79%', tone: 'bg-[color:var(--streak)]' },
+    { label: 'Advanced', range: '80%+', tone: 'bg-accent' },
+];
+
 export function WeakCategoriesChart({ ranking }: { ranking: CategoryRanking[] }) {
     if (ranking.length === 0) {
         return (
@@ -37,37 +48,64 @@ export function WeakCategoriesChart({ ranking }: { ranking: CategoryRanking[] })
     }
 
     return (
-        <ol className="space-y-4">
-            {ranking.map((category, index) => (
-                <li key={category.categoryId}>
-                    <div className="flex items-baseline justify-between gap-4">
-                        <p className="min-w-0 truncate text-sm font-medium text-foreground">
-                            <span className="mr-2 text-subtle-foreground tabular">#{index + 1}</span>
-                            {category.name}
-                        </p>
-
-                        <p className="shrink-0 text-[0.8125rem] text-muted-foreground tabular">
-                            <span className="font-semibold text-foreground">
-                                {formatScore(category.averageScore)}
-                            </span>
-                            {' · '}
-                            {category.assessmentCount}
-                            {category.assessmentCount === 1 ? ' assessment' : ' assessments'}
-                        </p>
-                    </div>
-
-                    <div
-                        aria-hidden="true"
-                        className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-surface-muted"
-                    >
-                        <div
-                            className={`h-full rounded-full ${toneFor(category.averageScore)}`}
-                            style={{ width: `${Math.max(2, Math.min(100, category.averageScore))}%` }}
+        <>
+            {/* The bars are coloured by the same thresholds as a skill level,
+                but nothing on the page said so — the tones read as generic
+                "bad/ok/good" decoration, and they collide with the danger and
+                streak tokens used semantically elsewhere. Naming the bands
+                makes the colour a key rather than a mood. */}
+            <ul className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-muted-foreground">
+                {LEGEND.map((band) => (
+                    <li key={band.label} className="flex items-center gap-1.5">
+                        <span
+                            aria-hidden="true"
+                            className={`size-2 rounded-full ${band.tone}`}
                         />
-                    </div>
-                </li>
-            ))}
-        </ol>
+                        {band.label}
+                        <span className="text-subtle-foreground tabular">{band.range}</span>
+                    </li>
+                ))}
+            </ul>
+
+            <ol className="space-y-4">
+                {ranking.map((category, index) => (
+                    <li
+                        key={category.categoryId}
+                        className={`rise stagger-${Math.min(index + 1, 6)}`}
+                    >
+                        <div className="flex items-baseline justify-between gap-4">
+                            <p className="min-w-0 truncate text-sm font-medium text-foreground">
+                                <span className="mr-2 text-subtle-foreground tabular">
+                                    #{index + 1}
+                                </span>
+                                {category.name}
+                            </p>
+
+                            <p className="shrink-0 text-[0.8125rem] text-muted-foreground tabular">
+                                <span className="font-semibold text-foreground">
+                                    {formatScore(category.averageScore)}
+                                </span>
+                                {' · '}
+                                {category.assessmentCount}
+                                {category.assessmentCount === 1 ? ' assessment' : ' assessments'}
+                            </p>
+                        </div>
+
+                        <div
+                            aria-hidden="true"
+                            className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-surface-muted"
+                        >
+                            <div
+                                className={`h-full rounded-full transition-[width] duration-500 ease-out ${toneFor(category.averageScore)}`}
+                                style={{
+                                    width: `${Math.max(2, Math.min(100, category.averageScore))}%`,
+                                }}
+                            />
+                        </div>
+                    </li>
+                ))}
+            </ol>
+        </>
     );
 }
 

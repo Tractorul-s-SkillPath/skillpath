@@ -104,8 +104,12 @@ export default async function AdminResultsPage({ searchParams }: { searchParams:
                         description="Try a shorter search, a different category, or reset the filters."
                     />
                 ) : (
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-sm">
+                    /* Same treatment as /admin/users: the scroll region runs to
+                       the card edges and the table keeps a readable min width,
+                       so overflow is contained here instead of dragging the
+                       whole page sideways on a phone. */
+                    <div className="-mx-5 overflow-x-auto px-5 sm:-mx-6 sm:px-6">
+                        <table className="w-full min-w-[40rem] text-sm">
                             <thead>
                                 <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-subtle-foreground">
                                     <th scope="col" className="pb-2 pr-4 font-medium">Member</th>
@@ -119,7 +123,7 @@ export default async function AdminResultsPage({ searchParams }: { searchParams:
                                 {items.map((result) => (
                                     <tr
                                         key={result.assessmentId}
-                                        className="border-b border-border last:border-0"
+                                        className="interactive border-b border-border last:border-0 hover:bg-surface-muted"
                                     >
                                         <td className="py-3 pr-4">
                                             <p className="font-medium text-foreground">

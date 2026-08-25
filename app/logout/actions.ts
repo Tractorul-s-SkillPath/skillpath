@@ -10,7 +10,7 @@
  *
  * The work itself is in lib/auth/current-user.ts — destroy the session,
  * revalidate the layout so no signed-in RSC payload survives in the client
- * router cache (SP-010 AC3), redirect to /login.
+ * router cache (SP-010 AC3), redirect to the landing page.
  *
  * Test: tests/app/logout/actions.test.ts — asserts the Back-button case.
  */

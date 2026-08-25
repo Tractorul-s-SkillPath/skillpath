@@ -38,7 +38,7 @@ export default async function HomePage() {
         <div className="min-h-dvh bg-background">
             <LandingHeader />
 
-            <main>
+            <main id="main">
                 <Hero />
                 <HowItWorks />
                 <FeatureGrid />

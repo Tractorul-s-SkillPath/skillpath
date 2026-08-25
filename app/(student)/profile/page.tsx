@@ -12,7 +12,7 @@
  * schema was left exactly as it was found.
  */
 
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import { assertAuth } from '../../../lib/auth/assertAuth';
 import { getProfileDashboard } from '../../../lib/services/profile.service';
 import { ProfileHeader } from './profile-header';
@@ -29,6 +29,16 @@ export const dynamic = 'force-dynamic';
 
 export default async function ProfilePage() {
     const user = await assertAuth();
+
+    // Everything below this line is the student game layer — interests, plan,
+    // history, XP, quests, badges, leaderboard — and an admin has none of it.
+    // The menu sends them to /admin/account instead, so this only catches a
+    // typed URL or an old bookmark. Same role-based redirect the auth layout
+    // and app/page.tsx already do.
+    if (user.role === 'admin') {
+        redirect('/admin/account');
+    }
+
     const result = await getProfileDashboard(user.userId);
 
     // The member's own row is the one fatal read: without it there is no page.
