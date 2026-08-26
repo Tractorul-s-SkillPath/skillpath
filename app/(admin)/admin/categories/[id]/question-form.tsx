@@ -8,9 +8,14 @@
  * two screens alone, which is what stopped the build: FormStatus, Field and
  * SubmitButton all speak FormState.
  *
- * On success the form clears. `formKey` is what clears it — form.reset() puts
- * the text inputs back but cannot tell AnswerRows to drop back to two rows,
- * because that count is React state rather than DOM state.
+ * `categoryId` travels as a hidden input rather than through `.bind()`, so the
+ * action keeps the plain `(prevState, formData)` shape every other action in
+ * this codebase has and the schema validates it like any other field.
+ *
+ * The option count is the admin's to choose, between ANSWERS_MIN and
+ * ANSWERS_MAX. Both bounds come from questionSchema rather than being written
+ * again here — the buttons stop at the same numbers the server would refuse at,
+ * so the limit is something you run into visibly rather than after a submit.
  */
 
 'use client';
@@ -19,31 +24,32 @@ import { useActionState, useEffect, useRef, useState } from 'react';
 import { createQuestionAction } from './actions';
 import { AnswerRows } from './answer-rows';
 import { IDLE } from '../../../../../lib/validation/common';
-import { QUESTION_TEXT_MAX } from '../../../../../lib/validation/question.schema';
-import { Field } from '../../../../../components/ui/field';
+import { Field, Input } from '../../../../../components/ui/field';
+import { Button } from '../../../../../components/ui/button';
 import { SubmitButton } from '../../../../../components/submit-button';
 import { FormStatus } from '../../../../../components/form-status';
+import {
+    ANSWERS_MAX,
+    ANSWERS_MIN,
+    QUESTION_TEXT_MAX,
+} from '../../../../../lib/validation/question.schema';
 
-const SELECT_CLASS =
-    'w-full rounded-lg border border-border-strong bg-surface px-3 py-2 text-sm text-foreground ' +
-    'transition-colors hover:border-[color:var(--accent)]';
-
-const TEXTAREA_CLASS =
-    'w-full resize-none rounded-lg border border-border-strong bg-surface px-3 py-2 text-sm ' +
-    'text-foreground placeholder:text-subtle-foreground transition-colors ' +
-    'hover:border-[color:var(--accent)] aria-[invalid=true]:border-[color:var(--danger)]';
+/** What the form opens with — four is the shape most questions take. */
+const DEFAULT_OPTIONS = 4;
 
 export function QuestionForm({ categoryId }: { categoryId: number }) {
-    const action = createQuestionAction.bind(null, categoryId);
-    const [state, formAction] = useActionState(action, IDLE);
+    const [state, formAction] = useActionState(createQuestionAction, IDLE);
+    const [optionCount, setOptionCount] = useState(DEFAULT_OPTIONS);
     const formRef = useRef<HTMLFormElement>(null);
     const [formKey, setFormKey] = useState(0);
 
     useEffect(() => {
-        if (state.status === 'success') {
-            formRef.current?.reset();
-            setFormKey((current) => current + 1);
-        }
+        if (state.status !== 'success') return;
+
+        // form.reset() puts the inputs back but knows nothing about how many of
+        // them there are, so the row count has to be reset alongside it.
+        formRef.current?.reset();
+        setOptionCount(DEFAULT_OPTIONS);
     }, [state.status]);
 
     return (
@@ -73,7 +79,70 @@ export function QuestionForm({ categoryId }: { categoryId: number }) {
                 </select>
             </Field>
 
-            <AnswerRows key={formKey} fields={state.fields} />
+            <fieldset className="space-y-2">
+                <legend className="text-[0.8125rem] font-medium text-foreground">
+                    Options — select the correct one
+                </legend>
+
+                {Array.from({ length: optionCount }, (_, index) => (
+                    <div key={index} className="flex items-center gap-2.5">
+                        <input
+                            type="radio"
+                            name="correctOption"
+                            value={index}
+                            required
+                            aria-label={`Option ${index + 1} is the correct answer`}
+                            className="size-4 shrink-0 accent-[color:var(--accent)]"
+                        />
+                        <Input
+                            name={`option_${index}`}
+                            required
+                            maxLength={500}
+                            placeholder={`Option ${index + 1}`}
+                            aria-label={`Option ${index + 1}`}
+                        />
+                    </div>
+                ))}
+
+                {/*
+                  Rows come and go from the end, so no surviving option changes
+                  its index and the radio keeps pointing at the same answer.
+                  Removing the row that WAS marked correct drops the selection
+                  with it — the group is `required`, so the browser asks for a
+                  new one rather than letting a question through with no key.
+                */}
+                <div className="flex items-center gap-2 pt-0.5">
+                    <Button
+                        size="sm"
+                        onClick={() => setOptionCount((count) => count + 1)}
+                        disabled={optionCount >= ANSWERS_MAX}
+                    >
+                        Add option
+                    </Button>
+                    <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => setOptionCount((count) => count - 1)}
+                        disabled={optionCount <= ANSWERS_MIN}
+                    >
+                        Remove
+                    </Button>
+                    <span className="ml-auto text-xs text-subtle-foreground tabular">
+                        {optionCount} of {ANSWERS_MAX}
+                    </span>
+                </div>
+
+                {/*
+                  The schema reports "exactly one correct" and "options must
+                  differ" against the `answers` path, so both land here rather
+                  than beside one arbitrary input.
+                */}
+                {state.fields?.answers ? (
+                    <p role="alert" className="text-xs text-danger">
+                        {state.fields.answers}
+                    </p>
+                ) : null}
+            </fieldset>
 
             <div className="flex items-center justify-between gap-3">
                 <FormStatus state={state} />

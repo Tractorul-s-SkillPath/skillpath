@@ -23,7 +23,6 @@ import { Chip } from '../../../../components/ui/chip';
 import { buttonClass } from '../../../../components/ui/button';
 import { EmptyState } from '../../../../components/empty-state';
 
-
 export const metadata = { title: 'Categories · SkillPath admin' };
 
 export const dynamic = 'force-dynamic';
