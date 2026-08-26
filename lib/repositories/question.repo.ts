@@ -143,7 +143,7 @@ export async function setStatus(
     status: ContentStatus
 ): Promise<Result<void, AppError>> {
     const { error } = await client
-        .from('question')
+        .from('questions') //
         .update({ status })
         .eq('question_id', questionId);
 

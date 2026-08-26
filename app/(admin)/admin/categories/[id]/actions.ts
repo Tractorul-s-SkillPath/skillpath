@@ -55,14 +55,26 @@ export async function createQuestionAction(categoryId: number, prevState: any, f
 }
 
 export async function toggleQuestionStatusAction(questionId: number, currentStatus: string, categoryId: number) {
+  console.log(`[DEBUG] Attempting to toggle question ${questionId} from ${currentStatus}`);
+
   try {
     const newStatus = currentStatus === 'active' ? 'inactive' : 'active';
-    await setQuestionStatus(questionId, newStatus as any);
+
+    // Apelăm baza de date
+    const result = await setQuestionStatus(questionId, newStatus as any);
+    console.log(`[DEBUG] DB Update Result:`, result);
+
+    // Dacă baza de date a dat eroare, o aruncăm intenționat ca să o vedem
+    if (!result.ok) {
+      console.error("[DEBUG] Supabase Error:", result.error);
+      throw new Error(result.error?.message || "Eroare la baza de date");
+    }
 
     revalidatePath(`/admin/categories/${categoryId}`);
   } catch (error) {
-    console.error("Failed to toggle question status:", error);
-    throw new Error('Failed to update status.');
+    console.error("[DEBUG] Action Failed:", error);
+    // Aruncăm eroarea mai departe
+    throw error;
   }
 }
 
