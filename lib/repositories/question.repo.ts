@@ -24,6 +24,7 @@ import { fromPostgrestError, type AppError } from '../errors';
 import { err, ok, type Result } from '../result';
 import type { AdminQuestion } from '../domain/types';
 import { toAdminQuestion } from './mappers';
+import type { ContentStatus } from '../supabase/database.types';
 
 type Client = SupabaseClient<Database>;
 
@@ -133,4 +134,22 @@ export async function insertWithAnswers(
     }
 
     return ok(questionId);
+}
+
+
+export async function setStatus(
+    client: any,
+    questionId: number,
+    status: ContentStatus
+): Promise<Result<void, AppError>> {
+    const { error } = await client
+        .from('question')
+        .update({ status })
+        .eq('question_id', questionId);
+
+    if (error) {
+        return { ok: false, error: { message: error.message } as AppError };
+    }
+
+    return { ok: true, value: undefined };
 }

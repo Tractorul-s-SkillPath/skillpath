@@ -1,112 +1,77 @@
-/**
- * Add a question to one category.
- *
- * Story: SP-034
- *
- * The radio group is what makes "exactly one correct answer" true in the UI —
- * a checkbox per option would let an admin tick two, and the unique index
- * `answers_one_correct_per_question` would then reject the whole write with a
- * constraint error they cannot act on. Say it once, in the control.
- *
- * `categoryId` travels as a hidden input rather than through `.bind()`, so the
- * action keeps the plain `(prevState, formData)` shape every other action in
- * this codebase has and the schema validates it like any other field.
- */
-
 'use client';
 
-import { useActionState, useEffect, useRef } from 'react';
+import { useFormStatus } from 'react-dom';
+import { useRef, useEffect, useState, useActionState } from 'react';
 import { createQuestionAction } from './actions';
-import { IDLE } from '../../../../../lib/validation/common';
-import { Field, Input } from '../../../../../components/ui/field';
-import { SubmitButton } from '../../../../../components/submit-button';
-import { FormStatus } from '../../../../../components/form-status';
-import { QUESTION_TEXT_MAX } from '../../../../../lib/validation/question.schema';
 
-const OPTIONS = [0, 1, 2, 3];
+const initialState = { success: false, message: '', error: '' };
 
-export function QuestionForm({ categoryId }: { categoryId: number }) {
-    const [state, formAction] = useActionState(createQuestionAction, IDLE);
-    const formRef = useRef<HTMLFormElement>(null);
-
-    useEffect(() => {
-        if (state.status === 'success') formRef.current?.reset();
-    }, [state.status]);
-
-    return (
-        <form ref={formRef} action={formAction} className="space-y-4">
-            <input type="hidden" name="categoryId" value={categoryId} />
-
-            <Field label="Question" htmlFor="question-text" error={state.fields?.text}>
-                <textarea
-                    id="question-text"
-                    name="text"
-                    required
-                    rows={3}
-                    maxLength={QUESTION_TEXT_MAX}
-                    placeholder="What does useState return?"
-                    className="w-full resize-none rounded-lg border border-border-strong bg-surface px-3 py-2 text-sm text-foreground placeholder:text-subtle-foreground"
-                />
-            </Field>
-
-            <Field label="Difficulty" htmlFor="question-difficulty" error={state.fields?.difficulty}>
-                <select
-                    id="question-difficulty"
-                    name="difficulty"
-                    defaultValue="beginner"
-                    className="h-9.5 w-full rounded-lg border border-border-strong bg-surface px-3 text-sm text-foreground"
-                >
-                    <option value="beginner">Beginner</option>
-                    <option value="intermediate">Intermediate</option>
-                    <option value="advanced">Advanced</option>
-                </select>
-            </Field>
-
-            <fieldset className="space-y-2">
-                <legend className="text-[0.8125rem] font-medium text-foreground">
-                    Options — select the correct one
-                </legend>
-
-                {OPTIONS.map((index) => (
-                    <div key={index} className="flex items-center gap-2.5">
-                        <input
-                            type="radio"
-                            name="correctOption"
-                            value={index}
-                            required
-                            aria-label={`Option ${index + 1} is the correct answer`}
-                            className="size-4 shrink-0 accent-[color:var(--accent)]"
-                        />
-                        <Input
-                            name={`option_${index}`}
-                            required
-                            maxLength={500}
-                            placeholder={`Option ${index + 1}`}
-                            aria-label={`Option ${index + 1}`}
-                        />
-                    </div>
-                ))}
-
-                {/*
-                  The schema reports "exactly one correct" and "options must
-                  differ" against the `answers` path, so both land here rather
-                  than beside one arbitrary input.
-                */}
-                {state.fields?.answers ? (
-                    <p role="alert" className="text-xs text-danger">
-                        {state.fields.answers}
-                    </p>
-                ) : null}
-            </fieldset>
-
-            <div className="flex items-center justify-between gap-3">
-                <FormStatus state={state} />
-                <SubmitButton variant="primary" pendingLabel="Saving…">
-                    Add question
-                </SubmitButton>
-            </div>
-        </form>
-    );
+function SubmitButton() {
+  const { pending } = useFormStatus();
+  return (
+    <button type="submit" disabled={pending} className="w-full py-2.5 px-4 mt-4 rounded-lg bg-indigo-600 text-white font-bold hover:bg-indigo-700 disabled:bg-indigo-400 transition-colors">
+      {pending ? 'Saving...' : 'Add Question'}
+    </button>
+  );
 }
 
-export default QuestionForm;
+export default function QuestionForm({ categoryId }: { categoryId: number }) {
+  const formActionWithId = createQuestionAction.bind(null, categoryId);
+  const [state, formAction] = useActionState(formActionWithId, initialState);
+  const formRef = useRef<HTMLFormElement>(null);
+  const [optionCount, setOptionCount] = useState(4);
+
+  useEffect(() => {
+    if (state.success) {
+      formRef.current?.reset();
+      setOptionCount(4);
+    }
+  }, [state.success]);
+
+  const addOption = () => { if (optionCount < 4) setOptionCount(prev => prev + 1); };
+  const removeOption = () => { if (optionCount > 2) setOptionCount(prev => prev - 1); };
+
+  return (
+    <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+      <h2 className="text-lg font-bold text-slate-900 mb-4">Create New Question</h2>
+
+      <form ref={formRef} action={formAction} className="space-y-4">
+        <div>
+          <label className="block text-sm font-semibold text-slate-900 mb-1">Question Text *</label>
+          <textarea name="text" required rows={3} className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none resize-none text-slate-900"></textarea>
+        </div>
+
+        <div>
+          <label className="block text-sm font-semibold text-slate-900 mb-1">Difficulty *</label>
+          <select name="difficulty" required className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none bg-white text-slate-900">
+            <option value="beginner">Beginner</option>
+            <option value="intermediate">Intermediate</option>
+            <option value="advanced">Advanced</option>
+          </select>
+        </div>
+
+        <div className="space-y-3 pt-2">
+          <div className="flex justify-between items-end border-b border-slate-200 pb-2">
+            <label className="block text-sm font-semibold text-slate-900">Answers (Check correct ones) *</label>
+            <div className="flex gap-2">
+              <button type="button" onClick={removeOption} disabled={optionCount <= 2} className="px-3 py-1 text-sm font-bold text-slate-600 bg-slate-100 rounded-lg hover:bg-slate-200 disabled:opacity-50">-</button>
+              <button type="button" onClick={addOption} disabled={optionCount >= 4} className="px-3 py-1 text-sm font-bold text-slate-600 bg-slate-100 rounded-lg hover:bg-slate-200 disabled:opacity-50">+</button>
+            </div>
+          </div>
+
+          {Array.from({ length: optionCount }).map((_, index) => (
+            <div key={index} className="flex items-center gap-3">
+              <input type="checkbox" name={`option_correct_${index}`} value="true" className="w-5 h-5 text-indigo-600 rounded cursor-pointer border-slate-300 focus:ring-indigo-500" />
+              <input type="text" name={`option_text_${index}`} required placeholder={`Option ${index + 1}`} className="flex-1 px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm text-slate-900 placeholder-slate-400" />
+            </div>
+          ))}
+        </div>
+
+        {state.error && <div className="p-3 bg-red-50 text-red-600 text-sm rounded-lg font-medium">{state.error}</div>}
+        {state.success && <div className="p-3 bg-emerald-50 text-emerald-600 text-sm rounded-lg font-medium">{state.message}</div>}
+
+        <SubmitButton />
+      </form>
+    </div>
+  );
+}

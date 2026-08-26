@@ -1,72 +1,110 @@
-/**
- * Question bank actions, scoped to one category.
- *
- * Layer: ACTION
- * Stories: SP-034, SP-035, SP-036
- *
- * The four option inputs are collected into an array here and handed to
- * questionSchema, which is where "exactly one correct answer" is enforced —
- * next to `answers_one_correct_per_question` in 0001, which enforces the same
- * thing for callers that never come through this file.
- *
- * `created_by` is NOT read from the form. The service takes it from the session
- * (§5), the same way every user-scoped write in this codebase does.
- *
- * Test: tests/app/(admin)/admin/categories/[id]/actions.test.ts
- */
-
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import * as questionService from '../../../../../lib/services/question.service';
-import { questionSchema } from '../../../../../lib/validation/question.schema';
-import {
-    fieldErrors,
-    formError,
-    formSuccess,
-    type FormState,
-} from '../../../../../lib/validation/common';
+import { z } from 'zod';
+import { createQuestion, setQuestionStatus } from '../../../../../lib/services/question.service';
 
-/** How many option inputs the form renders. */
-const OPTION_COUNT = 4;
+const questionSchema = z.object({
+  categoryId: z.number(),
+  text: z.string().min(5, "Question text must be at least 5 characters"),
+  difficulty: z.enum(['beginner', 'intermediate', 'advanced']),
+  answers: z.array(z.object({
+    text: z.string().min(1, "Answer text cannot be empty"),
+    is_correct: z.boolean()
+  }))
+  .min(2, "At least 2 options are required")
+  .max(4, "Maximum 4 options allowed")
+  .refine(opts => opts.some(opt => opt.is_correct), {
+    message: "You must select at least one correct answer."
+  }),
+});
 
-export async function createQuestionAction(
-    _prev: FormState,
-    formData: FormData,
-): Promise<FormState> {
-    // The radio group carries which option is right. It is `required` in the
-    // form, but a form is a suggestion — a post without it must be rejected
-    // here rather than producing a question with no correct answer.
-    //
-    // The parse is deliberately strict. `Number(null)` is 0, not NaN, so a post
-    // that omits the field entirely would silently mark the FIRST option as the
-    // correct one — a question nobody chose an answer for, stored as though
-    // somebody had. -1 matches no option, so the "exactly one correct" refine
-    // in questionSchema rejects it and says so.
-    const rawCorrect = String(formData.get('correctOption') ?? '').trim();
-    const correctIndex = /^\d+$/.test(rawCorrect) ? Number(rawCorrect) : -1;
+export async function createQuestionAction(categoryId: number, prevState: any, formData: FormData) {
+  try {
+    const rawAnswers = [];
 
-    const answers = Array.from({ length: OPTION_COUNT }, (_, index) => ({
-        text: String(formData.get(`option_${index}`) ?? ''),
-        isCorrect: index === correctIndex,
-    }));
+    for (let i = 0; i < 4; i++) {
+      const text = formData.get(`option_text_${i}`);
+      const isCorrect = formData.get(`option_correct_${i}`) === 'true';
 
-    const parsed = questionSchema.safeParse({
-        categoryId: formData.get('categoryId'),
-        text: formData.get('text') ?? '',
-        difficulty: formData.get('difficulty'),
-        answers,
-    });
+      if (text) {
+        rawAnswers.push({ text: text as string, is_correct: isCorrect });
+      }
+    }
 
-    if (!parsed.success) return formError('Check the fields below.', fieldErrors(parsed.error));
+    const rawData = {
+      categoryId: categoryId,
+      text: formData.get('text') as string,
+      difficulty: formData.get('difficulty') as string,
+      answers: rawAnswers
+    };
 
-    const result = await questionService.createQuestion(parsed.data);
+    const validatedData = questionSchema.parse(rawData);
 
-    if (!result.ok) return formError(result.error.message, result.error.fields);
+    await createQuestion(validatedData as any);
 
-    revalidatePath(`/admin/categories/${parsed.data.categoryId}`);
-    // The catalog shows a question count per category, so it is stale now too.
-    revalidatePath('/admin/categories');
+    revalidatePath(`/admin/categories/${categoryId}`);
+    return { success: true, message: 'Question added successfully!', error: '' };
 
-    return formSuccess('Question added.');
+  } catch (error: any) {
+    if (error instanceof z.ZodError) {
+      return { success: false, message: '', error: error.errors[0].message };
+    }
+    return { success: false, message: '', error: error.message || 'Failed to create question.' };
+  }
+}
+
+export async function toggleQuestionStatusAction(questionId: number, currentStatus: string, categoryId: number) {
+  try {
+    const newStatus = currentStatus === 'active' ? 'inactive' : 'active';
+    await setQuestionStatus(questionId, newStatus as any);
+
+    revalidatePath(`/admin/categories/${categoryId}`);
+  } catch (error) {
+    console.error("Failed to toggle question status:", error);
+    throw new Error('Failed to update status.');
+  }
+}
+
+
+export async function editQuestionAction(
+  oldQuestionId: number,
+  categoryId: number,
+  prevState: any,
+  formData: FormData
+) {
+  try {
+    const rawAnswers = [];
+
+    for (let i = 0; i < 4; i++) {
+      const text = formData.get(`option_text_${i}`);
+      const isCorrect = formData.get(`option_correct_${i}`) === 'true';
+
+      if (text) {
+        rawAnswers.push({ text: text as string, is_correct: isCorrect });
+      }
+    }
+
+    const rawData = {
+      categoryId: categoryId,
+      text: formData.get('text') as string,
+      difficulty: formData.get('difficulty') as string,
+      answers: rawAnswers
+    };
+
+    const validatedData = questionSchema.parse(rawData);
+
+    await setQuestionStatus(oldQuestionId, 'inactive');
+
+    await createQuestion(validatedData as any);
+
+    revalidatePath(`/admin/categories/${categoryId}`);
+    return { success: true, message: 'Question updated successfully!', error: '' };
+
+  } catch (error: any) {
+    if (error instanceof z.ZodError) {
+      return { success: false, message: '', error: error.errors[0].message };
+    }
+    return { success: false, message: '', error: error.message || 'Failed to update question.' };
+  }
 }

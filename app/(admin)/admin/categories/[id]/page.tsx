@@ -19,11 +19,13 @@ import { notFound } from 'next/navigation';
 import { getCategory } from '../../../../../lib/services/category.service';
 import { listQuestionsByCategory } from '../../../../../lib/services/question.service';
 import { unwrapOr } from '../../../../../lib/result';
-import { QuestionForm } from './question-form';
+import QuestionForm from './question-form';
+import EditQuestionForm from './edit-question-form';
 import { Section } from '../../../../../components/ui/card';
 import { Chip } from '../../../../../components/ui/chip';
 import { buttonClass } from '../../../../../components/ui/button';
 import { EmptyState } from '../../../../../components/empty-state';
+import { toggleQuestionStatusAction } from './actions';
 
 // Static rather than a generateMetadata that names the category: that would
 // mean a second, uncached read of the same row just to fill in the tab title.
@@ -32,6 +34,7 @@ export const metadata = { title: 'Question bank · SkillPath admin' };
 export const dynamic = 'force-dynamic';
 
 type Params = Promise<{ id: string }>;
+type SearchParams = Promise<{ edit?: string }>;
 
 const DIFFICULTY_TONE = {
     beginner: 'success',
@@ -39,9 +42,19 @@ const DIFFICULTY_TONE = {
     advanced: 'danger',
 } as const;
 
-export default async function AdminCategoryQuestionsPage({ params }: { params: Params }) {
+export default async function AdminCategoryQuestionsPage({
+    params,
+    searchParams
+}: {
+    params: Params,
+    searchParams: SearchParams
+}) {
     const { id } = await params;
     const categoryId = Number(id);
+
+    // Citim parametrul de editare din URL
+    const search = await searchParams;
+    const editingId = search.edit ? Number(search.edit) : null;
 
     if (!Number.isInteger(categoryId) || categoryId <= 0) notFound();
 
@@ -85,54 +98,83 @@ export default async function AdminCategoryQuestionsPage({ params }: { params: P
                         />
                     ) : (
                         <ul className="space-y-5">
-                            {questions.map((question) => (
-                                <li
-                                    key={question.questionId}
-                                    className="border-b border-border pb-5 last:border-0 last:pb-0"
-                                >
-                                    <div className="flex flex-wrap items-start justify-between gap-3">
-                                        <p className="min-w-0 flex-1 text-sm font-medium text-foreground">
-                                            {question.text}
-                                        </p>
+                            {questions.map((question) => {
+                                // DACĂ SUNTEM ÎN MODUL EDITARE PENTRU ACEASTĂ ÎNTREBARE
+                                if (editingId === question.questionId) {
+                                    return (
+                                        <li key={`edit-${question.questionId}`} className="border-b border-border pb-5 last:border-0 last:pb-0">
+                                            <EditQuestionForm question={question} categoryId={categoryId} />
+                                        </li>
+                                    );
+                                }
 
-                                        <div className="flex shrink-0 gap-2">
-                                            <Chip tone={DIFFICULTY_TONE[question.difficulty]}>
-                                                {question.difficulty}
-                                            </Chip>
-                                            {question.status === 'inactive' ? (
-                                                <Chip tone="muted">inactive</Chip>
-                                            ) : null}
+                                // ALTFEL, AFIȘĂM ÎNTREBAREA NORMALĂ
+                                return (
+                                    <li
+                                        key={question.questionId}
+                                        className="border-b border-border pb-5 last:border-0 last:pb-0"
+                                    >
+                                        <div className="flex flex-wrap items-start justify-between gap-3">
+                                            <p className="min-w-0 flex-1 text-sm font-medium text-foreground">
+                                                {question.text}
+                                            </p>
+
+                                            <div className="flex shrink-0 items-center gap-4">
+                                                <div className="flex gap-2">
+                                                    <Chip tone={DIFFICULTY_TONE[question.difficulty]}>
+                                                        {question.difficulty}
+                                                    </Chip>
+                                                    {question.status === 'inactive' ? (
+                                                        <Chip tone="muted">inactive</Chip>
+                                                    ) : null}
+                                                </div>
+
+                                                <div className="flex items-center gap-3 border-l border-slate-200 pl-3">
+                                                    {/* Butonul de EDIT */}
+                                                    <Link
+                                                        href={`/admin/categories/${categoryId}?edit=${question.questionId}`}
+                                                        className="text-xs font-semibold text-indigo-600 hover:underline"
+                                                    >
+                                                        Edit
+                                                    </Link>
+
+                                                    {/* Butonul de Status */}
+                                                    <form action={toggleQuestionStatusAction.bind(null, question.questionId, question.status, categoryId)}>
+                                                        <button
+                                                            type="submit"
+                                                            className={`text-xs font-semibold hover:underline ${
+                                                                question.status === 'active' ? 'text-red-600' : 'text-emerald-600'
+                                                            }`}
+                                                        >
+                                                            {question.status === 'active' ? 'Deactivate' : 'Activate'}
+                                                        </button>
+                                                    </form>
+                                                </div>
+                                            </div>
                                         </div>
-                                    </div>
 
-                                    <ul className="mt-3 grid gap-2 sm:grid-cols-2">
-                                        {question.answers.map((answer) => (
-                                            <li
-                                                key={answer.answerId}
-                                                className={
-                                                    answer.isCorrect
-                                                        ? 'rounded-lg border border-transparent bg-success-soft px-3 py-2 text-[0.8125rem] text-[color:var(--success)]'
-                                                        : 'rounded-lg border border-border bg-surface-muted px-3 py-2 text-[0.8125rem] text-muted-foreground'
-                                                }
-                                            >
-                                                {/*
-                                                  The tick is decoration; the
-                                                  word beside it is what a
-                                                  screen reader reads out, and
-                                                  what survives the colour being
-                                                  invisible to the reader.
-                                                */}
-                                                {answer.isCorrect ? (
-                                                    <span className="mr-1.5 font-medium">
-                                                        <span aria-hidden="true">✓ </span>Correct:
-                                                    </span>
-                                                ) : null}
-                                                {answer.text}
-                                            </li>
-                                        ))}
-                                    </ul>
-                                </li>
-                            ))}
+                                        <ul className="mt-3 grid gap-2 sm:grid-cols-2">
+                                            {question.answers.map((answer) => (
+                                                <li
+                                                    key={answer.answerId}
+                                                    className={
+                                                        answer.isCorrect
+                                                            ? 'rounded-lg border border-transparent bg-success-soft px-3 py-2 text-[0.8125rem] text-[color:var(--success)]'
+                                                            : 'rounded-lg border border-border bg-surface-muted px-3 py-2 text-[0.8125rem] text-muted-foreground'
+                                                    }
+                                                >
+                                                    {answer.isCorrect ? (
+                                                        <span className="mr-1.5 font-medium">
+                                                            <span aria-hidden="true">✓ </span>Correct:
+                                                        </span>
+                                                    ) : null}
+                                                    {answer.text}
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </li>
+                                );
+                            })}
                         </ul>
                     )}
                 </Section>

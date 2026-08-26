@@ -1,90 +1,47 @@
-/**
- * Category actions.
- *
- * Layer: ACTION — assertAdmin (in the service) -> zod.parse -> service ->
- * revalidatePath (§3)
- * Stories: SP-031, SP-032
- *
- * A unique name violation comes back from the repository as a `conflict` with a
- * field message on `name`, and is rendered next to the input. A 500 on a
- * duplicate name is a bug (SP-031 AC2).
- *
- * deactivateCategory is a status change, never a delete: hiding a category from
- * the student picker must not touch the assessments that point at it (SP-032).
- *
- * Test: tests/app/(admin)/admin/categories/actions.test.ts
- */
-
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import * as categoryService from '../../../../lib/services/category.service';
-import { categorySchema, categoryStatusSchema } from '../../../../lib/validation/category.schema';
-import {
-    fieldErrors,
-    formError,
-    formSuccess,
-    type FormState,
-} from '../../../../lib/validation/common';
+import { z } from 'zod';
+import { createCategory, setCategoryStatus } from '../../../../lib/services/category.service';
 
-export async function createCategoryAction(
-    _prev: FormState,
-    formData: FormData,
-): Promise<FormState> {
-    const parsed = categorySchema.safeParse({
-        name: formData.get('name') ?? '',
-        description: formData.get('description'),
+const categorySchema = z.object({
+  name: z.string().min(3, "Category name must be at least 3 characters"),
+  description: z.string().optional(),
+});
+
+export async function createCategoryAction(prevState: any, formData: FormData) {
+  try {
+    const rawData = {
+      name: formData.get('name') as string,
+      description: formData.get('description') as string,
+    };
+
+    const validatedData = categorySchema.parse(rawData);
+
+    await createCategory({
+        name: validatedData.name,
+        description: validatedData.description
     });
 
-    if (!parsed.success) return formError('Check the fields below.', fieldErrors(parsed.error));
-
-    const result = await categoryService.createCategory(parsed.data);
-
-    if (!result.ok) {
-        // A conflict on the name arrives with the explanation already attached
-        // to the field. Repeating it as the summary line printed it twice, once
-        // under the input and once beside the button.
-        return result.error.fields
-            ? formError('Check the fields below.', result.error.fields)
-            : formError(result.error.message);
-    }
-
     revalidatePath('/admin/categories');
+    return { success: true, message: 'Category created successfully!', error: '' };
 
-    return formSuccess(`"${result.value.name}" created.`);
+  } catch (error: any) {
+    if (error instanceof z.ZodError) {
+      return { success: false, message: '', error: error.errors[0].message };
+    }
+    return { success: false, message: '', error: error.message || 'Failed to create category.' };
+  }
 }
 
-/**
- * Activate or deactivate.
- *
- * The previous version caught every error, logged it and returned nothing, so a
- * failed update was indistinguishable from a successful one: the page
- * re-rendered with the old status and said nothing at all. A failure that the
- * person who caused it cannot see is worse than an error message.
- */
-export async function setCategoryStatusAction(
-    _prev: FormState,
-    formData: FormData,
-): Promise<FormState> {
-    const parsed = categoryStatusSchema.safeParse({
-        categoryId: formData.get('categoryId'),
-        status: formData.get('status'),
-    });
-
-    if (!parsed.success) return formError('That change could not be applied.');
-
-    const result = await categoryService.setCategoryStatus(
-        parsed.data.categoryId,
-        parsed.data.status,
-    );
-
-    if (!result.ok) return formError(result.error.message, result.error.fields);
-
+export async function setCategoryStatusAction(categoryId: number, currentStatus: string) {
+  try {
+    const newStatus = currentStatus === 'active' ? 'inactive' : 'active';
+    await setCategoryStatus(categoryId, newStatus as any);
+    
     revalidatePath('/admin/categories');
-
-    return formSuccess(
-        parsed.data.status === 'active'
-            ? 'Category activated.'
-            : 'Category deactivated — existing assessments are untouched.',
-    );
+  } catch (error) {
+    console.error("Failed to toggle category status:", error);
+    throw new Error('Failed to update status.');
+  }
 }

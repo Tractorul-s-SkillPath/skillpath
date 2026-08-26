@@ -22,7 +22,6 @@ import { Section } from '../../../../components/ui/card';
 import { Chip } from '../../../../components/ui/chip';
 import { buttonClass } from '../../../../components/ui/button';
 import { EmptyState } from '../../../../components/empty-state';
-import QuestionForm from '../../questions/question-form';
 
 
 export const metadata = { title: 'Categories · SkillPath admin' };
