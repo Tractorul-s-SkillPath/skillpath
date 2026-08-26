@@ -27,6 +27,7 @@ import type { AppError } from '../errors';
 import type { Result } from '../result';
 import type { AdminQuestion } from '../domain/types';
 import type { QuestionInput } from '../validation/question.schema';
+import type { ContentStatus } from '../supabase/database.types';
 
 /**
  * The bank for one category, answer keys included.
@@ -56,4 +57,17 @@ export async function createQuestion(input: QuestionInput): Promise<Result<numbe
         answers: input.answers,
         createdBy: admin.userId,
     });
+}
+
+/**
+ * Activate or deactivate a question.
+ * A deactivated question remains in the database to preserve student history
+ * but will no longer be selected for new assessments.
+ */
+export async function setQuestionStatus(
+    questionId: number,
+    status: ContentStatus,
+): Promise<Result<void, AppError>> {
+    await assertAdmin();
+    return questionRepo.setStatus(await createClient(), questionId, status);
 }

@@ -27,8 +27,6 @@ export function CategoryForm() {
     const [state, formAction] = useActionState(createCategoryAction, IDLE);
     const formRef = useRef<HTMLFormElement>(null);
 
-    // Clear the fields once the category exists, so adding three in a row does
-    // not mean selecting and deleting the previous name each time.
     useEffect(() => {
         if (state.status === 'success') formRef.current?.reset();
     }, [state.status]);

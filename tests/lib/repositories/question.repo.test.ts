@@ -6,7 +6,8 @@
  * Cases
  *  - insertWithAnswers writes the question and all options atomically; a bad
  *    option leaves NO question behind
- *  - a second correct answer is rejected by answers_one_correct_per_question
+ *  - a second correct answer is STORED: answers_one_correct_per_question is
+ *    dropped, and multi-select questions are the reason it went
  *  - pickEligible returns only active questions with a correct answer, at the
  *    requested level, and never more than the requested count
  *  - the text filter runs in Postgres (EXPLAIN shows the index, SP-086)

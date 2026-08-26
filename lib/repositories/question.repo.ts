@@ -24,6 +24,7 @@ import { fromPostgrestError, type AppError } from '../errors';
 import { err, ok, type Result } from '../result';
 import type { AdminQuestion } from '../domain/types';
 import { toAdminQuestion } from './mappers';
+import type { ContentStatus } from '../supabase/database.types';
 
 type Client = SupabaseClient<Database>;
 
@@ -133,4 +134,28 @@ export async function insertWithAnswers(
     }
 
     return ok(questionId);
+}
+
+
+/**
+ * `client` is typed, like every other function here. It was `any` for one
+ * commit, and in that commit this read `.from('question')` — a table that does
+ * not exist. `any` had nothing to check it against, so it compiled, shipped,
+ * and needed 69a1aee to correct the name. The annotation is the check.
+ */
+export async function setStatus(
+    client: Client,
+    questionId: number,
+    status: ContentStatus
+): Promise<Result<void, AppError>> {
+    const { error } = await client
+        .from('questions')
+        .update({ status })
+        .eq('question_id', questionId);
+
+    if (error) {
+        return { ok: false, error: { message: error.message } as AppError };
+    }
+
+    return { ok: true, value: undefined };
 }

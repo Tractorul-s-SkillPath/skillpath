@@ -12,6 +12,12 @@
  * deactivateCategory is a status change, never a delete: hiding a category from
  * the student picker must not touch the assessments that point at it (SP-032).
  *
+ * These return FormState, and read the services as Results rather than wrapping
+ * them in try/catch. A service in this codebase does not throw on failure — it
+ * returns `{ ok: false }` — so a try/catch around one catches nothing and the
+ * success path runs on a failed write. That is how "Category created
+ * successfully!" came back from a create that never happened.
+ *
  * Test: tests/app/(admin)/admin/categories/actions.test.ts
  */
 

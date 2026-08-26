@@ -4,8 +4,10 @@
  * Story: SP-003
  *
  * Cases
- *  - a second correct answer on one question -> rejected
- *    (answers_one_correct_per_question) (SP-003 AC2)
+ *  - a second correct answer on one question -> ALLOWED. SP-003 AC2 wanted this
+ *    rejected and answers_one_correct_per_question did reject it; the index was
+ *    dropped for multi-select, so the case is here to pin the new behaviour and
+ *    to be the thing that fails loudly if somebody recreates the index.
  *  - a second in_progress assessment for the same (user, category) -> rejected
  *    (one_active_assessment_per_user_category)
  *  - a different category for the same user -> allowed
