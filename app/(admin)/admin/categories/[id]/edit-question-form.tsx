@@ -1,85 +1,108 @@
+/**
+ * Edit one question, in place in the list.
+ *
+ * Stories: SP-034, SP-035, SP-036
+ *
+ * Saving writes a new question and retires this one — see the note on
+ * editQuestionAction. The redirect back to the plain list lives in the action
+ * too, rather than `window.location.href = ...` in an effect here: a full page
+ * load threw away the router cache and the scroll position on every save, and
+ * it fired on a state shape (`state.success`) this form no longer receives.
+ */
+
 'use client';
 
-import { useActionState, useEffect, useRef, useState } from 'react';
-import { useFormStatus } from 'react-dom';
-import { editQuestionAction } from './actions';
+import { useActionState } from 'react';
 import Link from 'next/link';
+import { editQuestionAction } from './actions';
+import { AnswerRows } from './answer-rows';
+import { IDLE } from '../../../../../lib/validation/common';
+import { QUESTION_TEXT_MAX } from '../../../../../lib/validation/question.schema';
+import { Field } from '../../../../../components/ui/field';
+import { SubmitButton } from '../../../../../components/submit-button';
+import { FormStatus } from '../../../../../components/form-status';
+import { buttonClass } from '../../../../../components/ui/button';
+import type { AdminQuestion } from '../../../../../lib/domain/types';
 
-const initialState = { success: false, message: '', error: '' };
+const SELECT_CLASS =
+    'w-full rounded-lg border border-border-strong bg-surface px-3 py-2 text-sm text-foreground ' +
+    'transition-colors hover:border-[color:var(--accent)]';
 
-function SubmitButton() {
-  const { pending } = useFormStatus();
-  return (
-    <button type="submit" disabled={pending} className="py-2 px-4 rounded-lg bg-indigo-600 text-white font-bold hover:bg-indigo-700 disabled:bg-indigo-400 text-sm transition-colors">
-      {pending ? 'Saving...' : 'Save Changes'}
-    </button>
-  );
+const TEXTAREA_CLASS =
+    'w-full resize-none rounded-lg border border-border-strong bg-surface px-3 py-2 text-sm ' +
+    'text-foreground placeholder:text-subtle-foreground transition-colors ' +
+    'hover:border-[color:var(--accent)] aria-[invalid=true]:border-[color:var(--danger)]';
+
+interface EditQuestionFormProps {
+    question: AdminQuestion;
+    categoryId: number;
 }
 
-export default function EditQuestionForm({ question, categoryId }: { question: any, categoryId: number }) {
-  const formActionWithArgs = editQuestionAction.bind(null, question.questionId, categoryId);
-  const [state, formAction] = useActionState(formActionWithArgs, initialState);
-  const formRef = useRef<HTMLFormElement>(null);
+export function EditQuestionForm({ question, categoryId }: EditQuestionFormProps) {
+    const action = editQuestionAction.bind(null, question.questionId, categoryId);
+    const [state, formAction] = useActionState(action, IDLE);
 
-  const [optionCount, setOptionCount] = useState(question.answers.length > 2 ? question.answers.length : 2);
-
-  const addOption = () => { if (optionCount < 4) setOptionCount(prev => prev + 1); };
-  const removeOption = () => { if (optionCount > 2) setOptionCount(prev => prev - 1); };
-
-  useEffect(() => {
-    if (state.success) {
-        window.location.href = `/admin/categories/${categoryId}`;
-    }
-  }, [state.success, categoryId]);
-
-  return (
-    <div className="bg-slate-50 p-5 rounded-xl border border-slate-200">
-      <div className="flex justify-between items-center mb-4">
-          <h3 className="font-bold text-slate-900">Edit Question</h3>
-          <Link href={`/admin/categories/${categoryId}`} className="text-sm font-semibold text-slate-500 hover:text-slate-800">Cancel</Link>
-      </div>
-
-      <form ref={formRef} action={formAction} className="space-y-4">
-        <div>
-          <label className="block text-sm font-semibold text-slate-900 mb-1">Question Text *</label>
-          <textarea name="text" required rows={2} defaultValue={question.text} className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none resize-none text-slate-900"></textarea>
-        </div>
-
-        <div>
-          <label className="block text-sm font-semibold text-slate-900 mb-1">Difficulty *</label>
-          <select name="difficulty" required defaultValue={question.difficulty} className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none bg-white text-slate-900">
-            <option value="beginner">Beginner</option>
-            <option value="intermediate">Intermediate</option>
-            <option value="advanced">Advanced</option>
-          </select>
-        </div>
-
-        <div className="space-y-3 pt-2">
-          <div className="flex justify-between items-end border-b border-slate-200 pb-2">
-            <label className="block text-sm font-semibold text-slate-900">Answers (Check correct ones) *</label>
-            <div className="flex gap-2">
-              <button type="button" onClick={removeOption} disabled={optionCount <= 2} className="px-3 py-1 text-sm font-bold text-slate-600 bg-slate-200 rounded-lg hover:bg-slate-300 disabled:opacity-50">-</button>
-              <button type="button" onClick={addOption} disabled={optionCount >= 4} className="px-3 py-1 text-sm font-bold text-slate-600 bg-slate-200 rounded-lg hover:bg-slate-300 disabled:opacity-50">+</button>
+    return (
+        <div className="rounded-[var(--radius-card)] border border-border bg-surface-muted p-4">
+            <div className="mb-4 flex items-center justify-between gap-3">
+                <h3 className="text-[0.9375rem] font-semibold tracking-tight text-foreground">
+                    Edit question
+                </h3>
+                <Link
+                    href={`/admin/categories/${categoryId}`}
+                    className={buttonClass('ghost', 'sm')}
+                >
+                    Cancel
+                </Link>
             </div>
-          </div>
 
-          {Array.from({ length: optionCount }).map((_, index) => {
-            const existingAnswer = question.answers[index];
-            return (
-              <div key={index} className="flex items-center gap-3">
-                <input type="checkbox" name={`option_correct_${index}`} value="true" defaultChecked={existingAnswer?.isCorrect || false} className="w-5 h-5 text-indigo-600 rounded cursor-pointer border-slate-300 focus:ring-indigo-500" />
-                <input type="text" name={`option_text_${index}`} required defaultValue={existingAnswer?.text || ''} placeholder={`Option ${index + 1}`} className="flex-1 px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm text-slate-900 placeholder-slate-400" />
-              </div>
-            );
-          })}
+            <form action={formAction} className="space-y-4">
+                <Field
+                    label="Question"
+                    htmlFor={`edit-text-${question.questionId}`}
+                    error={state.fields?.text}
+                    hint={`up to ${QUESTION_TEXT_MAX}`}
+                >
+                    <textarea
+                        id={`edit-text-${question.questionId}`}
+                        name="text"
+                        rows={3}
+                        required
+                        maxLength={QUESTION_TEXT_MAX}
+                        defaultValue={question.text}
+                        className={TEXTAREA_CLASS}
+                    />
+                </Field>
+
+                <Field
+                    label="Difficulty"
+                    htmlFor={`edit-difficulty-${question.questionId}`}
+                    error={state.fields?.difficulty}
+                >
+                    <select
+                        id={`edit-difficulty-${question.questionId}`}
+                        name="difficulty"
+                        required
+                        defaultValue={question.difficulty}
+                        className={SELECT_CLASS}
+                    >
+                        <option value="beginner">Beginner</option>
+                        <option value="intermediate">Intermediate</option>
+                        <option value="advanced">Advanced</option>
+                    </select>
+                </Field>
+
+                <AnswerRows defaults={question.answers} fields={state.fields} />
+
+                <div className="flex items-center justify-between gap-3">
+                    <FormStatus state={state} />
+                    <SubmitButton variant="primary" pendingLabel="Saving…">
+                        Save changes
+                    </SubmitButton>
+                </div>
+            </form>
         </div>
-
-        {state.error && <div className="p-3 bg-red-50 text-red-600 text-sm rounded-lg font-medium">{state.error}</div>}
-
-        <div className="flex justify-end pt-2">
-            <SubmitButton />
-        </div>
-      </form>
-    </div>
-  );
+    );
 }
+
+export default EditQuestionForm;

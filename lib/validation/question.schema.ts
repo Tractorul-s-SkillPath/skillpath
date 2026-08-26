@@ -3,12 +3,19 @@
  *
  * Stories: SP-034, SP-035, SP-036
  *
- * The refine below and `answers_one_correct_per_question` in 0001 say the same
- * thing in two languages. Zod gives the admin a message they can act on; the
- * unique index guarantees the invariant even for a write that never came
- * through this file. Grading assumes exactly one correct option, and before the
- * index existed a question with two of them scored however the planner happened
- * to order the join.
+ * A question takes AT LEAST one correct option, not exactly one. This used to
+ * be `=== 1`, paired with `answers_one_correct_per_question` in 0001 saying the
+ * same thing in SQL — Zod for a message the admin can act on, the unique index
+ * so the invariant held even for a write that never came through this file.
+ *
+ * Multi-select questions made the pair wrong rather than redundant, so both
+ * halves move together. Dropping the Zod refine alone leaves every two-correct
+ * question failing on insert with a constraint error the admin cannot read:
+ *
+ *   DROP INDEX IF EXISTS answers_one_correct_per_question;
+ *
+ * `>= 1` is still a real bound. Zero correct options is not a hard question,
+ * it is an unanswerable one, and grading has no defensible score for it.
  *
  * Test: tests/lib/validation/question.schema.test.ts
  */
@@ -55,8 +62,14 @@ export const questionSchema = z
             .min(ANSWERS_MIN, `A question needs at least ${ANSWERS_MIN} options.`)
             .max(ANSWERS_MAX, `A question takes at most ${ANSWERS_MAX} options.`),
     })
-    .refine((question) => question.answers.filter((answer) => answer.isCorrect).length === 1, {
-        message: 'Mark exactly one option as the correct answer.',
+    .refine((question) => question.answers.some((answer) => answer.isCorrect), {
+        message: 'Mark at least one option as correct.',
+        path: ['answers'],
+    })
+    .refine((question) => !question.answers.every((answer) => answer.isCorrect), {
+        // Every option correct is not a question, it is a formality: there is
+        // no selection a member can make that scores anything but full marks.
+        message: 'At least one option must be incorrect.',
         path: ['answers'],
     })
     .refine(

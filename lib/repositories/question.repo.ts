@@ -137,13 +137,19 @@ export async function insertWithAnswers(
 }
 
 
+/**
+ * `client` is typed, like every other function here. It was `any` for one
+ * commit, and in that commit this read `.from('question')` — a table that does
+ * not exist. `any` had nothing to check it against, so it compiled, shipped,
+ * and needed 69a1aee to correct the name. The annotation is the check.
+ */
 export async function setStatus(
-    client: any,
+    client: Client,
     questionId: number,
     status: ContentStatus
 ): Promise<Result<void, AppError>> {
     const { error } = await client
-        .from('questions') //
+        .from('questions')
         .update({ status })
         .eq('question_id', questionId);
 

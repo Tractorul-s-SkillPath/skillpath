@@ -21,11 +21,12 @@ import { listQuestionsByCategory } from '../../../../../lib/services/question.se
 import { unwrapOr } from '../../../../../lib/result';
 import QuestionForm from './question-form';
 import EditQuestionForm from './edit-question-form';
+import { StatusToggle } from '../../status-toggle';
 import { Section } from '../../../../../components/ui/card';
 import { Chip } from '../../../../../components/ui/chip';
 import { buttonClass } from '../../../../../components/ui/button';
 import { EmptyState } from '../../../../../components/empty-state';
-import { toggleQuestionStatusAction } from './actions';
+import { setQuestionStatusAction } from './actions';
 
 // Static rather than a generateMetadata that names the category: that would
 // mean a second, uncached read of the same row just to fill in the tab title.
@@ -86,11 +87,14 @@ export default async function AdminCategoryQuestionsPage({
             </header>
 
             <div className="grid gap-5 lg:grid-cols-[22rem_1fr] lg:items-start">
-                <Section title="New question" description="Four options, exactly one of them correct.">
+                <Section
+                    title="New question"
+                    description="Two to six options, at least one of them correct."
+                >
                     <QuestionForm categoryId={categoryId} />
                 </Section>
 
-                <Section title="Question bank" description="Newest first. The correct option is marked.">
+                <Section title="Question bank" description="Newest first. Correct options are marked.">
                     {questions.length === 0 ? (
                         <EmptyState
                             title="No questions yet"
@@ -129,26 +133,39 @@ export default async function AdminCategoryQuestionsPage({
                                                     ) : null}
                                                 </div>
 
-                                                <div className="flex items-center gap-3 border-l border-slate-200 pl-3">
-                                                    {/* Butonul de EDIT */}
+                                                <div className="flex items-start gap-2 border-l border-border pl-3">
                                                     <Link
                                                         href={`/admin/categories/${categoryId}?edit=${question.questionId}`}
-                                                        className="text-xs font-semibold text-indigo-600 hover:underline"
+                                                        className={buttonClass('secondary', 'sm')}
                                                     >
                                                         Edit
                                                     </Link>
 
-                                                    {/* Butonul de Status */}
-                                                    <form action={toggleQuestionStatusAction.bind(null, question.questionId, question.status, categoryId)}>
-                                                        <button
-                                                            type="submit"
-                                                            className={`text-xs font-semibold hover:underline ${
-                                                                question.status === 'active' ? 'text-red-600' : 'text-emerald-600'
-                                                            }`}
-                                                        >
-                                                            {question.status === 'active' ? 'Deactivate' : 'Activate'}
-                                                        </button>
-                                                    </form>
+                                                    {/*
+                                                      The same toggle the users and categories tables
+                                                      use. It posts the status it WANTS rather than a
+                                                      flip of the one it can see, and it renders a
+                                                      refusal instead of discarding it — the previous
+                                                      bound-argument form did neither.
+                                                    */}
+                                                    <StatusToggle
+                                                        action={setQuestionStatusAction}
+                                                        fields={{
+                                                            questionId: question.questionId,
+                                                            categoryId,
+                                                        }}
+                                                        target={
+                                                            question.status === 'active'
+                                                                ? 'inactive'
+                                                                : 'active'
+                                                        }
+                                                        label={
+                                                            question.status === 'active'
+                                                                ? 'Deactivate'
+                                                                : 'Activate'
+                                                        }
+                                                        describedAs={question.text}
+                                                    />
                                                 </div>
                                             </div>
                                         </div>

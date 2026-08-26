@@ -186,8 +186,12 @@ And one the diagram does not anticipate at all: **`xp_events`**, the XP ledger.
 
 ### 4.1 Invariants enforced by the database, not by hope
 
-- **`answers_one_correct_per_question`** — partial unique index: at most one correct answer per
-  question. An admin *cannot* save two right answers.
+- **Answer-key shape is no longer one of these.** `answers_one_correct_per_question` — a partial
+  unique index allowing at most one correct answer per question — was dropped when multi-select
+  questions arrived. The replacement rule (at least one correct, not all correct) lives in
+  `questionSchema` alone, so it now holds only for writes that come through the application. A
+  direct write can store a question with no correct answer at all, which the index used to make
+  impossible. Worth restoring as a CHECK if that ever bites.
 - **`one_active_assessment_per_user_category`** — partial unique on
   `(user_id, category_id) WHERE status='in_progress'`. Two browser tabs cannot start two runs.
 - **`assessments_score_present`** — `CHECK ((status='submitted') = (total_score IS NOT NULL))`,

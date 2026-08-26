@@ -13,7 +13,11 @@
  * Middleware only checks that a cookie exists. It cannot check a role: role
  * comes from the database and the Edge runtime has no client for that.
  *
- * The nav is the five admin surfaces. Most of them are placeholders for now.
+ * The nav is the four admin surfaces. Questions used to be a fifth: the bank
+ * screen and the AI generator were both scaffolded and never written, and
+ * questions are authored inside a category, on /admin/categories/[id], where
+ * the one thing they cannot exist without is already on screen. A nav entry
+ * leading to a placeholder is a promise the app does not keep.
  */
 
 import * as React from 'react';
@@ -29,7 +33,6 @@ import { fullName, initialsOf } from '../../../lib/utils';
 const NAV = [
     { href: '/admin', label: 'Overview' },
     { href: '/admin/categories', label: 'Categories' },
-    { href: '/admin/questions', label: 'Questions' },
     { href: '/admin/results', label: 'Results' },
     { href: '/admin/users', label: 'Users' },
 ];
@@ -43,7 +46,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         <div className="min-h-dvh bg-background">
             <header className="sticky top-0 z-20 border-b border-border bg-surface/85 backdrop-blur">
                 <div className="mx-auto flex h-14 max-w-4xl items-center gap-2 px-4 sm:gap-4 sm:px-6">
-                    {/* Five sections, all of them unreachable below md until
+                    {/* Four sections, all of them unreachable below md until
                         this existed. */}
                     <MobileNav items={NAV} className="md:hidden">
                         <SignOutForm action={logoutAction} />
