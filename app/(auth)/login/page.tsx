@@ -42,6 +42,7 @@ const ERRORS: Record<string, string> = {
     invalid: 'Enter the email address you signed up with.',
     unavailable: 'We could not reach the account service. Try again in a moment.',
     disabled: 'That account has been deactivated. Ask an administrator to re-enable it.',
+    not_found: 'Login failed, no registered account for this name. Please create an account first.'
 };
 
 interface LoginPageProps {

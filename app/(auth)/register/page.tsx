@@ -18,22 +18,23 @@
  */
 
 import Link from 'next/link';
-import { registerAction } from './actions';
 import { createClient } from '../../../lib/supabase/server';
 import { listActiveCategories } from '../../../lib/repositories/profile.repo';
 import { unwrapOr } from '../../../lib/result';
-import { Field, Input, Label } from '../../../components/ui/field';
-import { SubmitButton } from '../../../components/submit-button';
+import RegisterForm from './register-form';
 
 export const metadata = { title: 'Create an account' };
-
 export const dynamic = 'force-dynamic';
 
-export default async function RegisterPage() {
-    const supabase = await createClient();
+interface PageProps {
+    searchParams: Promise<{ error?: string }>;
+}
 
-    // A catalog that fails to load must not take the form down with it: an
-    // account with no interests ticked is fine, and the profile page can fix it.
+export default async function RegisterPage({ searchParams }: PageProps) {
+    const params = await searchParams;
+    const error = params?.error;
+
+    const supabase = await createClient();
     const categories = unwrapOr(await listActiveCategories(supabase), []);
 
     return (
@@ -43,107 +44,25 @@ export default async function RegisterPage() {
                 Takes a minute. You can change all of this later.
             </p>
 
-            <form action={registerAction} className="mt-5 space-y-4">
-                <div className="grid gap-4 sm:grid-cols-2">
-                    <Field label="First name" htmlFor="firstName">
-                        <Input
-                            id="firstName"
-                            name="firstName"
-                            autoComplete="given-name"
-                            placeholder="Ana"
-                            maxLength={60}
-                            required
-                        />
-                    </Field>
-
-                    <Field label="Last name" htmlFor="lastName">
-                        <Input
-                            id="lastName"
-                            name="lastName"
-                            autoComplete="family-name"
-                            placeholder="Popescu"
-                            maxLength={60}
-                        />
-                    </Field>
+            {error === 'name_already_exists' && (
+                <div className="mt-4 rounded-lg bg-red-500/10 border border-red-500/20 p-3 text-xs text-red-500">
+                    A user with this name is already registered. Please use a different name.
                 </div>
+            )}
 
-                <Field label="Email" htmlFor="email">
-                    <Input
-                        id="email"
-                        name="email"
-                        type="email"
-                        autoComplete="email"
-                        placeholder="you@example.com"
-                        required
-                    />
-                </Field>
+            {error === 'email_already_exists' && (
+                <div className="mt-4 rounded-lg bg-red-500/10 border border-red-500/20 p-3 text-xs text-red-500">
+                    An account with this email already exists. Please use a different email.
+                </div>
+            )}
 
-                <Field label="Password" htmlFor="password">
-                    <Input
-                        id="password"
-                        name="password"
-                        type="password"
-                        autoComplete="new-password"
-                        placeholder="At least 8 characters"
-                        minLength={8}
-                        required
-                    />
-                </Field>
+            {error === 'manager_approval_required' && (
+                <div className="mt-4 rounded-lg bg-red-500/10 border border-red-500/20 p-3 text-xs text-red-500">
+                    Manager approval is required for the administrator role.
+                </div>
+            )}
 
-                <Field
-                    label="Account type"
-                    htmlFor="role"
-                    hint="For the demo"
-                >
-                    <select
-                        id="role"
-                        name="role"
-                        defaultValue="student"
-                        className="h-9.5 w-full rounded-lg border border-border-strong bg-surface px-3 text-sm text-foreground transition-colors hover:border-[color:var(--accent)]"
-                    >
-                        <option value="student">Student</option>
-                        <option value="admin">Administrator</option>
-                    </select>
-                </Field>
-
-                {categories.length > 0 ? (
-                    <fieldset className="space-y-2">
-                        <legend className="block text-[0.8125rem] font-medium text-foreground">
-                            What do you want to be assessed on?
-                        </legend>
-                        <p className="text-xs text-subtle-foreground">
-                            Optional — pick as many as you like.
-                        </p>
-
-                        <div className="flex flex-wrap gap-2 pt-1">
-                            {categories.map((category) => (
-                                <Label
-                                    key={category.categoryId}
-                                    htmlFor={`skill-${category.categoryId}`}
-                                    className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-border-strong bg-surface px-3 py-1.5 text-[0.8125rem] font-medium text-muted-foreground transition-colors hover:bg-surface-muted has-[:checked]:border-[color:var(--accent)] has-[:checked]:bg-accent-soft has-[:checked]:text-[color:var(--accent-hover)]"
-                                >
-                                    <input
-                                        id={`skill-${category.categoryId}`}
-                                        type="checkbox"
-                                        name="skills"
-                                        value={category.categoryId}
-                                        className="size-3.5 accent-[color:var(--accent)]"
-                                    />
-                                    {category.name}
-                                </Label>
-                            ))}
-                        </div>
-                    </fieldset>
-                ) : null}
-
-                <SubmitButton
-                    variant="primary"
-                    pendingLabel="Creating account…"
-                    className="w-full justify-center"
-                >
-                    Create account
-                </SubmitButton>
-            </form>
+            <RegisterForm categories={categories} />
 
             <p className="mt-5 text-center text-[0.8125rem] text-muted-foreground">
                 Already have an account?{' '}

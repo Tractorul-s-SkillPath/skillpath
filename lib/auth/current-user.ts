@@ -42,22 +42,9 @@ export interface CurrentUser {
     email: string;
     role: UserRole;
     status: string;
-    /**
-     * The member's row, minus `password`.
-     *
-     * This used to be the whole row from a `select('*')`, which meant the
-     * password column travelled into every layout and header that asked who was
-     * signed in. Nothing read it — but it was one `'use client'` away from
-     * being serialised to the browser. Asking for named columns removes the
-     * question entirely.
-     */
     user: UserPublicRow;
 }
 
-/**
- * `cache` dedupes this per request: the layout and every section can each ask
- * who the user is and the database is queried once.
- */
 export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
     const userId = await readSession();
     if (userId === null) return null;
@@ -75,7 +62,6 @@ export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
         return null;
     }
 
-    // A cookie for a user that no longer exists: treat as signed out.
     if (!user) return null;
 
     return {
@@ -87,19 +73,6 @@ export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
     };
 });
 
-// ---------------------------------------------------------------------------
-// Actions used by app/(auth)/login and app/(auth)/register.
-//
-// Those two pages import these names and are left exactly as they are, so the
-// signature stays `(formData) => Promise<void>` and the field names stay
-// whatever those forms already post: `email` and `role` from login, `name` and
-// `email` from register.
-//
-// The proper home is app/(auth)/*/actions.ts, following the layer rule (§3).
-// Move them when the auth slice is written for real.
-// ---------------------------------------------------------------------------
-
-/** "Ana Maria Popescu" -> first "Ana Maria", last "Popescu". */
 function splitName(full: string): { firstName: string; lastName: string } {
     const parts = full.trim().split(/\s+/).filter(Boolean);
 
@@ -109,13 +82,6 @@ function splitName(full: string): { firstName: string; lastName: string } {
     return { firstName: parts.slice(0, -1).join(' '), lastName: parts[parts.length - 1] };
 }
 
-/**
- * The name, from whichever shape the form posted.
- *
- * Register posts firstName + lastName as two fields. A single `name` field is
- * still accepted and split, because that is what this action was written
- * against and no form should have to change to keep working.
- */
 function nameFrom(formData: FormData): { firstName: string; lastName: string } {
     const firstName = String(formData.get('firstName') ?? '').trim();
     const lastName = String(formData.get('lastName') ?? '').trim();
@@ -125,18 +91,6 @@ function nameFrom(formData: FormData): { firstName: string; lastName: string } {
     return splitName(String(formData.get('name') ?? '').trim());
 }
 
-/**
- * Where to land after signing in.
- *
- * Middleware appends `?next=` when it bounces somebody off a protected page,
- * and the login form carries it through as a hidden field. Nothing read it
- * before, so being kicked off /plan and signing back in landed you on
- * /dashboard.
- *
- * Only a path on this site is accepted. A value starting `//` or carrying a
- * scheme would make the login form an open redirect — somewhere to send a
- * member after they have just proved they trust the page they are on.
- */
 function safeNext(formData: FormData): string | null {
     const next = String(formData.get('next') ?? '').trim();
 
@@ -147,60 +101,69 @@ function safeNext(formData: FormData): string | null {
     return next;
 }
 
-/**
- * Sign in, and create the account if this email has never been seen.
- *
- * Both forms post here — login sends email + role, register sends name +
- * email — so one action serves both and neither page has to change.
- */
 export async function loginAction(formData: FormData): Promise<void> {
     'use server';
 
-    const email = String(formData.get('email') ?? '')
-        .trim()
-        .toLowerCase();
+    const cleanEmail = String(formData.get('email') ?? '').trim().toLowerCase();
 
-    if (!email) {
+    if (!cleanEmail) {
         redirect('/login?error=invalid');
     }
 
     const requestedRole = String(formData.get('role') ?? '') === 'admin' ? 'admin' : 'student';
+    const { firstName, lastName } = nameFrom(formData);
 
     const supabase = await createClient();
 
-    const { data: existing, error } = await supabase
+    // Verificăm dacă emailul există deja în baza de date
+    const { data: existingEmailUser } = await supabase
         .from('users')
         .select(USER_PUBLIC_COLUMNS)
-        .eq('email', email)
+        .eq('email', cleanEmail)
         .maybeSingle();
 
-    if (error) {
-        console.error('[auth] lookup failed:', error.message);
-        redirect('/login?error=unavailable');
+    const isRegistering = formData.has('firstName') || formData.has('skills') || formData.has('name') || formData.has('role');
+
+    if (!isRegistering && !existingEmailUser)
+    {
+        redirect('/login?error=not_found');
     }
 
-    let user = existing;
+    if (isRegistering) {
+        if (firstName && lastName) {
+            const { data: existingNameUser } = await supabase
+                .from('users')
+                .select(USER_PUBLIC_COLUMNS)
+                .eq('first_name', firstName)
+                .eq('last_name', lastName)
+                .maybeSingle();
 
-    if (!user) {
-        let { firstName, lastName } = nameFrom(formData);
-
-        // Login posts no name at all, so a first sign-in from that form has to
-        // derive something rather than store two empty strings.
-        if (!firstName && !lastName) {
-            ({ firstName, lastName } = splitName(email.split('@')[0]));
+            if (existingNameUser) {
+                redirect('/register?error=name_already_exists');
+            }
         }
 
-        // The column is NOT NULL and nothing ever reads it. Random bytes
-        // rather than a fixed placeholder, so it cannot be mistaken for a real
-        // hash and cannot match anything if a password check is added later.
+        if (existingEmailUser) {
+            redirect('/register?error=email_already_exists');
+        }
+
+        if (requestedRole === 'admin') {
+            const managerApproval = formData.get('managerApproval');
+            if (!managerApproval) {
+                redirect('/register?error=manager_approval_required');
+            }
+        }
+
+        const resolvedFirstName = firstName || splitName(cleanEmail.split('@')[0]).firstName;
+        const resolvedLastName = lastName || splitName(cleanEmail.split('@')[0]).lastName;
         const unusable = randomBytes(32).toString('hex');
 
         const { data: created, error: insertError } = await supabase
             .from('users')
             .insert({
-                first_name: firstName,
-                last_name: lastName,
-                email,
+                first_name: resolvedFirstName,
+                last_name: resolvedLastName,
+                email: cleanEmail,
                 password: unusable,
                 role: requestedRole,
                 status: 'active',
@@ -213,13 +176,6 @@ export async function loginAction(formData: FormData): Promise<void> {
             redirect('/login?error=unavailable');
         }
 
-        user = created;
-
-        // Register lets the member tick the categories they care about. A
-        // category_progress row IS the interest in this schema (see
-        // profile.repo.ts), so signing up with three ticked is the same write
-        // the profile page makes later — insert only, because a brand-new
-        // account has nothing to remove.
         const chosen = [
             ...new Set(
                 formData
@@ -230,24 +186,24 @@ export async function loginAction(formData: FormData): Promise<void> {
         ];
 
         if (chosen.length > 0) {
-            const { error: interestError } = await supabase.from('category_progress').insert(
+            await supabase.from('category_progress').insert(
                 chosen.map((category_id) => ({
                     user_id: created.user_id,
                     category_id,
                     current_level: 'beginner' as const,
                 })),
             );
-
-            // Not fatal. The account exists and the profile page can set these
-            // — losing the signup ticks is not worth losing the registration.
-            if (interestError) {
-                console.error('[auth] could not save interests:', interestError.message);
-            }
         }
+
+        redirect('/success');
     }
 
-    // Role comes from the database, never from the form. Otherwise the role
-    // dropdown would be a one-click promotion to administrator.
+    let user = existingEmailUser;
+
+    if (!user) {
+        redirect('/login?error=account_not_found');
+    }
+
     if (user.status !== 'active') {
         redirect('/login?error=disabled');
     }
@@ -262,13 +218,6 @@ export async function logoutAction(): Promise<void> {
     'use server';
 
     await destroySession();
-
-    // Without this the router cache can still render the signed-in header
-    // after the redirect (SP-010 AC3).
     revalidatePath('/', 'layout');
-
-    // The landing page, not /login. Signing out is not the start of signing
-    // back in — app/page.tsx only redirects members who still hold a session,
-    // and this one no longer does, so they land on the marketing page.
     redirect('/');
 }
