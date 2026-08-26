@@ -433,6 +433,76 @@ Assign real names before the check-in.
 
 ---
 
+### EPIC 11 — Baseline (General Knowledge) Assessment · *owner C, content by B*
+*Every member who signs up meets an empty dashboard: no level, no score, no plan, and a card
+inviting them to pick categories they have no basis for picking. This epic gives them a first
+number to stand on.*
+
+*It is also the narrowest possible instance of Epics 4 and 5 — one category, a fixed paper, one
+attempt, no picker and no level selection — so SP-113 through SP-116 are SP-043/045/046/053 with
+every variable nailed down. Build this first and most of both epics comes out with it.*
+
+**Why 7 / 7 / 6.** Scoring stays flat — 20 questions, 5 points each, unanswered counts as wrong —
+and the existing 50/80 thresholds do the placing. The mix is what makes the difficulty matter:
+perfect on beginner and intermediate is 14/20 = 70%, so **level 3 needs at least two correct
+advanced answers**, and all seven beginner questions alone is 35%, so **level 2 needs three from
+the harder bands**. No weighting rule, no nudge. A difficulty nudge would have to land in
+`grade_assessment()` first and be mirrored in `constants.ts` — see the header of
+`lib/domain/levels.ts` — and that is a story of its own, not this one.
+
+**SP-110 · Seed the General Knowledge category and its questions** — `3` · B
+- One `skill_categories` row, holding exactly 7 beginner, 7 intermediate and 6 advanced active
+  questions, each with one correct option
+- Authored through the admin question bank, which is already built — this story needs no
+  application code and runs in parallel with every story below
+- Given the category is not excluded from the SP-040 picker, Then the one-attempt rule in SP-112 is
+  decoration: it must be filtered out there
+
+**SP-111 · Baseline card on the dashboard** — `2` · C
+- Given a member with zero submitted assessments, When they open the dashboard, Then a card at the
+  top offers the baseline and opens it in a **new tab**
+- Given they have submitted any assessment, Then the card is replaced by their baseline result and
+  does not come back
+- Given the bank holds fewer than the full 7/7/6, Then no card renders at all — a short paper
+  places people wrongly, which is worse than not offering one
+
+**SP-112 · Start or resume, one attempt** — `3` · C
+- Opening the baseline route creates an `assessments` row (`in_progress`, `time_limit_seconds` set)
+  plus one `student_responses` row per question in one transaction, drawn 7/7/6 by difficulty
+- Given a run already in progress, When they open it again, Then they land back in that same run
+- The attempt is spent on **submit**, not on open: closing the tab mid-run is resumable
+
+**SP-113 · Take the baseline** — `5` · C
+- Questions in a fixed order; selecting an option persists `selected_answer_id` immediately
+- Given I answered 8 of 20, When I hard-refresh, Then the same paper reloads with those 8 still
+  selected. Nothing in `localStorage`
+- Progress indicator shows answered / total
+
+**SP-114 · Timer** — `3` · C
+- One constant: 25 minutes for 20 questions. Countdown visible throughout
+- On expiry the run auto-submits with whatever was answered
+- Server recomputes elapsed time from `started_at` on submit — a frozen client gains nothing
+
+**SP-115 · Submit, grade and place** — `5` · C
+- Score computed server-side, `is_correct` written per response, status → `submitted`
+- `category_progress` carries the resulting level, and it is the level the dashboard shows
+- Given I resubmit the same assessment, Then it is rejected — no double scoring
+
+**SP-116 · Baseline results** — `3` · C
+- Total score, the level it implies, and the **per-difficulty breakdown** — 7/7 beginner,
+  4/7 intermediate, 1/6 advanced — which is the number that tells a member what to do next
+- Per-question review after submission only
+- Given another member's assessment id, Then 404
+
+**SP-117 · The baseline seeds the first plan** — `3` · A
+- Given a score below the weak-area threshold, Then plan items are generated from the bands that
+  were missed
+- Given a score above it, Then the "you're solid, pick your categories" item appears — never an
+  empty plan page
+- Given the same result twice, Then the same items: `buildPlan` stays pure and deterministic
+
+---
+
 ## Summary
 
 | Epic | Pts | Owner |
@@ -448,9 +518,14 @@ Assign real names before the check-in.
 | 8 · Admin & Search | 19 | B |
 | 9 · AI Features | 20 | all |
 | 10 · Quality & Demo | 21 | all |
-| **Total** | **≈212** | |
+| 11 · Baseline Assessment | 27 | C |
+| **Total** | **≈239** | |
 
 That is more than three weeks of capacity, which is the point — a backlog is a ranked list, not a
 contract. **Cut in this order** when you fall behind: SP-048 (multi-category), SP-071 (trend chart),
 SP-065, SP-072, SP-047, then the third AI feature. Protect Epic 0, Epic 4, Epic 5 and Epic 10 at all
 costs — they are the demo.
+
+Epic 11 is not a competitor to Epic 4, it is the cheap way to buy it: the same code paths with every
+variable fixed. Its 27 points are mostly points Epic 4 and Epic 5 were going to cost anyway, so it
+belongs at the front of the assessment work rather than at the end of the backlog.
