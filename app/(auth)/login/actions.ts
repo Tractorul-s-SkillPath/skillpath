@@ -21,12 +21,24 @@
  *
  * Test: tests/app/(auth)/login/actions.test.ts
  */
+
 'use server';
 
 import { loginAction as signIn } from '../../../lib/auth/current-user';
+import { isRedirectError } from "next/dist/client/components/redirect-error";
 
-export async function loginAction(formData: FormData): Promise<void> {
-    // signIn always ends in a redirect(), which throws NEXT_REDIRECT. Awaiting
-    // lets that propagate — catching it here would swallow the navigation.
-    await signIn(formData);
+export async function loginAction(formData: FormData): Promise<void>
+{
+    try
+    {
+        await signIn(formData);
+    } catch (error: any)
+    {
+        if (isRedirectError(error))
+        {
+            throw error;
+        }
+
+        console.error("Login error:", error.message);
+    }
 }
