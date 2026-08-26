@@ -4,10 +4,15 @@
  * Layer: ACTION
  * Stories: SP-034, SP-035, SP-036
  *
- * The four option inputs are collected into an array here and handed to
+ * The option inputs are collected into an array here and handed to
  * questionSchema, which is where "exactly one correct answer" is enforced —
  * next to `answers_one_correct_per_question` in 0001, which enforces the same
  * thing for callers that never come through this file.
+ *
+ * How MANY options arrive is the form's business, not this file's: it renders
+ * between ANSWERS_MIN and ANSWERS_MAX rows and the admin adds or removes them.
+ * The bounds are enforced by the schema rather than here, so a post that skips
+ * the form entirely is held to the same rule as one that came through it.
  *
  * `created_by` is NOT read from the form. The service takes it from the session
  * (§5), the same way every user-scoped write in this codebase does.
@@ -19,16 +24,13 @@
 
 import { revalidatePath } from 'next/cache';
 import * as questionService from '../../../../../lib/services/question.service';
-import { questionSchema } from '../../../../../lib/validation/question.schema';
+import { ANSWERS_MAX, questionSchema } from '../../../../../lib/validation/question.schema';
 import {
     fieldErrors,
     formError,
     formSuccess,
     type FormState,
 } from '../../../../../lib/validation/common';
-
-/** How many option inputs the form renders. */
-const OPTION_COUNT = 4;
 
 export async function createQuestionAction(
     _prev: FormState,
@@ -46,10 +48,23 @@ export async function createQuestionAction(
     const rawCorrect = String(formData.get('correctOption') ?? '').trim();
     const correctIndex = /^\d+$/.test(rawCorrect) ? Number(rawCorrect) : -1;
 
-    const answers = Array.from({ length: OPTION_COUNT }, (_, index) => ({
-        text: String(formData.get(`option_${index}`) ?? ''),
-        isCorrect: index === correctIndex,
-    }));
+    // The form posts however many rows it is currently showing, as option_0 …
+    // option_n, so read the whole range it could have sent and keep the
+    // indices that actually arrived.
+    //
+    // The surviving indices are NOT renumbered. `correctOption` points at one
+    // of them, and closing a gap would slide that pointer onto a different
+    // option — a question stored with the wrong answer key, which is the one
+    // kind of bug here that a student sees and an admin does not.
+    //
+    // Too few options or too many is left to questionSchema. Clamping silently
+    // would store a question the admin did not write.
+    const answers = Array.from({ length: ANSWERS_MAX }, (_, index) => index)
+        .filter((index) => formData.has(`option_${index}`))
+        .map((index) => ({
+            text: String(formData.get(`option_${index}`) ?? ''),
+            isCorrect: index === correctIndex,
+        }));
 
     const parsed = questionSchema.safeParse({
         categoryId: formData.get('categoryId'),
