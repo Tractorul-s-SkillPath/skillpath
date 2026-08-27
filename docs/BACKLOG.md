@@ -1,6 +1,10 @@
 # SkillPath — Epics & Stories
 
-Companion to `SkillPath-Architecture.md`. Bring both to the mentor check-in.
+Companion to [`ARCHITECTURE.md`](ARCHITECTURE.md). Bring both to the mentor check-in.
+
+Part 1 is how we write stories, Part 2 is the backlog as planned, and
+**[Part 3](#part-3--where-every-story-actually-stands) is where each story
+stands against the code** — checked 27 August 2026.
 
 ---
 
@@ -56,6 +60,12 @@ velocity, not this guess.
 - [ ] No `any`, no unexplained lint suppressions, typecheck clean
 - [ ] Works on the Vercel preview URL, not just localhost
 - [ ] `docs/` updated if an architectural decision changed
+
+> **Four of these seven cannot be satisfied today**, and have not been for any
+> story shipped so far: there is no CI, no RLS, no test runner and no ESLint
+> config. Every story in Part 3 marked "done" is done against the other three.
+> That is worth knowing before reading a tick as a guarantee — and it is the
+> reason SP-003, SP-004 and SP-005 are worth more than their three points each.
 
 ### Putting it in GitHub
 
@@ -433,6 +443,76 @@ Assign real names before the check-in.
 
 ---
 
+### EPIC 11 — Baseline (General Knowledge) Assessment · *owner C, content by B*
+*Every member who signs up meets an empty dashboard: no level, no score, no plan, and a card
+inviting them to pick categories they have no basis for picking. This epic gives them a first
+number to stand on.*
+
+*It is also the narrowest possible instance of Epics 4 and 5 — one category, a fixed paper, one
+attempt, no picker and no level selection — so SP-113 through SP-116 are SP-043/045/046/053 with
+every variable nailed down. Build this first and most of both epics comes out with it.*
+
+**Why 7 / 7 / 6.** Scoring stays flat — 20 questions, 5 points each, unanswered counts as wrong —
+and the existing 50/80 thresholds do the placing. The mix is what makes the difficulty matter:
+perfect on beginner and intermediate is 14/20 = 70%, so **level 3 needs at least two correct
+advanced answers**, and all seven beginner questions alone is 35%, so **level 2 needs three from
+the harder bands**. No weighting rule, no nudge. A difficulty nudge would have to land in
+`grade_assessment()` first and be mirrored in `constants.ts` — see the header of
+`lib/domain/levels.ts` — and that is a story of its own, not this one.
+
+**SP-110 · Seed the General Knowledge category and its questions** — `3` · B
+- One `skill_categories` row, holding exactly 7 beginner, 7 intermediate and 6 advanced active
+  questions, each with one correct option
+- Authored through the admin question bank, which is already built — this story needs no
+  application code and runs in parallel with every story below
+- Given the category is not excluded from the SP-040 picker, Then the one-attempt rule in SP-112 is
+  decoration: it must be filtered out there
+
+**SP-111 · Baseline card on the dashboard** — `2` · C
+- Given a member with zero submitted assessments, When they open the dashboard, Then a card at the
+  top offers the baseline and opens it in a **new tab**
+- Given they have submitted any assessment, Then the card is replaced by their baseline result and
+  does not come back
+- Given the bank holds fewer than the full 7/7/6, Then no card renders at all — a short paper
+  places people wrongly, which is worse than not offering one
+
+**SP-112 · Start or resume, one attempt** — `3` · C
+- Opening the baseline route creates an `assessments` row (`in_progress`, `time_limit_seconds` set)
+  plus one `student_responses` row per question in one transaction, drawn 7/7/6 by difficulty
+- Given a run already in progress, When they open it again, Then they land back in that same run
+- The attempt is spent on **submit**, not on open: closing the tab mid-run is resumable
+
+**SP-113 · Take the baseline** — `5` · C
+- Questions in a fixed order; selecting an option persists `selected_answer_id` immediately
+- Given I answered 8 of 20, When I hard-refresh, Then the same paper reloads with those 8 still
+  selected. Nothing in `localStorage`
+- Progress indicator shows answered / total
+
+**SP-114 · Timer** — `3` · C
+- One constant: 25 minutes for 20 questions. Countdown visible throughout
+- On expiry the run auto-submits with whatever was answered
+- Server recomputes elapsed time from `started_at` on submit — a frozen client gains nothing
+
+**SP-115 · Submit, grade and place** — `5` · C
+- Score computed server-side, `is_correct` written per response, status → `submitted`
+- `category_progress` carries the resulting level, and it is the level the dashboard shows
+- Given I resubmit the same assessment, Then it is rejected — no double scoring
+
+**SP-116 · Baseline results** — `3` · C
+- Total score, the level it implies, and the **per-difficulty breakdown** — 7/7 beginner,
+  4/7 intermediate, 1/6 advanced — which is the number that tells a member what to do next
+- Per-question review after submission only
+- Given another member's assessment id, Then 404
+
+**SP-117 · The baseline seeds the first plan** — `3` · A
+- Given a score below the weak-area threshold, Then plan items are generated from the bands that
+  were missed
+- Given a score above it, Then the "you're solid, pick your categories" item appears — never an
+  empty plan page
+- Given the same result twice, Then the same items: `buildPlan` stays pure and deterministic
+
+---
+
 ## Summary
 
 | Epic | Pts | Owner |
@@ -448,9 +528,148 @@ Assign real names before the check-in.
 | 8 · Admin & Search | 19 | B |
 | 9 · AI Features | 20 | all |
 | 10 · Quality & Demo | 21 | all |
-| **Total** | **≈212** | |
+| 11 · Baseline Assessment | 27 | C |
+| **Total** | **≈239** | |
 
 That is more than three weeks of capacity, which is the point — a backlog is a ranked list, not a
 contract. **Cut in this order** when you fall behind: SP-048 (multi-category), SP-071 (trend chart),
 SP-065, SP-072, SP-047, then the third AI feature. Protect Epic 0, Epic 4, Epic 5 and Epic 10 at all
 costs — they are the demo.
+
+Epic 11 is not a competitor to Epic 4, it is the cheap way to buy it: the same code paths with every
+variable fixed. Its 27 points are mostly points Epic 4 and Epic 5 were going to cost anyway, so it
+belongs at the front of the assessment work rather than at the end of the backlog.
+
+---
+
+## Part 3 — Where every story actually stands
+
+Checked against `main` at `9282ea2` on 27 August 2026. A story is **done** only
+if its acceptance criteria hold against the running app — not if the file
+exists. Several stories are marked partial for the same two reasons throughout
+(no password check, no RLS), and those two are recorded once in
+`docs/ARCHITECTURE.md` §0 rather than repeated here.
+
+### Epic 0 — Foundation · **1 of 6**
+
+| Story | State | |
+|---|---|---|
+| SP-001 Repo, Next, Tailwind, strict TS | **Done** | `strict: true`, `.env.example` committed. `any` does not fail lint, because there is no ESLint config |
+| SP-002 Supabase project + three clients | **Partial** | Only `server.ts`. No `client.ts`, no `admin.ts`, so the service-role build-failure AC is untested |
+| SP-003 Migration 0001 — schema | **Not done** | The schema exists in the hosted project only. There is no `supabase/` directory and no `.sql` file in the repo. **This is the highest-priority item in the backlog** |
+| SP-004 Migration 0002 — RLS + `answer_options` | **Not done** | RLS is off everywhere; `answers.is_correct` is readable with the anon key |
+| SP-005 CI pipeline | **Not done** | `ci.yml` has no `on:` and no `jobs:`. `main` is not protected |
+| SP-006 Tracer bullet | **Not done** | No path exists from a seeded question to a score on screen. Skipped, and the rest of this table is downstream of that |
+
+### Epic 1 — Auth & Roles · **2 of 6, 3 partial**
+
+| Story | State | |
+|---|---|---|
+| SP-010 Login / logout | **Partial** | Sign-in and sign-out work; `Cache-Control: no-store` covers the Back-button AC. No password is verified, and `?error=not_found` tells a caller whether an email exists — the opposite of the "one generic error" AC |
+| SP-011 Registration | **Partial** | Creates the `users` row, honours the role selector, seeds `category_progress` from the chosen interests, and rejects a duplicate email *and* a duplicate first+last name. An admin registration requires a manager-approval checkbox. No `auth.users`, no trigger, no password |
+| SP-012 Route protection by role | **Done** | Middleware redirects, `assertAuth` / `assertAdmin` enforce. The "would fail on RLS anyway" half of the AC does not hold |
+| SP-013 Role escalation is impossible | **Partial** | Role is read from the database on every request and never from the cookie or the form, and `profileSchema` has no `role` key. But with RLS off, a direct PostgREST `PATCH` sets `role='admin'` |
+| SP-014 Deactivated users are locked out | **Done** | `status !== 'active'` is refused at sign-in, and an inactive admin cannot reach `/admin` |
+| SP-015 Seed an admin account | **Not done** | No script. The documented path is registering with the Administrator option, or editing the row by hand |
+
+### Epic 2 — Profile · **3 of 4**
+
+| Story | State | |
+|---|---|---|
+| SP-020 View my profile | **Done** | |
+| SP-021 Edit name and interests | **Done** | Interests carry their level; `role`, `status` and `email` are unwritable |
+| SP-022 Learning objectives | **Not done** | No column, no field, no schema |
+| SP-023 Assessment history | **Done** | Renders the empty state today, because nothing produces an assessment |
+
+### Epic 3 — Catalog & Question Bank · **6 of 9**
+
+| Story | State | |
+|---|---|---|
+| SP-030 Admin lists categories | **Done** | Paged, filtered, with question counts |
+| SP-031 Create / edit a category | **Done** | |
+| SP-032 Deactivate a category | **Done** | |
+| SP-033 Admin lists questions | **Partial** | The list lives inside `admin/categories/[id]` rather than a page of its own, and is unpaginated |
+| SP-034 Create a question with answers | **Done, rule changed** | 2–6 options, and **multiple correct answers are now allowed**. The "exactly one correct" unique index was dropped; the replacement rule lives in `questionSchema` only |
+| SP-035 Admin edits a question | **Done** | The D4 snapshot guarantee is untested — nothing has submitted a response yet |
+| SP-036 Activate / deactivate a question | **Done** | `setQuestionStatus` behind `assertAdmin()` |
+| SP-037 Question-bank writes via the service role | **Partial** | The `assertAdmin()` half is done, in the service, before the read. There is no service-role client |
+| SP-038 Answers never leaked to the browser | **Partial** | No student-facing query selects `is_correct` — but there is no student-facing assessment page yet, and the anon key reads the column directly |
+
+### Epic 4 — Assessment · **0 of 9**
+
+Nothing. `/assessments/new`, `/assessments/[id]` and the results route render
+`ComingSoon`; `assessment.service`, `response.repo`, `timer.ts` and the four
+client components are comment-only. `assessments.grade()` exists in the
+repository as an RPC wrapper and has no caller.
+
+### Epic 5 — Scoring & Results · **0 of 6**
+
+Nothing. `scoring.ts`, `weak-areas.ts` and `grading.service` are comment-only.
+`levels.ts` is written and holds the 50/80 thresholds, so SP-051 is half-built
+below the surface — but nothing calls it with a real score.
+
+### Epic 6 — Learning Plan · **1 of 6, 1 partial**
+
+| Story | State | |
+|---|---|---|
+| SP-060 Rule-based plan generation | **Not done** | `recommendations.ts` is comment-only |
+| SP-061 Plan persisted on submit | **Not done** | No submit path exists |
+| SP-062 Plan page | **Not done** | `/plan` is `ComingSoon` |
+| SP-063 Update item status | **Done, in the wrong place** | The control works and only writes `progress_status` — but it lives in the profile page's plan section, not on `/plan`. XP for completion is awarded by database trigger |
+| SP-064 Empty and strong-performer states | **Partial** | The profile plan section has an empty state; the "try the next level" state needs SP-060 |
+| SP-065 Plan reflects only the latest assessment | **Not done** | |
+
+### Epic 7 — Progress · **3 of 4**
+
+| Story | State | |
+|---|---|---|
+| SP-070 Student dashboard | **Done** | Per-category level, latest score, plan completion, XP, streak |
+| SP-071 Score trend over time | **Not done** | `score-trend-chart.tsx` is comment-only; it needs a query nothing else needs |
+| SP-072 Overall completion | **Done** | |
+| SP-073 First-run empty state | **Done** | Every block either renders an empty state or does not render |
+
+### Epic 8 — Admin Dashboard, Search & Filtering · **5 of 7**
+
+| Story | State | |
+|---|---|---|
+| SP-080 Overview tiles | **Done** | |
+| SP-081 Aggregated weak categories | **Done** | Computed by the `category_score_summary` view, not in JS |
+| SP-082 All results list | **Done** | Sortable, paged |
+| SP-083 User management list | **Done** | Search, role and status filters, status toggle. An admin cannot deactivate themselves, and the refusal is rendered |
+| SP-084 Question search & filtering | **Not done** | The only question list is per-category and has no filters |
+| SP-085 Category & results filtering | **Done** | URL state throughout, parsed by `filters.schema.ts` |
+| SP-086 Search performance | **Partial** | Every list is paged in Postgres and none is unbounded. Nothing has been checked with `EXPLAIN`, and the indexes were never written down (SP-003) |
+
+### Epic 9 — AI Features · **0 of 5**
+
+Nothing. `lib/ai/` is six comment-only files totalling 92 lines. No `AI_PROVIDER`
+variable, no `ANTHROPIC_API_KEY` in `.env.example`, no mock fixtures.
+
+### Epic 10 — Quality, Docs & Demo · **0 of 6, 1 partial**
+
+| Story | State | |
+|---|---|---|
+| SP-100 Coverage to 75% | **Not done** | Coverage is 0%. There is no runner |
+| SP-101 Playwright happy paths | **Not done** | `e2e/` does not exist |
+| SP-102 Seed script | **Not done** | `package.json` declares `seed` and `seed:users`; both point at missing files and fail |
+| SP-103 README & setup docs | **Partial** | The README is written, but clone-to-running is impossible without access to the existing Supabase project — see SP-003 |
+| SP-104 Acceptance criteria audit | **In progress** | This section is it |
+| SP-105 Demo script & rehearsal | **Not done** | |
+
+### Epic 11 — Baseline Assessment · **0 of 8**
+
+Not started. Note that SP-110 — authoring the General Knowledge questions —
+needs no application code and is unblocked today: the admin question bank
+works.
+
+### What this adds up to
+
+**21 of 76 stories are done.** They cluster almost perfectly: everything that
+renders a page about a member is built, and everything that measures one is
+not. The single missing capability behind Epics 4, 5, 6, 9 and 11 is *taking an
+assessment*, and the single missing artefact behind Epic 0 is *the schema*.
+
+If only two things get picked up: **SP-003** (dump the live schema into a
+migration — an hour, and it unblocks SP-004, SP-005 and every test in
+`tests/db/`) and **Epic 11** (the narrowest possible assessment, which drags
+most of Epics 4 and 5 in behind it).
