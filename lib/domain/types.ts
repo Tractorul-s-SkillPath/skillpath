@@ -129,6 +129,54 @@ export interface XpEntry {
 }
 
 // -----------------------------------------------------------------------------
+// The assessment run
+// -----------------------------------------------------------------------------
+
+/** An option as the STUDENT sees it. No isCorrect, by construction (§5). */
+export interface RunOption {
+    answerId: number;
+    text: string;
+}
+
+/** One question of an in-progress run, with the member's current selection. */
+export interface RunQuestion {
+    questionId: number;
+    /** 1-based paper position. Stable across refreshes — that IS the feature. */
+    position: number;
+    text: string;
+    options: RunOption[];
+    selectedAnswerId: number | null;
+}
+
+/** Everything the run page needs in one shape. */
+export interface AssessmentRun {
+    assessmentId: number;
+    categoryId: number;
+    status: AssessmentStatus;
+    startedAt: string;
+    timeLimitSeconds: number;
+    questions: RunQuestion[];
+}
+
+/**
+ * One question of a SUBMITTED run, key included. Only the results page may
+ * hold one of these, and only after status = 'submitted' — this is the one
+ * legitimate home of the correct answer outside the admin screens (SP-053).
+ */
+export interface ReviewItem {
+    position: number;
+    text: string;
+    difficulty: SkillLevel;
+    options: RunOption[];
+    selectedAnswerId: number | null;
+    correctAnswerId: number | null;
+    isCorrect: boolean;
+    /** From the question row (0004). Null for any question without a topic. */
+    topicTitle: string | null;
+    studyAdvice: string | null;
+}
+
+// -----------------------------------------------------------------------------
 // Admin
 //
 // The admin surfaces read the same tables as the student ones but need shapes a

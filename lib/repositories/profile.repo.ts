@@ -27,6 +27,7 @@ import {
 } from '../supabase/database.types';
 import { fromPostgrestError, type AppError } from '../errors';
 import { err, ok, type Result } from '../result';
+import { GENERAL_KNOWLEDGE_CATEGORY_ID } from '../domain/constants';
 import type { Interest, SkillCategory, StudentProfile } from '../domain/types';
 import { toCategory, toInterest, toProfile } from './mappers';
 
@@ -70,6 +71,11 @@ export async function updateName(
  * `skill_categories.status` is a real column now, so "active catalog" is a
  * filter rather than a comment explaining that every row is active because
  * there is nowhere to say otherwise.
+ *
+ * The baseline's sentinel category is excluded HERE, at the source both the
+ * register picker and the profile catalog read from. "Pickable" is this
+ * function's contract, and the one category a member may not choose, follow
+ * or retake is the one the baseline paper lives in (SP-110).
  */
 export async function listActiveCategories(
     supabase: Client,
@@ -78,6 +84,7 @@ export async function listActiveCategories(
         .from('skill_categories')
         .select('*')
         .eq('status', 'active')
+        .neq('category_id', GENERAL_KNOWLEDGE_CATEGORY_ID)
         .order('name');
 
     if (error) return err(fromPostgrestError(error, 'skill_categories.list'));

@@ -94,6 +94,36 @@ export default async function DashboardPage() {
                 </p>
             </header>
 
+            {/* SP-111: the baseline card, for members who have never submitted
+                anything. Opens in a NEW TAB by design — the dashboard stays
+                behind it. Once any assessment is submitted this disappears for
+                good; the baseline's level then lives in the categories list
+                like every other one. */}
+            {submitted.length === 0 && (
+                <div className="rise stagger-1 rounded-[var(--radius-card)] border border-accent bg-accent-soft px-5 py-4">
+                    <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
+                        <div>
+                            <h2 className="text-sm font-semibold text-foreground">
+                                Start with your baseline assessment
+                            </h2>
+                            <p className="mt-1 max-w-xl text-[0.8125rem] leading-relaxed text-muted-foreground">
+                                20 questions of general IT knowledge, across every difficulty. It
+                                sets your starting level and builds your first learning plan — you
+                                take it once, so give it 25 uninterrupted minutes.
+                            </p>
+                        </div>
+                        <a
+                            href="/assessments/baseline"
+                            target="_blank"
+                            rel="noopener"
+                            className={buttonClass('primary')}
+                        >
+                            Begin — opens in a new tab
+                        </a>
+                    </div>
+                </div>
+            )}
+
             {/* Four numbers that answer "how am I doing" without scrolling. */}
             <dl className="rise stagger-1 grid grid-cols-2 gap-3 sm:grid-cols-4">
                 {[

@@ -83,6 +83,16 @@ export type QuestionRow = {
     status: ContentStatus;
     source: QuestionSource;
     created_by: number | null;
+    /**
+     * What this question probes, and what to study when it is missed (0004).
+     *
+     * Nullable, and every question outside the baseline paper has neither yet:
+     * a question with no topic produces no recommendation, which is fewer
+     * recommendations rather than wrong ones. The admin question form does not
+     * write these yet — the baseline's twenty come from the 0004 backfill.
+     */
+    topic_title: string | null;
+    study_advice: string | null;
     created_at: string;
     updated_at: string;
 };
@@ -266,10 +276,21 @@ export type Database = {
             >;
             questions: Table<
                 QuestionRow,
-                Omit<QuestionRow, 'question_id' | Generated | 'status' | 'source' | 'created_by'> & {
+                Omit<
+                    QuestionRow,
+                    | 'question_id'
+                    | Generated
+                    | 'status'
+                    | 'source'
+                    | 'created_by'
+                    | 'topic_title'
+                    | 'study_advice'
+                > & {
                     status?: ContentStatus;
                     source?: QuestionSource;
                     created_by?: number | null;
+                    topic_title?: string | null;
+                    study_advice?: string | null;
                 },
                 [
                     ToCategory<'questions_category_id_fkey'>,

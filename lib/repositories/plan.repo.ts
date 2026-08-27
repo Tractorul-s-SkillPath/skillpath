@@ -26,6 +26,44 @@ import { toPlanItem } from './mappers';
 
 type Client = SupabaseClient<Database>;
 
+/** What a generator provides; user, category and assessment come from the service. */
+export interface NewPlanItem {
+    topicTitle: string;
+    description: string;
+    priority: number;
+}
+
+/**
+ * Write a freshly generated plan, one statement.
+ *
+ * `progress_status` and `completed_at` are left to their defaults — a new item
+ * is `not_started` by definition. `assessment_id` records which run produced
+ * the advice (SP-065's "latest assessment wins" needs to know).
+ */
+export async function insertMany(
+    supabase: Client,
+    userId: number,
+    categoryId: number,
+    assessmentId: number,
+    items: NewPlanItem[],
+): Promise<Result<void, AppError>> {
+    if (items.length === 0) return ok(undefined);
+
+    const { error } = await supabase.from('recommendation_plans').insert(
+        items.map((item) => ({
+            user_id: userId,
+            category_id: categoryId,
+            assessment_id: assessmentId,
+            topic_title: item.topicTitle,
+            rule_description: item.description,
+            priority: item.priority,
+        })),
+    );
+
+    if (error) return err(fromPostgrestError(error, 'recommendation_plans.insertMany'));
+    return ok(undefined);
+}
+
 /** Every plan item, most urgent first. */
 export async function listByUser(
     supabase: Client,
