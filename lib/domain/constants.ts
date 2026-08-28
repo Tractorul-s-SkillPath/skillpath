@@ -106,6 +106,28 @@ export const BASELINE_TIME_LIMIT_SECONDS = 25 * 60;
  */
 export const TIMER_GRACE_SECONDS = 5;
 
+// ---------------------------------------------------------------------------
+// Category assessments — SP-040…048. Unlike the baseline's fixed paper, these
+// draw from whatever the category's active question bank holds.
+// ---------------------------------------------------------------------------
+
+/**
+ * Below this many active questions a category is not offered as an assessment.
+ * A three-question paper places people on a coin flip, which is worse than
+ * saying the category is not ready (same reasoning as SP-111 AC3).
+ */
+export const MIN_CATEGORY_QUESTIONS = 5;
+
+/** A drawn paper never exceeds this, however large the bank grows. */
+export const CATEGORY_PAPER_SIZE = 10;
+
+/**
+ * Time allowed per drawn question. 75s is the baseline's own rate
+ * (BASELINE_TIME_LIMIT_SECONDS / BASELINE_QUESTION_COUNT), so a category run
+ * feels neither more nor less rushed than the paper everyone starts with.
+ */
+export const SECONDS_PER_QUESTION = 75;
+
 /** The timezone every date in the product is expressed in. */
 export const APP_TIMEZONE = 'Europe/Bucharest';
 

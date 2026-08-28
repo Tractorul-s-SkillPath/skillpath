@@ -61,10 +61,12 @@ export async function submitAssessmentAction(assessmentId: number): Promise<Acti
         return { ok: false, message: submitted.error.message };
     }
 
-    // The dashboard's card, tiles and category list all just changed.
+    // The dashboard's card, tiles and category list all just changed — and the
+    // assessments page no longer has this run to resume.
     revalidatePath('/dashboard');
     revalidatePath('/profile');
     revalidatePath('/plan');
+    revalidatePath('/assessments');
 
     redirect(`/assessments/${parsed.data.assessmentId}/results`);
 }

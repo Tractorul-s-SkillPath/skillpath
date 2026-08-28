@@ -5,8 +5,9 @@
  * Stories: SP-020, SP-021, SP-022, SP-101 … SP-105
  *
  * One long scrollable page: identity at the top, then interests and levels,
- * history, plan, and the game layer. Each section saves on its own, so nothing
- * is a single giant form that loses work when one field is wrong.
+ * history, and the game layer. Each section saves on its own, so nothing
+ * is a single giant form that loses work when one field is wrong. The learning
+ * plan lives on its own page now — /plan — where the nav has pointed all along.
  *
  * The game layer is computed, not stored (lib/domain/derived.ts) — the database
  * schema was left exactly as it was found.
@@ -18,7 +19,6 @@ import { getProfileDashboard } from '../../../lib/services/profile.service';
 import { ProfileHeader } from './profile-header';
 import { InterestsSection } from './interests-section';
 import { AssessmentHistory } from './assessment-history';
-import { PlanSection } from './plan-section';
 import { BadgesSection, LeaderboardSection, QuestsSection } from './game-sections';
 import { Section } from '../../../components/ui/card';
 
@@ -49,7 +49,6 @@ export default async function ProfilePage() {
         interests,
         catalog,
         assessments,
-        plan,
         xp,
         streak,
         overallLevel,
@@ -71,8 +70,6 @@ export default async function ProfilePage() {
             <InterestsSection interests={interests} catalog={catalog} />
 
             <AssessmentHistory assessments={assessments} />
-
-            <PlanSection plan={plan} />
 
             <QuestsSection quests={quests} />
 

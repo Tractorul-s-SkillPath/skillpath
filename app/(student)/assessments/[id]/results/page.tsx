@@ -14,6 +14,7 @@ import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
 import { assertAuth } from '../../../../../lib/auth/assertAuth';
 import { getResults } from '../../../../../lib/services/grading.service';
+import { GENERAL_KNOWLEDGE_CATEGORY_ID } from '../../../../../lib/domain/constants';
 import { buttonClass } from '../../../../../components/ui/button';
 import { Section } from '../../../../../components/ui/card';
 import { Chip } from '../../../../../components/ui/chip';
@@ -43,22 +44,32 @@ export default async function AssessmentResultsPage({
         notFound();
     }
 
-    const { score, level, bands, review, recommendations } = results.value;
+    const { categoryId, categoryName, score, level, bands, review, recommendations } = results.value;
+
+    // The baseline keeps its own headline: it is the one run that defines a
+    // starting point rather than updating one.
+    const isBaseline = categoryId === GENERAL_KNOWLEDGE_CATEGORY_ID;
 
     return (
         <div className="mx-auto max-w-3xl space-y-5 px-4 py-8 sm:px-6 lg:py-10">
             <header className="rise">
                 <h1 className="text-xl font-semibold tracking-tight text-foreground">
-                    Your baseline results
+                    {isBaseline ? 'Your baseline results' : `Your ${categoryName} results`}
                 </h1>
                 <p className="mt-1 text-sm text-muted-foreground">
-                    This is your starting point — every assessment from here on is measured against
-                    it.
+                    {isBaseline
+                        ? 'This is your starting point — every assessment from here on is measured against it.'
+                        : 'Your level and last score in this category are updated from this run.'}
                 </p>
             </header>
 
             <div className="rise stagger-1">
-                <ScoreSummary score={score} level={level} bands={bands} />
+                <ScoreSummary
+                    score={score}
+                    level={level}
+                    levelCaption={isBaseline ? 'Starting level' : 'Your level'}
+                    bands={bands}
+                />
             </div>
 
             {recommendations.length > 0 && (

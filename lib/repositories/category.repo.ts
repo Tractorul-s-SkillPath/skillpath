@@ -16,6 +16,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type { ContentStatus, Database } from '../supabase/database.types';
 import { appError, fromPostgrestError, type AppError } from '../errors';
 import { err, ok, type Result } from '../result';
+import { GENERAL_KNOWLEDGE_CATEGORY_ID } from '../domain/constants';
 import type { CatalogCategory, SkillCategory } from '../domain/types';
 import { toCatalogCategory, toCategory } from './mappers';
 
@@ -41,6 +42,58 @@ export async function listWithQuestionCounts(
     if (error) return err(fromPostgrestError(error, 'skill_categories.listWithCounts'));
 
     return ok(data.map((row) => toCatalogCategory(row, row.questions[0]?.count ?? 0)));
+}
+
+/**
+ * The categories a student may be assessed in, each with its ACTIVE question
+ * count.
+ *
+ * Same aggregate-embed trick as the admin list above, plus a filter on the
+ * embedded rows — `.eq('questions.status', 'active')` counts only what a paper
+ * could actually draw from. Whether the count is ENOUGH is the service's rule
+ * (MIN_CATEGORY_QUESTIONS), not this query's: too-thin categories are shown
+ * disabled with the reason, so hiding them here would be the wrong layer.
+ *
+ * The baseline's sentinel category is excluded for the same reason
+ * profile.repo.listActiveCategories excludes it: the one category nobody may
+ * pick is the one the baseline paper lives in (SP-110).
+ */
+export async function listStartable(
+    supabase: Client,
+): Promise<Result<CatalogCategory[], AppError>> {
+    const { data, error } = await supabase
+        .from('skill_categories')
+        .select('*, questions(count)')
+        .eq('status', 'active')
+        .neq('category_id', GENERAL_KNOWLEDGE_CATEGORY_ID)
+        .eq('questions.status', 'active')
+        .order('name');
+
+    if (error) return err(fromPostgrestError(error, 'skill_categories.listStartable'));
+
+    return ok(data.map((row) => toCatalogCategory(row, row.questions[0]?.count ?? 0)));
+}
+
+/**
+ * One category, only if a student is allowed to start an assessment in it:
+ * active, and not the baseline's sentinel. Null means "not startable" without
+ * saying why — the page already said why, this is the write-path re-check.
+ */
+export async function findStartable(
+    supabase: Client,
+    categoryId: number,
+): Promise<Result<SkillCategory | null, AppError>> {
+    const { data, error } = await supabase
+        .from('skill_categories')
+        .select('*')
+        .eq('category_id', categoryId)
+        .eq('status', 'active')
+        .neq('category_id', GENERAL_KNOWLEDGE_CATEGORY_ID)
+        .maybeSingle();
+
+    if (error) return err(fromPostgrestError(error, 'skill_categories.findStartable'));
+
+    return ok(data ? toCategory(data) : null);
 }
 
 export async function findById(

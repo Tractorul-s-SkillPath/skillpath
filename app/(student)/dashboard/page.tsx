@@ -31,6 +31,7 @@ import { getProfileDashboard, today } from '../../../lib/services/profile.servic
 import { completionRate, overallCompletion } from '../../../lib/domain/progress';
 import { standingFromXp, describeStreak } from '../../../lib/domain/gamification';
 import { levelLabel } from '../../../lib/domain/levels';
+import { BASELINE_START_DESCRIPTION, StartDialog } from '../assessments/start-dialog';
 import { Section } from '../../../components/ui/card';
 import { Chip } from '../../../components/ui/chip';
 import { Progress } from '../../../components/ui/progress';
@@ -112,14 +113,13 @@ export default async function DashboardPage() {
                                 take it once, so give it 25 uninterrupted minutes.
                             </p>
                         </div>
-                        <a
+                        <StartDialog
                             href="/assessments/baseline"
-                            target="_blank"
-                            rel="noopener"
-                            className={buttonClass('primary')}
-                        >
-                            Begin — opens in a new tab
-                        </a>
+                            name="baseline assessment"
+                            triggerLabel="Begin"
+                            triggerSize="md"
+                            description={BASELINE_START_DESCRIPTION}
+                        />
                     </div>
                 </div>
             )}
@@ -185,7 +185,7 @@ export default async function DashboardPage() {
                 title="Categories"
                 description="Your level, your latest score, and how much of the plan is done."
                 action={
-                    <Link href="/assessments/new" className={buttonClass('secondary', 'sm')}>
+                    <Link href="/assessments" className={buttonClass('secondary', 'sm')}>
                         New assessment
                     </Link>
                 }

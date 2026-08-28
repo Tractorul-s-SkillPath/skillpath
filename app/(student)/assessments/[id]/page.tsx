@@ -20,7 +20,10 @@ import { assertAuth } from '../../../../lib/auth/assertAuth';
 import { getRun } from '../../../../lib/services/assessment.service';
 import { submit } from '../../../../lib/services/grading.service';
 import { hasExpired, remainingSeconds } from '../../../../lib/domain/timer';
-import { TIMER_GRACE_SECONDS } from '../../../../lib/domain/constants';
+import {
+    GENERAL_KNOWLEDGE_CATEGORY_ID,
+    TIMER_GRACE_SECONDS,
+} from '../../../../lib/domain/constants';
 import { AssessmentRunner } from './assessment-runner';
 
 export const metadata = { title: 'Assessment · SkillPath' };
@@ -55,6 +58,11 @@ export default async function AssessmentRunPage({
     return (
         <AssessmentRunner
             assessmentId={run.value.assessmentId}
+            title={
+                run.value.categoryId === GENERAL_KNOWLEDGE_CATEGORY_ID
+                    ? 'Baseline assessment'
+                    : `${run.value.categoryName} assessment`
+            }
             questions={run.value.questions}
             // The deadline travels as seconds-remaining measured by the SERVER
             // clock, so a wrong client clock shifts the display, not the paper.

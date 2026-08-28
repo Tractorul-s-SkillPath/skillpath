@@ -74,6 +74,29 @@ export async function findByStatus(
     return ok(data);
 }
 
+/**
+ * Every category the member has an open run in, with the run's id.
+ *
+ * One query for the whole assessments page, instead of a findByStatus per
+ * category. At most one row per category — the partial unique index
+ * `one_active_assessment_per_user_category` is the guarantee — so a Map from
+ * category to run id is a faithful shape, not a last-write-wins accident.
+ */
+export async function listInProgress(
+    supabase: Client,
+    userId: number,
+): Promise<Result<Map<number, number>, AppError>> {
+    const { data, error } = await supabase
+        .from('assessments')
+        .select('assessment_id, category_id')
+        .eq('user_id', userId)
+        .eq('status', 'in_progress');
+
+    if (error) return err(fromPostgrestError(error, 'assessments.listInProgress'));
+
+    return ok(new Map(data.map((row) => [row.category_id, row.assessment_id])));
+}
+
 /** One run, only if it belongs to this member. The `user_id` clause IS the 404. */
 export async function findOwn(
     supabase: Client,

@@ -40,17 +40,3 @@ export const interestsSchema = z.object({
         .max(20, 'Twenty interests is plenty.')
         .default([]),
 });
-
-/**
- * Underscores, matching the `plan_status` enum in 0001_init.sql.
- *
- * This used to be `['not started', 'in progress', 'completed']` — with spaces —
- * because the hand-made table's CHECK constraint was written that way, and a
- * comment here warned that an underscore would fail at runtime rather than at
- * compile time. The restructure replaced the CHECK with a real enum, so the
- * warning is gone along with the reason for it.
- */
-export const planStatusSchema = z.object({
-    recommendationId: z.coerce.number().int().positive(),
-    status: z.enum(['not_started', 'in_progress', 'completed']),
-});

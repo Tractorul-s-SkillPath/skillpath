@@ -3,7 +3,7 @@
  *
  * Story: SP-012
  *
- * The steps are the actual flow (assessments/new → assessments/[id] →
+ * The steps are the actual flow (assessments → assessments/[id] →
  * results → plan), not a marketing simplification of it. The two mockups sit
  * beside steps 3 and 4 because "weak areas" and "a prioritised plan" are the
  * two claims a visitor is least likely to believe from text alone.

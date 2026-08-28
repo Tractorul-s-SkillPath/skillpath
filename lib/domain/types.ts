@@ -152,6 +152,8 @@ export interface RunQuestion {
 export interface AssessmentRun {
     assessmentId: number;
     categoryId: number;
+    /** For the headline. The baseline substitutes its own name on the page. */
+    categoryName: string;
     status: AssessmentStatus;
     startedAt: string;
     timeLimitSeconds: number;

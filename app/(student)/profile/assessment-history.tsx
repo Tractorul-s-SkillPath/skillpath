@@ -27,7 +27,7 @@ export function AssessmentHistory({ assessments }: { assessments: AssessmentSumm
             title="Assessments"
             description="Everything you've taken, newest first."
             action={
-                <Link href="/assessments/new" className={buttonClass('secondary', 'sm')}>
+                <Link href="/assessments" className={buttonClass('secondary', 'sm')}>
                     New assessment
                 </Link>
             }
@@ -38,7 +38,7 @@ export function AssessmentHistory({ assessments }: { assessments: AssessmentSumm
                     title="No assessments yet"
                     description="Take one and this fills up with your scores, levels and dates."
                     action={
-                        <Link href="/assessments/new" className={buttonClass('primary', 'sm')}>
+                        <Link href="/assessments" className={buttonClass('primary', 'sm')}>
                             Take your first assessment
                         </Link>
                     }

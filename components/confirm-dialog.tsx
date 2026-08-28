@@ -19,27 +19,36 @@
  * action with no arguments; abandoning a run will want useActionState and
  * hidden fields. Rather than grow a union of every shape a caller might need,
  * the caller passes its own <form> and this owns only the asking.
+ *
+ * A slot that NAVIGATES rather than submits — starting an assessment is a link
+ * into a new tab — leaves this dialog open behind it, because nothing
+ * unmounts. So the slot may instead be a function receiving `close`. Only a
+ * client component can pass that (a function prop is not serialisable), which
+ * is why start-dialog.tsx exists between the assessments page and this.
  */
 
 'use client';
 
 import * as React from 'react';
-import { Button } from './ui/button';
+import { Button, type ButtonProps } from './ui/button';
 import { cn } from '../lib/utils';
 
 interface ConfirmDialogProps {
     /** Contents of the button that opens the dialog. */
     triggerLabel: React.ReactNode;
-    /** Merged over the trigger's ghost styling — twMerge lets it win. */
+    /** Merged over the trigger's own styling — twMerge lets it win. */
     triggerClassName?: string;
     triggerAriaLabel?: string;
+    triggerVariant?: ButtonProps['variant'];
+    triggerSize?: ButtonProps['size'];
     title: string;
     description?: string;
     /**
      * The control that actually does the thing — normally a <form> wrapping a
-     * SubmitButton. Rendered beside Cancel.
+     * SubmitButton. Rendered beside Cancel. Pass a function to receive the
+     * closer, for a control that navigates instead of unmounting the dialog.
      */
-    confirm: React.ReactNode;
+    confirm: React.ReactNode | ((close: () => void) => React.ReactNode);
     cancelLabel?: string;
 }
 
@@ -47,6 +56,8 @@ export function ConfirmDialog({
     triggerLabel,
     triggerClassName,
     triggerAriaLabel,
+    triggerVariant = 'ghost',
+    triggerSize = 'sm',
     title,
     description,
     confirm,
@@ -72,12 +83,12 @@ export function ConfirmDialog({
         <>
             <Button
                 type="button"
-                size="sm"
-                variant="ghost"
+                size={triggerSize}
+                variant={triggerVariant}
                 aria-label={triggerAriaLabel}
                 aria-haspopup="dialog"
                 onClick={() => setOpen(true)}
-                className={cn('w-full justify-start px-2.5', triggerClassName)}
+                className={triggerClassName}
             >
                 {triggerLabel}
             </Button>
@@ -121,11 +132,11 @@ export function ConfirmDialog({
                     {/* Cancel first in the DOM so it takes initial focus: the
                         safe choice should be the one you get by pressing Enter
                         without reading. */}
-                    <div className="mt-5 flex justify-end gap-2">
+                    <div className="mt-5 flex flex-wrap justify-end gap-2">
                         <Button size="sm" variant="secondary" onClick={() => setOpen(false)}>
                             {cancelLabel}
                         </Button>
-                        {confirm}
+                        {typeof confirm === 'function' ? confirm(() => setOpen(false)) : confirm}
                     </div>
                 </div>
             </dialog>

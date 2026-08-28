@@ -21,6 +21,7 @@
 import 'server-only';
 import { createClient } from '../supabase/server';
 import * as assessmentRepo from '../repositories/assessment.repo';
+import * as categoryRepo from '../repositories/category.repo';
 import * as responseRepo from '../repositories/response.repo';
 import * as planRepo from '../repositories/plan.repo';
 import { bandBreakdown, buildBaselineRecommendations, type BandScore } from '../domain/baseline';
@@ -92,6 +93,8 @@ export async function submit(
 export interface AssessmentResults {
     assessmentId: number;
     categoryId: number;
+    /** For the headline. The baseline keeps its own copy; runs name their category. */
+    categoryName: string;
     score: number;
     level: SkillLevel;
     submittedAt: string | null;
@@ -131,9 +134,15 @@ export async function getResults(
     // run. Revisit when retakes or per-category runs write into the same list.
     const plan = unwrapOr(await planRepo.listByUser(supabase, userId), []);
 
+    // Headline material only, so a failed read degrades to a wrong-ish title
+    // rather than a lost results page.
+    const category = await categoryRepo.findById(supabase, row.category_id);
+    const categoryName = category.ok ? category.value.name : 'Assessment';
+
     return ok({
         assessmentId: row.assessment_id,
         categoryId: row.category_id,
+        categoryName,
         score,
         level: estimateLevel(score),
         submittedAt: row.submitted_at,

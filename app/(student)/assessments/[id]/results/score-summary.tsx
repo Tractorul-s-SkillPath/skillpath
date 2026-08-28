@@ -26,10 +26,13 @@ function levelTone(level: SkillLevel): 'success' | 'warm' | 'muted' {
 export function ScoreSummary({
     score,
     level,
+    levelCaption,
     bands,
 }: {
     score: number;
     level: SkillLevel;
+    /** "Starting level" for the baseline, "Your level" for a category run. */
+    levelCaption: string;
     bands: BandScore[];
 }) {
     return (
@@ -45,7 +48,7 @@ export function ScoreSummary({
                 </div>
                 <div className="text-right">
                     <p className="text-xs uppercase tracking-wide text-subtle-foreground">
-                        Starting level
+                        {levelCaption}
                     </p>
                     <div className="mt-1.5">
                         <Chip tone={levelTone(level)}>{levelLabel(level)}</Chip>

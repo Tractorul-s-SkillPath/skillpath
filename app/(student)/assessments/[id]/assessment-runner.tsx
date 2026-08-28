@@ -31,12 +31,15 @@ import { Progress } from '../../../../components/ui/progress';
 
 interface AssessmentRunnerProps {
     assessmentId: number;
+    /** The headline — "Baseline assessment" or "<category> assessment". */
+    title: string;
     questions: RunQuestion[];
     initialRemainingSeconds: number;
 }
 
 export function AssessmentRunner({
     assessmentId,
+    title,
     questions,
     initialRemainingSeconds,
 }: AssessmentRunnerProps) {
@@ -101,7 +104,7 @@ export function AssessmentRunner({
 
             <header className="mt-6">
                 <h1 className="text-xl font-semibold tracking-tight text-foreground">
-                    Baseline assessment
+                    {title}
                 </h1>
                 <p className="mt-1 text-sm text-muted-foreground">
                     Answer in any order — every answer is saved the moment you pick it. Unanswered
