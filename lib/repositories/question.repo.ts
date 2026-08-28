@@ -64,6 +64,29 @@ export async function listByCategory(
 }
 
 /**
+ * The ids of a category's active questions, in seed order.
+ *
+ * The one read in this file a student path may call: ids carry no key, so
+ * SP-038 is not in play. The baseline lists these as the fixed paper; category
+ * runs hand them to drawPaper().
+ */
+export async function listActiveIds(
+    supabase: Client,
+    categoryId: number,
+): Promise<Result<number[], AppError>> {
+    const { data, error } = await supabase
+        .from('questions')
+        .select('question_id')
+        .eq('category_id', categoryId)
+        .eq('status', 'active')
+        .order('question_id', { ascending: true });
+
+    if (error) return err(fromPostgrestError(error, 'questions.listActiveIds'));
+
+    return ok(data.map((row) => row.question_id));
+}
+
+/**
  * A question and its options, written together.
  *
  * TWO THINGS THAT WERE WRONG HERE AND ARE WORTH KEEPING FIXED:

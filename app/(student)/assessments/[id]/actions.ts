@@ -1,25 +1,72 @@
 /**
- * Assessment run actions.
+ * Run actions — save one answer, submit the paper.
  *
  * Layer: ACTION
- * Stories: SP-043, SP-046, SP-047, SP-055
+ * Stories: SP-043, SP-046, SP-115
  *
- * Sketch
- *  saveAnswer({ assessmentId, questionId, answerId })
- *   - assertAuth, zod; service writes selected_answer_id + answered_at
- *   - ownership is proved by RLS on the update, not by an `if`
- *
- *  submitAssessment({ assessmentId })
- *   - the payload carries ONLY ids. A forged total_score in the body is ignored
- *     — the action never reads one (SP-055)
- *   - service: fetch the key with the admin client -> pure scoreAssessment ->
- *     write is_correct per response + total_score, status='submitted',
- *     submitted_at -> upsert category_progress -> build + persist the plan
- *   - already submitted -> reject, no double scoring (SP-046 AC3)
- *   - redirect to /assessments/[id]/results
- *
- *  abandonAssessment({ assessmentId })  -- SP-047: status='abandoned', frees the
- *   category for a new run, excluded from stats.
- *
- * Test: tests/app/(student)/assessments/[id]/actions.test.ts
+ * Both are called programmatically from the runner rather than through a
+ * <form>, so they take plain arguments and return a small result object —
+ * except submitAssessment, which on success does not return at all: it
+ * redirects to the results, and redirect() throws by design.
  */
+
+'use server';
+
+import { redirect } from 'next/navigation';
+import { revalidatePath } from 'next/cache';
+import { assertAuth } from '../../../../lib/auth/assertAuth';
+import { saveAnswer } from '../../../../lib/services/assessment.service';
+import { submit } from '../../../../lib/services/grading.service';
+import { saveAnswerSchema, submitSchema } from '../../../../lib/validation/assessment.schema';
+
+export interface ActionResult {
+    ok: boolean;
+    message?: string;
+}
+
+export async function saveAnswerAction(
+    assessmentId: number,
+    questionId: number,
+    answerId: number,
+): Promise<ActionResult> {
+    const user = await assertAuth();
+
+    const parsed = saveAnswerSchema.safeParse({ assessmentId, questionId, answerId });
+    if (!parsed.success) return { ok: false, message: 'That answer could not be saved.' };
+
+    const saved = await saveAnswer(
+        user.userId,
+        parsed.data.assessmentId,
+        parsed.data.questionId,
+        parsed.data.answerId,
+    );
+
+    return saved.ok ? { ok: true } : { ok: false, message: saved.error.message };
+}
+
+export async function submitAssessmentAction(assessmentId: number): Promise<ActionResult> {
+    const user = await assertAuth();
+
+    const parsed = submitSchema.safeParse({ assessmentId });
+    if (!parsed.success) return { ok: false, message: 'That assessment could not be submitted.' };
+
+    const submitted = await submit(user.userId, parsed.data.assessmentId);
+
+    if (!submitted.ok) {
+        // 'conflict' means it IS submitted — a double-fire from the timer plus
+        // a click, or a second tab. The right place is still the results.
+        if (submitted.error.code === 'conflict') {
+            redirect(`/assessments/${parsed.data.assessmentId}/results`);
+        }
+        return { ok: false, message: submitted.error.message };
+    }
+
+    // The dashboard's card, tiles and category list all just changed — and the
+    // assessments page no longer has this run to resume.
+    revalidatePath('/dashboard');
+    revalidatePath('/profile');
+    revalidatePath('/plan');
+    revalidatePath('/assessments');
+
+    redirect(`/assessments/${parsed.data.assessmentId}/results`);
+}

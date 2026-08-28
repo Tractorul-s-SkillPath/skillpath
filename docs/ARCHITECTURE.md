@@ -1,6 +1,6 @@
 # SkillPath — Architecture Specification
 
-**Status:** partly built. §0 says which parts, and is accurate as of 27 August 2026 against `main` at `9282ea2`.
+**Status:** partly built. §0 says which parts, and is accurate as of 28 August 2026, after the assessment slices (baseline + category runs) and the plan and assessments pages landed.
 **Team:** 3 engineers · **Build window:** Weeks 3–5 · **Feature freeze:** Week 6
 
 ---
@@ -55,16 +55,20 @@ profile, dashboard and the admin console.
 | `/profile` | Built — identity, interests with per-category level, assessment history, plan items with a status control, XP, badges, quests, leaderboard |
 | `/dashboard` | Built — per-category level and latest score, plan completion, XP and streak, first-run empty states. No score-trend chart (SP-071) |
 | `/admin`, `/admin/users`, `/admin/categories`, `/admin/categories/[id]`, `/admin/results`, `/admin/account` | Built — overview tiles, the weak-categories chart, the question bank, and filtered, paged tables throughout |
-| `/plan` | `ComingSoon`. The plan itself is reachable — the profile page renders it and its status control works |
-| `/assessments/new`, `/assessments/[id]`, `/assessments/[id]/results` | `ComingSoon`. Nothing in the product creates an assessment yet |
+| `/plan` | Built — the plan on its own page: grouped by category, priority first, with the working status control. Moved off the profile page, which no longer renders it |
+| `/assessments` | Built — the questionnaires the database actually offers: the baseline in its three states, and every active category with its active-question bank counted live. Recommended runs (untaken baseline; followed categories unassessed or under 60) carry the primary button. Every start asks first (`start-dialog.tsx`) and every run opens in a **new tab**, so the timed paper never navigates this list away. `/assessments/new` is gone; the picker became this list |
+| `/assessments/baseline`, `/assessments/start/[categoryId]` | Built — the two front doors. Each renders nothing: find-or-create in the service, then redirect into the run. They are GETs that write, which the layer rule normally forbids — the reason is that only a link can open a new tab (a Server Action resolves in the tab that posted it, and `window.open` after an await is outside the gesture and gets blocked). Safe because both are idempotent by design: an open run resumes rather than duplicating. Linked with plain `<a target="_blank">`, never `next/link`, whose prefetch would start runs nobody asked for |
+| `/assessments/[id]`, `/assessments/[id]/results` | Built — the timed run, grading via `grade_assessment()`, results with band breakdown and review. Category runs draw a shuffled paper (≤10) from the category's bank, need 5+ active questions, and may be retaken; the baseline stays one-attempt, fixed 20 |
 
-So the shape of what is missing is narrow and specific: **a student cannot take
-an assessment.** Everything downstream of that — scoring, level estimation,
-weak areas, plan generation, the score trend, all three AI features — is
-scaffolded and unwritten for the same reason. `lib/domain/scoring.ts`,
-`weak-areas.ts`, `recommendations.ts`, `timer.ts` and `feedback.ts` are
-comment-only, as are `assessment.service`, `grading.service`, `plan.service`,
-`progress.service`, `ai.service`, `response.repo` and `progress.repo`.
+So the shape of what is missing has narrowed again: a student can now take the
+baseline AND any category with 5+ active questions, and gets scored, levelled,
+paid XP and (for the baseline) a plan. What remains unwritten: the generic
+per-category plan generator (`lib/domain/recommendations.ts` has only the
+retake-recommended rule; category questions carry no `topic_title`, so category
+runs produce a score and no plan rows), the score-trend chart (SP-071),
+multi-category sessions (SP-048), and all three AI features. `scoring.ts`,
+`weak-areas.ts` and `feedback.ts` are still comment-only, as are
+`progress.service`, `ai.service` and `progress.repo`.
 
 The admin question bank does not match the folder sketch in §3. There is no
 `admin/questions` page: questions are managed inside `admin/categories/[id]`,

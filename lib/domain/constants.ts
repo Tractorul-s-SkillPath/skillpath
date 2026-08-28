@@ -81,6 +81,53 @@ export const XP_LEVEL_STEP = 100;
 
 export const LEADERBOARD_SIZE = 10;
 
+// ---------------------------------------------------------------------------
+// The baseline (General Knowledge) assessment — SP-110…117.
+// ---------------------------------------------------------------------------
+
+/**
+ * The sentinel category the baseline paper lives in. Created by
+ * supabase/seed/general-knowledge.sql with an explicit id 0, which no real
+ * category can claim because identity columns start at 1. Everything
+ * student-facing that lists categories must filter this id out.
+ */
+export const GENERAL_KNOWLEDGE_CATEGORY_ID = 0;
+
+/** The full paper: 7 beginner + 7 intermediate + 6 advanced. */
+export const BASELINE_QUESTION_COUNT = 20;
+
+/** 25 minutes for 20 questions (SP-114). One constant, used on both sides. */
+export const BASELINE_TIME_LIMIT_SECONDS = 25 * 60;
+
+/**
+ * How far past the deadline a saveAnswer is still accepted. The client timer
+ * and the server clock will never agree to the millisecond, and a member who
+ * clicked at 00:00 should not lose the answer to network latency.
+ */
+export const TIMER_GRACE_SECONDS = 5;
+
+// ---------------------------------------------------------------------------
+// Category assessments — SP-040…048. Unlike the baseline's fixed paper, these
+// draw from whatever the category's active question bank holds.
+// ---------------------------------------------------------------------------
+
+/**
+ * Below this many active questions a category is not offered as an assessment.
+ * A three-question paper places people on a coin flip, which is worse than
+ * saying the category is not ready (same reasoning as SP-111 AC3).
+ */
+export const MIN_CATEGORY_QUESTIONS = 5;
+
+/** A drawn paper never exceeds this, however large the bank grows. */
+export const CATEGORY_PAPER_SIZE = 10;
+
+/**
+ * Time allowed per drawn question. 75s is the baseline's own rate
+ * (BASELINE_TIME_LIMIT_SECONDS / BASELINE_QUESTION_COUNT), so a category run
+ * feels neither more nor less rushed than the paper everyone starts with.
+ */
+export const SECONDS_PER_QUESTION = 75;
+
 /** The timezone every date in the product is expressed in. */
 export const APP_TIMEZONE = 'Europe/Bucharest';
 

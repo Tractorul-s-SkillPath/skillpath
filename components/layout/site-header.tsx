@@ -31,7 +31,7 @@ import type { UserPublicRow } from '../../lib/supabase/database.types';
 
 const NAV = [
     { href: '/dashboard', label: 'Dashboard' },
-    { href: '/assessments/new', label: 'Assessments' },
+    { href: '/assessments', label: 'Assessments' },
     { href: '/plan', label: 'Plan' },
     { href: '/profile', label: 'Profile' },
 ];

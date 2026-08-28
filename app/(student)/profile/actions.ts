@@ -24,7 +24,6 @@ import {
     categoryLevelSchema,
     interestsSchema,
     nameSchema,
-    planStatusSchema,
 } from '../../../lib/validation/profile.schema';
 import { fieldErrors, formError, formSuccess, type FormState } from '../../../lib/validation/common';
 import type { Result } from '../../../lib/result';
@@ -97,28 +96,5 @@ export async function setCategoryLevelAction(
     return settle(
         await profileService.setCategoryLevel(user.userId, parsed.data.categoryId, parsed.data.level),
         'Level updated.',
-    );
-}
-
-export async function updatePlanStatusAction(
-    _prev: FormState,
-    formData: FormData,
-): Promise<FormState> {
-    const user = await assertAuth();
-
-    const parsed = planStatusSchema.safeParse({
-        recommendationId: formData.get('recommendationId'),
-        status: formData.get('status'),
-    });
-
-    if (!parsed.success) return formError('That change could not be applied.');
-
-    return settle(
-        await profileService.setPlanItemStatus(
-            user.userId,
-            parsed.data.recommendationId,
-            parsed.data.status,
-        ),
-        parsed.data.status === 'completed' ? 'Done — XP updated.' : 'Updated.',
     );
 }

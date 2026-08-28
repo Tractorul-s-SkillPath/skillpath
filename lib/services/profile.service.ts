@@ -29,9 +29,9 @@ import * as planRepo from '../repositories/plan.repo';
 import * as xpRepo from '../repositories/xp.repo';
 import { deriveBadges, deriveOverallLevel, deriveQuests, earnedBadgeCodes } from '../domain/derived';
 import { APP_TIMEZONE, LEADERBOARD_SIZE } from '../domain/constants';
-import { appError, type AppError } from '../errors';
+import type { AppError } from '../errors';
 import { err, ok, unwrapOr, type Result } from '../result';
-import type { PlanStatus, ProfileDashboard, SkillLevel } from '../domain/types';
+import type { ProfileDashboard, SkillLevel } from '../domain/types';
 
 /** The app's date. One definition, used for streaks and daily goals alike. */
 export function today(): string {
@@ -156,26 +156,3 @@ export async function setCategoryLevel(
     return profileRepo.setCategoryLevel(supabase, userId, categoryId, level);
 }
 
-/**
- * Move a plan item's status.
- *
- * The XP award is the database's job now (0002_functions.sql), so this does not
- * touch XP: it checks ownership, writes one column, and the trigger pays out
- * exactly once however many times an item is ticked and un-ticked.
- */
-export async function setPlanItemStatus(
-    userId: number,
-    recommendationId: number,
-    status: PlanStatus,
-): Promise<Result<void, AppError>> {
-    const supabase = await createClient();
-
-    // Ownership check. With no RLS, skipping this would let anybody tick off
-    // anybody's plan item by guessing an id.
-    const existing = await planRepo.findById(supabase, userId, recommendationId);
-
-    if (!existing.ok) return err(existing.error);
-    if (!existing.value) return err(appError('not_found', 'That plan item is not yours.'));
-
-    return planRepo.setStatus(supabase, userId, recommendationId, status);
-}

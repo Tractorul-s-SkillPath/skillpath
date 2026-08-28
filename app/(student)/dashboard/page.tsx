@@ -31,6 +31,7 @@ import { getProfileDashboard, today } from '../../../lib/services/profile.servic
 import { completionRate, overallCompletion } from '../../../lib/domain/progress';
 import { standingFromXp, describeStreak } from '../../../lib/domain/gamification';
 import { levelLabel } from '../../../lib/domain/levels';
+import { BASELINE_START_DESCRIPTION, StartDialog } from '../assessments/start-dialog';
 import { Section } from '../../../components/ui/card';
 import { Chip } from '../../../components/ui/chip';
 import { Progress } from '../../../components/ui/progress';
@@ -94,6 +95,35 @@ export default async function DashboardPage() {
                 </p>
             </header>
 
+            {/* SP-111: the baseline card, for members who have never submitted
+                anything. Opens in a NEW TAB by design — the dashboard stays
+                behind it. Once any assessment is submitted this disappears for
+                good; the baseline's level then lives in the categories list
+                like every other one. */}
+            {submitted.length === 0 && (
+                <div className="rise stagger-1 rounded-[var(--radius-card)] border border-accent bg-accent-soft px-5 py-4">
+                    <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
+                        <div>
+                            <h2 className="text-sm font-semibold text-foreground">
+                                Start with your baseline assessment
+                            </h2>
+                            <p className="mt-1 max-w-xl text-[0.8125rem] leading-relaxed text-muted-foreground">
+                                20 questions of general IT knowledge, across every difficulty. It
+                                sets your starting level and builds your first learning plan — you
+                                take it once, so give it 25 uninterrupted minutes.
+                            </p>
+                        </div>
+                        <StartDialog
+                            href="/assessments/baseline"
+                            name="baseline assessment"
+                            triggerLabel="Begin"
+                            triggerSize="md"
+                            description={BASELINE_START_DESCRIPTION}
+                        />
+                    </div>
+                </div>
+            )}
+
             {/* Four numbers that answer "how am I doing" without scrolling. */}
             <dl className="rise stagger-1 grid grid-cols-2 gap-3 sm:grid-cols-4">
                 {[
@@ -155,7 +185,7 @@ export default async function DashboardPage() {
                 title="Categories"
                 description="Your level, your latest score, and how much of the plan is done."
                 action={
-                    <Link href="/assessments/new" className={buttonClass('secondary', 'sm')}>
+                    <Link href="/assessments" className={buttonClass('secondary', 'sm')}>
                         New assessment
                     </Link>
                 }

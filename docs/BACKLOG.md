@@ -463,6 +463,9 @@ the harder bands**. No weighting rule, no nudge. A difficulty nudge would have t
 **SP-110 · Seed the General Knowledge category and its questions** — `3` · B
 - One `skill_categories` row, holding exactly 7 beginner, 7 intermediate and 6 advanced active
   questions, each with one correct option
+- General knowledge *of IT* — development, databases, networking, security and tooling — rather
+  than any one language, so the paper places a member across the field instead of measuring how
+  much JavaScript they happen to know
 - Authored through the admin question bank, which is already built — this story needs no
   application code and runs in parallel with every story below
 - Given the category is not excluded from the SP-040 picker, Then the one-attempt rule in SP-112 is

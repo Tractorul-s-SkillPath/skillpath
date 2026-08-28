@@ -28,9 +28,10 @@ export function SignOutForm({ action }: { action: () => Promise<void> }) {
     return (
         <ConfirmDialog
             triggerLabel="Sign out"
-            // Merged over the ghost variant's own hover classes; twMerge keeps
-            // the caller's, so these replace rather than fight them.
-            triggerClassName="hover:bg-danger-soft hover:text-[color:var(--danger)]"
+            // A menu row, not a button: full width, text left, tighter padding.
+            // The hover pair is merged over the ghost variant's own — twMerge
+            // keeps the caller's, so these replace rather than fight them.
+            triggerClassName="w-full justify-start px-2.5 hover:bg-danger-soft hover:text-[color:var(--danger)]"
             title="Sign out of SkillPath?"
             description="Your progress stays exactly where it is. You will need to sign in again to get back."
             confirm={
