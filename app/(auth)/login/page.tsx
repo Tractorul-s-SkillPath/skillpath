@@ -37,12 +37,11 @@ import { SubmitButton } from '../../../components/submit-button';
 
 export const metadata = { title: 'Sign in' };
 
-/** Every reason loginAction can bounce back here, in English, once. */
 const ERRORS: Record<string, string> = {
-    invalid: 'Enter the email address you signed up with.',
+    invalid: 'Invalid email or password. Please try again.',
     unavailable: 'We could not reach the account service. Try again in a moment.',
-    disabled: 'That account has been deactivated. Ask an administrator to re-enable it.',
-    not_found: 'Login failed, no registered account for this name. Please create an account first.'
+    disabled: 'This account has been deactivated. Ask an administrator to re-enable it.',
+    not_found: 'Account does not exist or incorrect details provided. Please check or create an account.'
 };
 
 interface LoginPageProps {

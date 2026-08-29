@@ -1,34 +1,28 @@
 /**
- * Session + sign in / sign out.
+ * Session + sign in / sign out with Secure Password Authentication.
  *
  * Stories: SP-010, SP-011, SP-012
  *
  * ---------------------------------------------------------------------------
- * PASSWORDLESS BY TEAM DECISION — READ BEFORE THIS SHIPS ANYWHERE REAL
+ * SECURITY & PASSWORD AUTHENTICATION
  *
- * Signing in requires only an email address. No password is asked for and none
- * is verified, because the existing login form (app/(auth)/login, owned by the
- * auth slice) posts email + a role dropdown and the team chose to keep that
- * form as it is.
+ * Signing in requires both a valid email address and a correct password.
+ * Passwords are securely hashed and verified with a random salt using
+ * node:crypto (scrypt), preventing unauthorized access to user accounts.
  *
- * The consequence, stated plainly and once: anybody can sign in as anybody by
- * typing their email address. There is no credential. Treat every account as
- * public until a password field exists on that form. Adding one means hashing
- * and verifying properly — none of that code exists here, deliberately, because
- * nothing calls it.
- *
- * What IS protected: the session cookie is HMAC-signed (lib/auth/session.ts),
- * so a signed-in member cannot edit their own cookie to become an
- * administrator. Role is read from the users table on every request, never
- * taken from the cookie or from the form's role dropdown.
+ * What IS protected:
+ * - The session cookie is HMAC-signed (lib/auth/session.ts), preventing a
+ *   signed-in member from tampering with their cookie to become an administrator.
+ * - The user role is always read directly from the database (users table) on
+ *   every request, never taken from the cookie or from form inputs.
  * ---------------------------------------------------------------------------
  *
  * Test: tests/lib/auth/current-user.test.ts
- */
+*/
 
 import 'server-only';
 import { cache } from 'react';
-import { randomBytes } from 'node:crypto';
+import { randomBytes, scryptSync, timingSafeEqual } from 'node:crypto';
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { createClient } from '../supabase/server';
@@ -73,6 +67,24 @@ export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
     };
 });
 
+function hashPassword(password: string): string {
+    const salt = randomBytes(16).toString('hex');
+    const buf = scryptSync(password, salt, 64) as Buffer;
+    return `${salt}:${buf.toString('hex')}`;
+}
+
+function verifyPassword(supplied: string, stored: string): boolean {
+    const [salt, key] = stored.split(':');
+    if (!salt || !key) return false;
+    try {
+        const keyBuffer = Buffer.from(key, 'hex');
+        const suppliedBuffer = scryptSync(supplied, salt, 64) as Buffer;
+        return timingSafeEqual(keyBuffer, suppliedBuffer);
+    } catch {
+        return false;
+    }
+}
+
 function splitName(full: string): { firstName: string; lastName: string } {
     const parts = full.trim().split(/\s+/).filter(Boolean);
 
@@ -105,8 +117,9 @@ export async function loginAction(formData: FormData): Promise<void> {
     'use server';
 
     const cleanEmail = String(formData.get('email') ?? '').trim().toLowerCase();
+    const rawPassword = String(formData.get('password') ?? '');
 
-    if (!cleanEmail) {
+    if (!cleanEmail || !rawPassword) {
         redirect('/login?error=invalid');
     }
 
@@ -115,17 +128,15 @@ export async function loginAction(formData: FormData): Promise<void> {
 
     const supabase = await createClient();
 
-    // Verificăm dacă emailul există deja în baza de date
     const { data: existingEmailUser } = await supabase
         .from('users')
-        .select(USER_PUBLIC_COLUMNS)
+        .select('*')
         .eq('email', cleanEmail)
         .maybeSingle();
 
     const isRegistering = formData.has('firstName') || formData.has('skills') || formData.has('name') || formData.has('role');
 
-    if (!isRegistering && !existingEmailUser)
-    {
+    if (!isRegistering && !existingEmailUser) {
         redirect('/login?error=not_found');
     }
 
@@ -156,7 +167,8 @@ export async function loginAction(formData: FormData): Promise<void> {
 
         const resolvedFirstName = firstName || splitName(cleanEmail.split('@')[0]).firstName;
         const resolvedLastName = lastName || splitName(cleanEmail.split('@')[0]).lastName;
-        const unusable = randomBytes(32).toString('hex');
+
+        const hashedPassword = hashPassword(rawPassword);
 
         const { data: created, error: insertError } = await supabase
             .from('users')
@@ -164,7 +176,7 @@ export async function loginAction(formData: FormData): Promise<void> {
                 first_name: resolvedFirstName,
                 last_name: resolvedLastName,
                 email: cleanEmail,
-                password: unusable,
+                password: hashedPassword,
                 role: requestedRole,
                 status: 'active',
             })
@@ -201,11 +213,21 @@ export async function loginAction(formData: FormData): Promise<void> {
     let user = existingEmailUser;
 
     if (!user) {
-        redirect('/login?error=account_not_found');
+        redirect('/login?error=not_found');
     }
 
     if (user.status !== 'active') {
         redirect('/login?error=disabled');
+    }
+
+    let isPasswordValid = false;
+
+    if (user.password && user.password.includes(':')) {
+        isPasswordValid = verifyPassword(rawPassword, user.password);
+    }
+
+    if (!isPasswordValid) {
+        redirect('/login?error=invalid');
     }
 
     await createSession(user.user_id);
