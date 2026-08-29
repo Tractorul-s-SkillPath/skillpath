@@ -18,7 +18,7 @@
  * ---------------------------------------------------------------------------
  *
  * Test: tests/lib/auth/current-user.test.ts
-*/
+ */
 
 import 'server-only';
 import { cache } from 'react';
@@ -234,6 +234,69 @@ export async function loginAction(formData: FormData): Promise<void> {
     revalidatePath('/', 'layout');
 
     redirect(safeNext(formData) ?? (user.role === 'admin' ? '/admin' : '/dashboard'));
+}
+
+export async function changePasswordAction(formData: FormData): Promise<void> {
+    'use server';
+
+    const currentPassword = String(formData.get('currentPassword') ?? '');
+    const newPassword = String(formData.get('newPassword') ?? '');
+    const confirmPassword = String(formData.get('confirmPassword') ?? '');
+
+    if (!newPassword || !confirmPassword) {
+        redirect('/settings/password?error=missing_fields');
+    }
+
+    if (newPassword.length < 8) {
+        redirect('/settings/password?error=password_too_short');
+    }
+
+    if (newPassword !== confirmPassword) {
+        redirect('/settings/password?error=passwords_dont_match');
+    }
+
+    const currentUser = await getCurrentUser();
+    if (!currentUser) {
+        redirect('/login');
+    }
+
+    const supabase = await createClient();
+
+    const { data: dbUser, error } = await supabase
+        .from('users')
+        .select('password')
+        .eq('user_id', currentUser.userId)
+        .single();
+
+    if (error || !dbUser) {
+        redirect('/settings/password?error=unavailable');
+    }
+
+    const hasSecurePassword = dbUser.password && dbUser.password.includes(':');
+
+    if (hasSecurePassword) {
+        if (!currentPassword) {
+            redirect('/settings/password?error=missing_fields');
+        }
+        const isCurrentValid = verifyPassword(currentPassword, dbUser.password);
+        if (!isCurrentValid) {
+            redirect('/settings/password?error=invalid_current');
+        }
+    }
+
+    const newHashedPassword = hashPassword(newPassword);
+
+    const { error: updateError } = await supabase
+        .from('users')
+        .update({ password: newHashedPassword })
+        .eq('user_id', currentUser.userId);
+
+    if (updateError) {
+        console.error('[auth] could not update password:', updateError.message);
+        redirect('/settings/password?error=unavailable');
+    }
+
+    redirect('/settings/password/success');
 }
 
 export async function logoutAction(): Promise<void> {

@@ -1,26 +1,3 @@
-/**
- * The admin's own account.
- *
- * Layer: PAGE
- *
- * WHY THIS EXISTS
- *
- * The user menu used to send everybody to /profile. That page lives in the
- * (student) group, so an administrator clicking "Your profile" was dropped out
- * of the admin shell entirely — admin nav replaced by Dashboard / Assessments /
- * Plan / Profile, and a "Level 1" XP badge — to look at seven sections that
- * were all either meaningless or permanently empty for them: interests,
- * assessment history, learning plan, quests, badges, leaderboard.
- *
- * This page is the half that was real: who you are, and the facts about the
- * account. An admin can rename themselves and read their own role and status.
- *
- * DELIBERATELY NOT getProfileDashboard(). That service fetches badges, quests
- * and a leaderboard — an expensive read whose entire result would be discarded
- * here. assertAdmin() already returns the user row, which is the whole of what
- * this page renders.
- */
-
 import Link from 'next/link';
 import { assertAdmin } from '../../../../lib/auth/assertAdmin';
 import { NameForm } from './name-form';
@@ -75,9 +52,30 @@ export default async function AdminAccountPage() {
             </Section>
 
             <Section
+                title="Security"
+                description="Manage your password and account security."
+                className="rise stagger-2"
+            >
+                <div className="flex items-center justify-between">
+                    <div>
+                        <p className="text-sm font-medium">Password</p>
+                        <p className="text-xs text-muted-foreground">
+                            Update your password regularly to keep your account secure.
+                        </p>
+                    </div>
+                    <Link
+                        href="/settings/password"
+                        className={buttonClass('secondary', 'sm')}
+                    >
+                        Change password
+                    </Link>
+                </div>
+            </Section>
+
+            <Section
                 title="What an administrator can do"
                 description="Your access, in plain terms."
-                className="rise stagger-2"
+                className="rise stagger-3"
             >
                 <ul className="space-y-2 text-[0.8125rem] leading-relaxed text-muted-foreground">
                     <li>Read every member&apos;s results, and activate or deactivate accounts.</li>

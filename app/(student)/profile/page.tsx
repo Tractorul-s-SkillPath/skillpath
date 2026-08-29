@@ -21,6 +21,7 @@ import { InterestsSection } from './interests-section';
 import { AssessmentHistory } from './assessment-history';
 import { BadgesSection, LeaderboardSection, QuestsSection } from './game-sections';
 import { Section } from '../../../components/ui/card';
+import Link from "next/link";
 
 export const metadata = { title: 'Your profile · SkillPath' };
 
@@ -78,7 +79,7 @@ export default async function ProfilePage() {
             <LeaderboardSection entries={leaderboard} myRank={myRank} />
 
             <Section id="account" title="Account" description="Managed by SkillPath, not by you.">
-                <dl className="grid gap-x-6 gap-y-3 text-sm sm:grid-cols-[8rem_1fr]">
+                <dl className="grid gap-x-6 gap-y-3 text-sm sm:grid-cols-[8rem_1fr] items-center">
                     <dt className="text-muted-foreground">Email</dt>
                     <dd>{profile.email}</dd>
 
@@ -87,6 +88,16 @@ export default async function ProfilePage() {
 
                     <dt className="text-muted-foreground">Status</dt>
                     <dd className="capitalize">{profile.status}</dd>
+
+                    <dt className="text-muted-foreground">Password</dt>
+                    <dd>
+                        <Link
+                            href="/settings/password"
+                            className="inline-flex items-center rounded-lg border border-border px-3 py-1.5 text-xs font-medium hover:bg-surface-muted transition-colors"
+                        >
+                            Change password
+                        </Link>
+                    </dd>
                 </dl>
             </Section>
         </div>
