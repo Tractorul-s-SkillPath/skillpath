@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import { resetPasswordAction } from '../../lib/auth/current-user';
 import { Field, Input } from '../../components/ui/field';
 import { SubmitButton } from '../../components/submit-button';
+import { buttonClass } from '../../components/ui/button';
 
 const ERRORS: Record<string, string> = {
     missing_email: 'Email address is missing. Please restart the process.',
@@ -56,31 +57,45 @@ export default function ResetPasswordPage() {
 
     return (
         <div className="flex min-h-screen items-center justify-center p-6 bg-background text-foreground">
-            <div className="w-full max-w-sm rounded-[var(--radius-card)] border border-border bg-surface px-8 py-12 shadow-sm flex flex-col justify-center">
-                <h1 className="text-lg font-semibold tracking-tight text-center">Set new password</h1>
+            <div className="w-full max-w-sm rounded-[var(--radius-card)] border border-border bg-surface px-8 py-12 shadow-sm flex flex-col items-center text-center">
 
                 {isSuccess ? (
-                    <div className="mt-6 space-y-6 text-center">
-                        <div className="rounded-lg bg-success-soft px-5 py-5 text-sm leading-relaxed text-success space-y-2">
-                            <p className="font-medium text-base">Password successfully reset!</p>
-                            <p className="text-muted-foreground text-sm">
-                                You can now safely close this tab and sign in with your new password.
-                            </p>
+                    <div className="flex flex-col items-center w-full">
+                        <div className="rounded-full bg-green-500/10 p-4 text-green-600 mb-4 border border-green-500/20">
+                            <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                className="h-10 w-10"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                                strokeWidth={2}
+                            >
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                            </svg>
                         </div>
-                        <button
-                            onClick={() => {
-                                if (window.opener) {
-                                    window.opener.location.href = '/login';
-                                }
-                                window.close();
-                            }}
-                            className="w-full rounded-[var(--radius-button)] bg-[color:var(--accent)] py-3 text-white font-medium hover:opacity-90 transition-opacity text-sm"
-                        >
-                            OK
-                        </button>
+
+                        <h1 className="text-xl font-semibold tracking-tight">Password reset successfully!</h1>
+                        <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
+                            Your password has been changed securely. Click OK to continue.
+                        </p>
+
+                        <div className="mt-6 w-full">
+                            <button
+                                onClick={() => {
+                                    if (window.opener) {
+                                        window.opener.location.href = '/login';
+                                    }
+                                    window.close();
+                                }}
+                                className={buttonClass('primary') + ' w-full justify-center'}
+                            >
+                                OK
+                            </button>
+                        </div>
                     </div>
                 ) : (
-                    <>
+                    <div className="w-full text-left">
+                        <h1 className="text-lg font-semibold tracking-tight text-center">Set new password</h1>
                         <p className="mt-2 text-sm leading-relaxed text-muted-foreground text-center">
                             Please choose a new password for <span className="font-medium text-foreground">{email}</span>.
                         </p>
@@ -124,7 +139,7 @@ export default function ResetPasswordPage() {
                                 Update password
                             </SubmitButton>
                         </form>
-                    </>
+                    </div>
                 )}
             </div>
         </div>

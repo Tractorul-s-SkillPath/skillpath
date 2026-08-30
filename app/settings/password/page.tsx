@@ -42,13 +42,12 @@ export default async function ChangePasswordPage({ searchParams }: PageProps) {
             ) : null}
 
             <form action={changePasswordAction} className="mt-5 space-y-4">
-                <Field label="Current password (optional for legacy accounts)" htmlFor="currentPassword">
+                <Field label="Current password" htmlFor="currentPassword">
                     <Input
                         id="currentPassword"
                         name="currentPassword"
                         type="password"
-                        autoComplete="current-password"
-                        placeholder="Leave blank if you have an older account"
+                        placeholder="Enter your password"
                     />
                 </Field>
 

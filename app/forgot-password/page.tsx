@@ -20,7 +20,6 @@ export default function ForgotPasswordPage() {
 
         setError(null);
 
-        // Deschide un tab nou direct către pagina de resetare cu e-mailul completat în URL
         window.open(`/reset-password?email=${encodeURIComponent(trimmedEmail)}`, '_blank');
     };
 
@@ -29,7 +28,7 @@ export default function ForgotPasswordPage() {
             <div className="w-full max-w-md rounded-[var(--radius-card)] border border-border bg-surface px-5 py-6 sm:px-6 shadow-sm">
                 <h1 className="text-base font-semibold tracking-tight">Forgot password?</h1>
                 <p className="mt-1 text-[0.8125rem] leading-relaxed text-muted-foreground">
-                    Enter your email address and open the reset page in a new tab.
+                    Enter your email address to proceed with the password reset.
                 </p>
 
                 {error ? (
@@ -60,7 +59,7 @@ export default function ForgotPasswordPage() {
                         pendingLabel="Opening reset page…"
                         className="w-full justify-center"
                     >
-                        Send reset link
+                        Reset password
                     </SubmitButton>
                 </form>
 
