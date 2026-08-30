@@ -20,6 +20,8 @@
  * Test: tests/lib/auth/current-user.test.ts
  */
 
+'use server';
+
 import 'server-only';
 import { cache } from 'react';
 import { randomBytes, scryptSync, timingSafeEqual } from 'node:crypto';
@@ -305,4 +307,67 @@ export async function logoutAction(): Promise<void> {
     await destroySession();
     revalidatePath('/', 'layout');
     redirect('/');
+}
+
+export async function forgotPasswordAction(formData: FormData): Promise<void> {
+    'use server';
+
+    const email = String(formData.get('email') ?? '').trim().toLowerCase();
+
+    if (!email) {
+        redirect('/forgot-password?error=missing_email');
+    }
+
+    const supabase = await createClient();
+
+    const { data: user, error } = await supabase
+        .from('users')
+        .select('user_id')
+        .eq('email', email)
+        .maybeSingle();
+
+    if (error || !user) {
+        // Din motive de securitate sau pentru testare, redirecționăm
+        redirect('/forgot-password?error=not_found');
+    }
+
+    // Trimitem emailul în URL către pagina de resetare (se poate codifica pentru siguranță)
+    redirect(`/reset-password?email=${encodeURIComponent(email)}`);
+}
+
+export async function resetPasswordAction(formData: FormData): Promise<{ success?: boolean; error?: string }> {
+    const email = String(formData.get('email') ?? '').trim().toLowerCase();
+    const newPassword = String(formData.get('newPassword') ?? '');
+    const confirmPassword = String(formData.get('confirmPassword') ?? '');
+
+    if (!email) {
+        return { error: 'missing_email' };
+    }
+
+    if (!newPassword || !confirmPassword) {
+        return { error: 'missing_fields' };
+    }
+
+    if (newPassword.length < 8) {
+        return { error: 'password_too_short' };
+    }
+
+    if (newPassword !== confirmPassword) {
+        return { error: 'passwords_dont_match' };
+    }
+
+    const supabase = await createClient();
+    const hashedPassword = hashPassword(newPassword);
+
+    const { error: updateError } = await supabase
+        .from('users')
+        .update({ password: hashedPassword })
+        .eq('email', email);
+
+    if (updateError) {
+        console.error('[auth] could not reset password:', updateError.message);
+        return { error: 'unavailable' };
+    }
+
+    return { success: true };
 }

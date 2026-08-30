@@ -86,7 +86,19 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
                     />
                 </Field>
 
-                <Field label="Password" htmlFor="password">
+                {/* Password field with integrated Forgot password? link */}
+                <div>
+                    <div className="flex items-center justify-between mb-1">
+                        <label htmlFor="password" className="text-xs font-medium text-foreground">
+                            Password
+                        </label>
+                        <Link
+                            href="/forgot-password"
+                            className="text-[0.75rem] text-muted-foreground hover:text-[color:var(--accent)] transition-colors"
+                        >
+                            Forgot password?
+                        </Link>
+                    </div>
                     <Input
                         id="password"
                         name="password"
@@ -95,7 +107,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
                         placeholder="Your password"
                         required
                     />
-                </Field>
+                </div>
 
                 {/* The round trip hits the database and then redirects. A plain
                     Button gave a second of no feedback on the most-used form in
