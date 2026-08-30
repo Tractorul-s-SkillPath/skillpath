@@ -27,9 +27,8 @@ import type { ReviewItem, RunQuestion } from '../domain/types';
 type Client = SupabaseClient<Database>;
 
 /**
- * The paper, in order, with the member's current selections. Options sorted by
- * their own position for the same reason toAdminQuestion sorts them: without an
- * order, the planner may shuffle A/B/C/D on a plain refresh.
+ * The paper, in order, with the member's current selections. Options sorted
+ * deterministically per assessment so they shuffle per attempt but stay consistent on refresh.
  */
 export async function listForRun(
     supabase: Client,
@@ -46,22 +45,29 @@ export async function listForRun(
     if (error) return err(fromPostgrestError(error, 'student_responses.listForRun'));
 
     return ok(
-        data.map((row) => ({
-            questionId: row.questions?.question_id ?? 0,
-            position: row.position,
-            text: row.questions?.text ?? '',
-            options: [...(row.questions?.answers ?? [])]
-                .sort((a, b) => a.position - b.position)
-                .map((a) => ({ answerId: a.answer_id, text: a.answer_text })),
-            selectedAnswerId: row.selected_answer_id,
-        })),
+        data.map((row) => {
+            const qId = row.questions?.question_id ?? 0;
+            return {
+                questionId: qId,
+                position: row.position,
+                text: row.questions?.text ?? '',
+                options: [...(row.questions?.answers ?? [])]
+                    .sort((a, b) => {
+                        // Deterministic pseudo-random shuffle per assessment and question
+                        const hashA = Math.sin(assessmentId * 997 + qId * 397 + a.answer_id) * 10000;
+                        const hashB = Math.sin(assessmentId * 997 + qId * 397 + b.answer_id) * 10000;
+                        return hashA - hashB;
+                    })
+                    .map((a) => ({ answerId: a.answer_id, text: a.answer_text })),
+                selectedAnswerId: row.selected_answer_id,
+            };
+        }),
     );
 }
 
 /**
- * The graded paper, correct answers included. Callers must have checked
- * status = 'submitted' first — this shape is what SP-053 says may exist only
- * after grading.
+ * The graded paper, correct answers included, using the exact same deterministic
+ * option sorting as listForRun to ensure consistency.
  */
 export async function listForReview(
     supabase: Client,
@@ -79,9 +85,12 @@ export async function listForReview(
 
     return ok(
         data.map((row) => {
-            const answers = [...(row.questions?.answers ?? [])].sort(
-                (a, b) => a.position - b.position,
-            );
+            const qId = row.questions?.question_id ?? 0;
+            const answers = [...(row.questions?.answers ?? [])].sort((a, b) => {
+                const hashA = Math.sin(assessmentId * 997 + qId * 397 + a.answer_id) * 10000;
+                const hashB = Math.sin(assessmentId * 997 + qId * 397 + b.answer_id) * 10000;
+                return hashA - hashB;
+            });
 
             return {
                 position: row.position,
@@ -90,7 +99,6 @@ export async function listForReview(
                 options: answers.map((a) => ({ answerId: a.answer_id, text: a.answer_text })),
                 selectedAnswerId: row.selected_answer_id,
                 correctAnswerId: answers.find((a) => a.is_correct)?.answer_id ?? null,
-                // The D4 snapshot, not recomputed: what the member was told.
                 isCorrect: row.is_correct === true,
                 topicTitle: row.questions?.topic_title ?? null,
                 studyAdvice: row.questions?.study_advice ?? null,
