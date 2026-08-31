@@ -44,16 +44,15 @@ const DIFFICULTY_TONE = {
 } as const;
 
 export default async function AdminCategoryQuestionsPage({
-    params,
-    searchParams
-}: {
+                                                             params,
+                                                             searchParams
+                                                         }: {
     params: Params,
     searchParams: SearchParams
 }) {
     const { id } = await params;
     const categoryId = Number(id);
 
-    // Citim parametrul de editare din URL
     const search = await searchParams;
     const editingId = search.edit ? Number(search.edit) : null;
 
@@ -103,7 +102,6 @@ export default async function AdminCategoryQuestionsPage({
                     ) : (
                         <ul className="space-y-5">
                             {questions.map((question) => {
-                                // DACĂ SUNTEM ÎN MODUL EDITARE PENTRU ACEASTĂ ÎNTREBARE
                                 if (editingId === question.questionId) {
                                     return (
                                         <li key={`edit-${question.questionId}`} className="border-b border-border pb-5 last:border-0 last:pb-0">
@@ -112,7 +110,6 @@ export default async function AdminCategoryQuestionsPage({
                                     );
                                 }
 
-                                // ALTFEL, AFIȘĂM ÎNTREBAREA NORMALĂ
                                 return (
                                     <li
                                         key={question.questionId}
@@ -141,13 +138,6 @@ export default async function AdminCategoryQuestionsPage({
                                                         Edit
                                                     </Link>
 
-                                                    {/*
-                                                      The same toggle the users and categories tables
-                                                      use. It posts the status it WANTS rather than a
-                                                      flip of the one it can see, and it renders a
-                                                      refusal instead of discarding it — the previous
-                                                      bound-argument form did neither.
-                                                    */}
                                                     <StatusToggle
                                                         action={setQuestionStatusAction}
                                                         fields={{
@@ -171,23 +161,25 @@ export default async function AdminCategoryQuestionsPage({
                                         </div>
 
                                         <ul className="mt-3 grid gap-2 sm:grid-cols-2">
-                                            {question.answers.map((answer) => (
-                                                <li
-                                                    key={answer.answerId}
-                                                    className={
-                                                        answer.isCorrect
-                                                            ? 'rounded-lg border border-transparent bg-success-soft px-3 py-2 text-[0.8125rem] text-[color:var(--success)]'
-                                                            : 'rounded-lg border border-border bg-surface-muted px-3 py-2 text-[0.8125rem] text-muted-foreground'
-                                                    }
-                                                >
-                                                    {answer.isCorrect ? (
-                                                        <span className="mr-1.5 font-medium">
-                                                            <span aria-hidden="true">✓ </span>Correct:
-                                                        </span>
-                                                    ) : null}
-                                                    {answer.text}
-                                                </li>
-                                            ))}
+                                            {[...question.answers]
+                                                .sort(() => Math.random() - 0.5)
+                                                .map((answer) => (
+                                                    <li
+                                                        key={answer.answerId}
+                                                        className={
+                                                            answer.isCorrect
+                                                                ? 'rounded-lg border border-transparent bg-success-soft px-3 py-2 text-[0.8125rem] text-[color:var(--success)]'
+                                                                : 'rounded-lg border border-border bg-surface-muted px-3 py-2 text-[0.8125rem] text-muted-foreground'
+                                                        }
+                                                    >
+                                                        {answer.isCorrect ? (
+                                                            <span className="mr-1.5 font-medium">
+                                                                <span aria-hidden="true">✓ </span>Correct:
+                                                            </span>
+                                                        ) : null}
+                                                        {answer.text}
+                                                    </li>
+                                                ))}
                                         </ul>
                                     </li>
                                 );
