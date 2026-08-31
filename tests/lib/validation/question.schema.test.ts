@@ -1,17 +1,45 @@
-/**
- * Tests for lib/validation/question.schema.ts.
- *
- * Stories: SP-034, SP-036
- *
- * Cases
- *  - 1 option rejected, 2 accepted, 6 accepted, 7 rejected
- *  - zero correct answers -> form-level error (SP-034 AC2)
- *  - exactly one correct -> parses
- *  - two correct answers -> parses; multi-select is the point, and the index
- *    that used to forbid it (answers_one_correct_per_question) is dropped
- *  - EVERY option correct -> rejected: nothing a member can pick scores less
- *    than full marks, so it is a formality rather than a question
- *  - question text 4 chars rejected, 5 accepted, 1001 rejected
- *  - answer text empty rejected, 500 accepted, 501 rejected
- *  - category and difficulty are required
- */
+import { describe, it, expect } from 'vitest';
+import { questionSchema } from '../../../lib/validation/question.schema';
+
+describe('Question Validation', () => {
+  it('acceptă o întrebare cu variante valide (cel puțin una corectă, cel puțin una greșită)', () => {
+    const validQuestion = {
+      text: 'Ce este React?',
+      categoryId: 1,
+      difficulty: 'beginner',
+      answers: [
+        { text: 'Un framework', isCorrect: true },
+        { text: 'Un limbaj', isCorrect: false },
+        { text: 'O bază de date', isCorrect: false },
+        { text: 'Un OS', isCorrect: false },
+      ]
+    };
+    expect(questionSchema.safeParse(validQuestion).success).toBe(true);
+  });
+
+  it('respinge o întrebare unde toate variantele sunt marcate drept corecte', () => {
+    const invalidQuestion = {
+      text: 'Întrebare fără opțiune greșită',
+      categoryId: 1,
+      difficulty: 'beginner',
+      answers: [
+        { text: 'Da', isCorrect: true },
+        { text: 'Absolut', isCorrect: true }
+      ]
+    };
+    expect(questionSchema.safeParse(invalidQuestion).success).toBe(false);
+  });
+
+  it('respinge răspunsurile duplicate, ignorând majusculele', () => {
+    const duplicateAnswers = {
+      text: 'Ce este React?',
+      categoryId: 1,
+      difficulty: 'beginner',
+      answers: [
+        { text: 'Un framework', isCorrect: true },
+        { text: 'un framework', isCorrect: false }
+      ]
+    };
+    expect(questionSchema.safeParse(duplicateAnswers).success).toBe(false);
+  });
+});

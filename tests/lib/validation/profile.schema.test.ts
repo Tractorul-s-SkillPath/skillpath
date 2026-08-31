@@ -1,12 +1,29 @@
-/**
- * Tests for lib/validation/profile.schema.ts.
- *
- * Stories: SP-021, SP-022
- *
- * Cases
- *  - valid update parses
- *  - objective at max length passes, one over fails (SP-022)
- *  - interests must be existing category ids; an empty array is allowed
- *  - a payload carrying role='admin' parses WITHOUT that key surviving —
- *    the schema strips it, which is SP-013's first line of defence
- */
+import { describe, it, expect } from 'vitest';
+import { nameSchema, interestsSchema } from '../../../lib/validation/profile.schema';
+
+describe('Profile Validation', () => {
+  it('acceptă modificarea validă a numelui', () => {
+    const validProfileUpdate = {
+      firstName: 'Maria',
+      lastName: 'Ionescu'
+    };
+    expect(nameSchema.safeParse(validProfileUpdate).success).toBe(true);
+  });
+
+  it('blochează escaladarea rolului prin eliminarea cheilor necunoscute (SP-013 / SP-021)', () => {
+    const maliciousUpdate = {
+      firstName: 'Hacker',
+      lastName: 'Test',
+      role: 'admin'
+    };
+
+    const result = nameSchema.safeParse(maliciousUpdate);
+    expect(result.success).toBe(true);
+    expect((result.data as any).role).toBeUndefined();
+  });
+
+  it('validează un array de ID-uri numerice pentru interese', () => {
+    const result = interestsSchema.safeParse({ categoryIds: [1, 2, 3] });
+    expect(result.success).toBe(true);
+  });
+});

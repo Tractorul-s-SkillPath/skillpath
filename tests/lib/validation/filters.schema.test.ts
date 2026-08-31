@@ -1,13 +1,24 @@
-/**
- * Tests for lib/validation/filters.schema.ts.
- *
- * Stories: SP-084, SP-085, SP-086
- *
- * Cases
- *  - empty searchParams -> sane defaults, never undefined-in-SQL
- *  - filters combine (category + difficulty + status + source)
- *  - ?pageSize=100000 is clamped to the maximum (SP-086: no unbounded results)
- *  - a garbage sort column falls back to the default rather than reaching SQL
- *  - round-trip: parse(serialize(filters)) === filters, so a shared URL restores
- *    exactly the same view (SP-084 AC2)
- */
+import { describe, it, expect } from 'vitest';
+import { userFiltersSchema, resultFiltersSchema } from '../../../lib/validation/filters.schema';
+
+describe('Filters Validation', () => {
+  it('validează și transformă tipurile pentru filtrele de utilizatori', () => {
+    const urlParams = {
+      search: '   ion   ',
+      role: 'student',
+      page: '2'
+    };
+    const result = userFiltersSchema.safeParse(urlParams);
+    expect(result.success).toBe(true);
+    expect(result.data?.search).toBe('ion');
+    expect(result.data?.page).toBe(2);
+  });
+
+  it('aplică valorile de fallback (catch) pentru input invalid', () => {
+    const emptyParams = { sort: 'invalid_sort_value', page: 'junk' };
+    const result = resultFiltersSchema.safeParse(emptyParams);
+    expect(result.success).toBe(true);
+    expect(result.data?.sort).toBe('date_desc');
+    expect(result.data?.page).toBe(1);
+  });
+});

@@ -1,11 +1,15 @@
-/**
- * Tests for lib/validation/category.schema.ts.
- *
- * Story: SP-031
- *
- * Cases
- *  - name of 1 char rejected, 2 accepted, 60 accepted, 61 rejected —
- *    the exact bounds of the SQL check constraint
- *  - "  ab  " is trimmed before the length check
- *  - status accepts only 'active' | 'inactive'
- */
+import { describe, it, expect } from 'vitest';
+import { categorySchema } from '../../../lib/validation/category.schema';
+
+describe('Category Validation', () => {
+  it('respinge un nume de categorie prea scurt (sub 2 caractere)', () => {
+    const result = categorySchema.safeParse({ name: 'A', description: 'Valid' });
+    expect(result.success).toBe(false);
+  });
+
+  it('respinge un nume de categorie peste 60 de caractere', () => {
+    const longName = 'A'.repeat(61);
+    const result = categorySchema.safeParse({ name: longName, description: 'Valid' });
+    expect(result.success).toBe(false);
+  });
+});
