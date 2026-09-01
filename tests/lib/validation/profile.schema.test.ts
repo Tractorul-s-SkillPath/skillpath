@@ -1,29 +1,44 @@
+/**
+ * Tests for lib/validation/profile.schema.ts.
+ *
+ * Stories: SP-013, SP-021
+ *
+ * The key-stripping test is a privilege-escalation guard, not a tidiness check.
+ * The profile action spreads the parsed result into an update, so anything the
+ * schema lets through reaches the row — `role: 'admin'` included.
+ */
+
 import { describe, it, expect } from 'vitest';
 import { nameSchema, interestsSchema } from '../../../lib/validation/profile.schema';
 
-describe('Profile Validation', () => {
-  it('acceptă modificarea validă a numelui', () => {
-    const validProfileUpdate = {
-      firstName: 'Maria',
-      lastName: 'Ionescu'
-    };
-    expect(nameSchema.safeParse(validProfileUpdate).success).toBe(true);
-  });
+describe('nameSchema', () => {
+    it('accepts a valid name change', () => {
+        expect(nameSchema.safeParse({ firstName: 'Maria', lastName: 'Ionescu' }).success)
+            .toBe(true);
+    });
 
-  it('blochează escaladarea rolului prin eliminarea cheilor necunoscute (SP-013 / SP-021)', () => {
-    const maliciousUpdate = {
-      firstName: 'Hacker',
-      lastName: 'Test',
-      role: 'admin'
-    };
+    it('strips unknown keys, so a role cannot ride along (SP-013 / SP-021)', () => {
+        const parsed = nameSchema.safeParse({
+            firstName: 'Maria',
+            lastName: 'Ionescu',
+            role: 'admin',
+        });
 
-    const result = nameSchema.safeParse(maliciousUpdate);
-    expect(result.success).toBe(true);
-    expect((result.data as any).role).toBeUndefined();
-  });
+        expect(parsed.success).toBe(true);
+        expect(parsed.data).toEqual({ firstName: 'Maria', lastName: 'Ionescu' });
+    });
+});
 
-  it('validează un array de ID-uri numerice pentru interese', () => {
-    const result = interestsSchema.safeParse({ categoryIds: [1, 2, 3] });
-    expect(result.success).toBe(true);
-  });
+describe('interestsSchema', () => {
+    it('accepts an array of category ids', () => {
+        expect(interestsSchema.safeParse({ categoryIds: [1, 2, 3] }).success).toBe(true);
+    });
+
+    it('accepts an empty selection — following nothing is a valid choice', () => {
+        expect(interestsSchema.safeParse({ categoryIds: [] }).success).toBe(true);
+    });
+
+    it('rejects a non-numeric id', () => {
+        expect(interestsSchema.safeParse({ categoryIds: ['abc'] }).success).toBe(false);
+    });
 });

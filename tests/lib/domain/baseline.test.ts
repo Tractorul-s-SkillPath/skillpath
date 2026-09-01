@@ -18,6 +18,46 @@ describe('baseline.ts domain logic', () => {
             expect(result).toEqual([]);
         });
 
+        it('collapses two misses on the same topic into one item', () => {
+            // Nothing produces this today — the twenty baseline topics are
+            // distinct — but randomisation will, and a plan listing "Git
+            // workflow" twice reads like a bug.
+            const missed: MissedQuestion[] = [
+                { difficulty: 'advanced', topicTitle: 'Git', studyAdvice: 'Learn rebasing.' },
+                { difficulty: 'intermediate', topicTitle: 'Git', studyAdvice: 'Learn branching.' },
+            ];
+
+            expect(buildBaselineRecommendations(missed)).toHaveLength(1);
+        });
+
+        it('keeps the most urgent priority when a topic is missed twice', () => {
+            // A wrong beginner answer is a bigger gap than a wrong advanced
+            // one, so the beginner miss has to win however the two are
+            // ordered — this is the case where the later entry replaces the
+            // one already recorded.
+            const advancedFirst: MissedQuestion[] = [
+                { difficulty: 'advanced', topicTitle: 'Git', studyAdvice: 'Learn rebasing.' },
+                { difficulty: 'beginner', topicTitle: 'Git', studyAdvice: 'Learn commits.' },
+            ];
+
+            const [item] = buildBaselineRecommendations(advancedFirst);
+
+            expect(item.priority).toBe(1);
+            expect(item.description).toContain('beginner');
+            expect(item.description).toContain('Learn commits.');
+        });
+
+        it('is not sensitive to the order the misses arrive in', () => {
+            const advancedFirst: MissedQuestion[] = [
+                { difficulty: 'advanced', topicTitle: 'Git', studyAdvice: 'Learn rebasing.' },
+                { difficulty: 'beginner', topicTitle: 'Git', studyAdvice: 'Learn commits.' },
+            ];
+
+            expect(buildBaselineRecommendations(advancedFirst)).toEqual(
+                buildBaselineRecommendations([...advancedFirst].reverse()),
+            );
+        });
+
         it('should build recommendations correctly and assign priorities based on difficulty', () => {
             const missed: MissedQuestion[] = [
                 { difficulty: 'advanced', topicTitle: 'Docker', studyAdvice: 'Learn containers.' },

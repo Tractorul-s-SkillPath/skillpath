@@ -1,45 +1,69 @@
+/**
+ * Tests for lib/validation/question.schema.ts.
+ *
+ * The refinements are what earn this file: a question whose options are all
+ * correct, or which offers the same answer twice in different case, is not
+ * caught by any field-level rule. Both are things an admin does by accident.
+ */
+
 import { describe, it, expect } from 'vitest';
 import { questionSchema } from '../../../lib/validation/question.schema';
 
-describe('Question Validation', () => {
-  it('acceptă o întrebare cu variante valide (cel puțin una corectă, cel puțin una greșită)', () => {
-    const validQuestion = {
-      text: 'Ce este React?',
-      categoryId: 1,
-      difficulty: 'beginner',
-      answers: [
-        { text: 'Un framework', isCorrect: true },
-        { text: 'Un limbaj', isCorrect: false },
-        { text: 'O bază de date', isCorrect: false },
-        { text: 'Un OS', isCorrect: false },
-      ]
-    };
-    expect(questionSchema.safeParse(validQuestion).success).toBe(true);
-  });
+const validQuestion = {
+    text: 'What is React?',
+    categoryId: 1,
+    difficulty: 'beginner',
+    answers: [
+        { text: 'A library', isCorrect: true },
+        { text: 'A language', isCorrect: false },
+        { text: 'A database', isCorrect: false },
+        { text: 'An operating system', isCorrect: false },
+    ],
+};
 
-  it('respinge o întrebare unde toate variantele sunt marcate drept corecte', () => {
-    const invalidQuestion = {
-      text: 'Întrebare fără opțiune greșită',
-      categoryId: 1,
-      difficulty: 'beginner',
-      answers: [
-        { text: 'Da', isCorrect: true },
-        { text: 'Absolut', isCorrect: true }
-      ]
-    };
-    expect(questionSchema.safeParse(invalidQuestion).success).toBe(false);
-  });
+describe('questionSchema', () => {
+    it('accepts a question with at least one correct and one incorrect answer', () => {
+        expect(questionSchema.safeParse(validQuestion).success).toBe(true);
+    });
 
-  it('respinge răspunsurile duplicate, ignorând majusculele', () => {
-    const duplicateAnswers = {
-      text: 'Ce este React?',
-      categoryId: 1,
-      difficulty: 'beginner',
-      answers: [
-        { text: 'Un framework', isCorrect: true },
-        { text: 'un framework', isCorrect: false }
-      ]
-    };
-    expect(questionSchema.safeParse(duplicateAnswers).success).toBe(false);
-  });
+    it('rejects a question where every option is marked correct', () => {
+        const parsed = questionSchema.safeParse({
+            ...validQuestion,
+            answers: [
+                { text: 'Yes', isCorrect: true },
+                { text: 'Absolutely', isCorrect: true },
+            ],
+        });
+
+        expect(parsed.success).toBe(false);
+    });
+
+    it('rejects a question with no correct answer at all', () => {
+        const parsed = questionSchema.safeParse({
+            ...validQuestion,
+            answers: [
+                { text: 'A library', isCorrect: false },
+                { text: 'A language', isCorrect: false },
+            ],
+        });
+
+        expect(parsed.success).toBe(false);
+    });
+
+    it('rejects duplicate answers, ignoring case', () => {
+        const parsed = questionSchema.safeParse({
+            ...validQuestion,
+            answers: [
+                { text: 'A library', isCorrect: true },
+                { text: 'a library', isCorrect: false },
+            ],
+        });
+
+        expect(parsed.success).toBe(false);
+    });
+
+    it('rejects a difficulty outside the skill-level enum', () => {
+        expect(questionSchema.safeParse({ ...validQuestion, difficulty: 'expert' }).success)
+            .toBe(false);
+    });
 });
