@@ -76,7 +76,7 @@ test('admin creates a question, student is served it, and is_correct is protecte
     await test.step('simulate admin question creation & student assessment flow with security check', async () => {
         let interceptedPayloads = '';
 
-        // Interceptăm răspunsurile de la API/rutele de evaluare și întrebări
+        // Intercept responses from API/assessment and question routes
         page.on('response', async (response) => {
             const url = response.url();
             if (url.includes('/api/') || url.includes('/assessments') || url.includes('/questions')) {
@@ -84,32 +84,32 @@ test('admin creates a question, student is served it, and is_correct is protecte
                     const body = await response.text();
                     interceptedPayloads += body;
                 } catch {
-                    // Ignorăm fișierele binare sau răspunsurile care nu pot fi citite ca text
+                    // Ignore binary files or responses that cannot be read as text
                 }
             }
         });
 
-        // Autentificare ca student
+        // Authenticate as a student
         await page.goto('/login');
         await page.fill('input[name="email"]', currentStudent.email);
         await page.fill('input[name="password"]', currentStudent.password);
         await page.getByRole('button', { name: 'Sign in' }).click();
 
-        // Așteptăm stabilirea rutelor după login
+        // Wait for routes to establish after login
         await page.waitForURL(/\/dashboard$/);
 
-        // Navigăm către secțiunea de evaluare/baseline
+        // Navigate to the assessment/baseline section
         await page.goto('/assessments/baseline');
 
-        // Așteptăm ca pagina să termine orice tranziție sau încărcare asincronă de rețea
+        // Wait for the page to finish any asynchronous transitions or network loads
         await page.waitForLoadState('networkidle');
 
         const pageContent = await page.content();
 
         // -----------------------------------------------------------------
-        // ASERTAREA DE SECURITATE:
-        // Nici în payload-urile interceptate, nici în HTML-ul randat
-        // nu are voie să existe câmpul 'is_correct'.
+        // SECURITY ASSERTION:
+        // Neither the intercepted payloads nor the rendered HTML
+        // are allowed to contain the 'is_correct' field.
         // -----------------------------------------------------------------
         expect(interceptedPayloads).not.toContain('is_correct');
         expect(pageContent).not.toContain('is_correct');
