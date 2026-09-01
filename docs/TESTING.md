@@ -62,10 +62,16 @@ reason the folder is shaped this way.
 | `tests/db` | no | SQL: policies, triggers, constraints | real test database |
 | `tests/app` | no | action contract + RTL where there is logic | service fake |
 | `tests/components` | no | RTL, logic-bearing components only | none |
+| `e2e` | no | one whole journey, in a browser | none — a real test project |
 
-The last three are **not written yet**. The two database-backed folders are
-excluded from the default run so a teammate without a test project can still run
-`npm test` on a plane; they will need their own script and their own CI job.
+`tests/db`, `tests/app` and `tests/components` are **not written yet**. The
+database-backed folders are excluded from the default run so a teammate without
+a test project can still run `npm test` on a plane; they will need their own
+script and their own CI job.
+
+`e2e` **is** written, and has both — `npm run test:e2e` and
+`.github/workflows/e2e.yml`. It is the one place a real browser and a real
+database meet; see below.
 
 `lib/repositories/paging.ts` is the exception in that folder: three pure
 functions and no I/O, so it is in the gate. It is worth more than it looks —
@@ -134,6 +140,54 @@ actual assertions. A component test opts in per file:
 Nothing has needed that yet, and it will not work until `@testing-library/react`
 and `@vitejs/plugin-react` are installed — neither is, so the first component
 test starts by adding them.
+
+## End to end (SP-101)
+
+```bash
+npm run test:e2e        # build + start + one journey, ~3 min
+npm run test:e2e:dev    # dev server instead, for writing one
+```
+
+One spec, `e2e/baseline-journey.spec.ts`: register → baseline → results → plan,
+one member, one continuous path. `e2e/README.md` is the setup; what belongs
+*here* is why the suite has one of these and not thirty.
+
+**It exists for three failures that are invisible from `npm test`**, and every
+step in it earns its place against one of them:
+
+- **`grade_assessment()` returning the wrong score.** The scoring is
+  `SECURITY DEFINER` SQL, because the answer key must not travel. So
+  `grading.service.test.ts` can only assert the RPC is *called* — the fake
+  returns whatever it is handed. The journey answers a known 12 of 20 and pins
+  `60%` exactly, then checks the per-band breakdown separately: the score comes
+  from `assessments.total_score` and the bands from the `is_correct` snapshots,
+  two writes of the same RPC, and they must agree.
+- **A session cookie nobody verifies.** `middleware.ts` checks only that the
+  cookie is *present* — deliberately, it cannot do better on the Edge runtime.
+  So the last step forges the signature and expects `/login`. Without it, a
+  build that skipped the HMAC comparison would pass this file end to end, and
+  `session.test.ts` cannot see the cookie actually being set by a real response.
+- **The plan quietly not being written.** `grading.service` catches a failed
+  plan write and logs it, on purpose: the run is graded and paid by then, and a
+  plan failure must not turn a success into an error. The cost of that decision
+  is that the failure is invisible to every caller — HTTP 200, right score, no
+  plan. Only rendered rows catch it, which is why the journey ends on `/plan`.
+
+**Two rules that are specific to this folder:**
+
+- **Its own Supabase project, and a guard that enforces it.**
+  `e2e/helpers/env.ts` compares the URL in `.env.e2e` against `.env.local` and
+  refuses to start if they match — the same rule `tests/db/README.md` states.
+  `playwright.config.ts` never reuses a running server and never uses port 3000,
+  because a dev server left open is pointed at the demo project.
+- **A fresh member every run, unique in email *and* name.** Not tidiness:
+  `loginAction` rejects a duplicate of either, and the baseline is one attempt
+  per member — a fixture account could take this journey exactly once.
+
+**Keep it to a few whole journeys.** A step here costs a database round trip and
+a browser; a second spec is worth writing when it reaches a path this one cannot
+(the admin's question-bank round trip is the obvious candidate), never to
+re-check something a service test already pins.
 
 ## Deliberately not tested
 

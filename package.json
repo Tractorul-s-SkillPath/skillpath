@@ -9,9 +9,12 @@
     "typecheck": "tsc --noEmit",
     "seed": "node scripts/seed.mjs",
     "seed:users": "node scripts/seed-users.mjs",
+    "seed:e2e": "node --env-file=.env.e2e scripts/seed.mjs",
     "test": "vitest",
     "test:run": "vitest run",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "test:e2e": "playwright test",
+    "test:e2e:dev": "E2E_DEV=1 playwright test"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.4",
@@ -29,6 +32,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@playwright/test": "^1.62.1",
     "@types/node": "latest",
     "@types/react": "latest",
     "@types/react-dom": "latest",
