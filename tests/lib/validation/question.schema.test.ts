@@ -1,17 +1,69 @@
 /**
  * Tests for lib/validation/question.schema.ts.
  *
- * Stories: SP-034, SP-036
- *
- * Cases
- *  - 1 option rejected, 2 accepted, 6 accepted, 7 rejected
- *  - zero correct answers -> form-level error (SP-034 AC2)
- *  - exactly one correct -> parses
- *  - two correct answers -> parses; multi-select is the point, and the index
- *    that used to forbid it (answers_one_correct_per_question) is dropped
- *  - EVERY option correct -> rejected: nothing a member can pick scores less
- *    than full marks, so it is a formality rather than a question
- *  - question text 4 chars rejected, 5 accepted, 1001 rejected
- *  - answer text empty rejected, 500 accepted, 501 rejected
- *  - category and difficulty are required
+ * The refinements are what earn this file: a question whose options are all
+ * correct, or which offers the same answer twice in different case, is not
+ * caught by any field-level rule. Both are things an admin does by accident.
  */
+
+import { describe, it, expect } from 'vitest';
+import { questionSchema } from '../../../lib/validation/question.schema';
+
+const validQuestion = {
+    text: 'What is React?',
+    categoryId: 1,
+    difficulty: 'beginner',
+    answers: [
+        { text: 'A library', isCorrect: true },
+        { text: 'A language', isCorrect: false },
+        { text: 'A database', isCorrect: false },
+        { text: 'An operating system', isCorrect: false },
+    ],
+};
+
+describe('questionSchema', () => {
+    it('accepts a question with at least one correct and one incorrect answer', () => {
+        expect(questionSchema.safeParse(validQuestion).success).toBe(true);
+    });
+
+    it('rejects a question where every option is marked correct', () => {
+        const parsed = questionSchema.safeParse({
+            ...validQuestion,
+            answers: [
+                { text: 'Yes', isCorrect: true },
+                { text: 'Absolutely', isCorrect: true },
+            ],
+        });
+
+        expect(parsed.success).toBe(false);
+    });
+
+    it('rejects a question with no correct answer at all', () => {
+        const parsed = questionSchema.safeParse({
+            ...validQuestion,
+            answers: [
+                { text: 'A library', isCorrect: false },
+                { text: 'A language', isCorrect: false },
+            ],
+        });
+
+        expect(parsed.success).toBe(false);
+    });
+
+    it('rejects duplicate answers, ignoring case', () => {
+        const parsed = questionSchema.safeParse({
+            ...validQuestion,
+            answers: [
+                { text: 'A library', isCorrect: true },
+                { text: 'a library', isCorrect: false },
+            ],
+        });
+
+        expect(parsed.success).toBe(false);
+    });
+
+    it('rejects a difficulty outside the skill-level enum', () => {
+        expect(questionSchema.safeParse({ ...validQuestion, difficulty: 'expert' }).success)
+            .toBe(false);
+    });
+});

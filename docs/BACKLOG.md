@@ -441,6 +441,50 @@ Assign real names before the check-in.
 - Each member can explain their AI feature *and* one architectural trade-off end to end
 - Rehearsed at least twice against the deployed URL, not localhost
 
+**SP-118 · Pin the constants that exist twice** — `2` · A
+- `lib/domain/constants.ts` mirrors the XP amounts and level thresholds from
+  `xp_per_assessment()`, `xp_per_score_point()`, `xp_per_plan_item()` and
+  `level_for_score()` in `0002_functions.sql`. Nothing enforces that the copies agree, so a
+  migration that changes an award to 60 while the constant still says 50 compiles, deploys, and
+  shows every member a number they were not awarded
+- Blocked on SP-003: the SQL is not in this repository, so there is no file for a test to read.
+  Getting the migrations into version control is the story; this one is the test that follows
+- A test asserting `XP_PER_ASSESSMENT === 50` does **not** close this. It compares the constant to
+  itself. The check has to read the SQL — see the note at the top of
+  `tests/lib/domain/constants.test.ts`
+
+**SP-120 · Move current-user’s data access behind a repository** — `3` · C
+- `lib/auth/current-user.ts` builds its own supabase-js queries — `getCurrentUser`,
+  `loginAction`, `changePasswordAction` and `resetPasswordAction` all call
+  `supabase.from('users')…` directly, and `loginAction` additionally carries the whole
+  registration path
+- Every other caller in the codebase goes through `lib/repositories`. This one does not, which is
+  why it is the single file in `lib/auth` with no unit tests: covering it would mean mocking
+  supabase-js, and `tests/README.md` rules that out with no third option
+- Moving the reads and writes into `user.repo` makes it testable the same way the eight services
+  are, and shrinks the only remaining gap in the auth layer's coverage
+- Until then `tests/lib/auth/current-user.test.ts` stays excluded in `vitest.config.ts`, with the
+  reason recorded there
+
+**SP-121 · Test the session cookie** — `2` · C
+- `lib/auth/session.ts` signs and verifies the session cookie with HMAC, and has no tests and no
+  mirror file in `tests/`. It came into view when `lib/auth` was added to the coverage gate: the
+  folder reads 26% because this file reads 6%
+- It is pure crypto plus `cookies()` from `next/headers` — nothing to mock but the cookie store,
+  so this is cheap for the risk it carries
+- Worth covering: a tampered payload is rejected, a tampered signature is rejected, a cookie signed
+  with a different secret is rejected, `readSession` returns null rather than throwing on
+  malformed input, and the round trip survives a real user id
+
+**SP-119 · Blank input fails at the database instead of in the form** — `2` · B
+- `trimmedString(max)` trims and enforces a maximum but has no minimum, so `'   '` parses to `''`
+  and passes. `registerSchema.name` is `max(60)` with no minimum, so an empty name registers
+- The SQL has `length(trim(...)) > 0` checks, which means these land as a 500 from the database
+  where the member should have seen a field error
+- Current behaviour is pinned by tests in `tests/lib/validation/common.test.ts` and
+  `auth.schema.test.ts`, both tagged `SEE SP-119` — when the minimum is added, those two tests
+  flip to expecting rejection
+
 ---
 
 ### EPIC 11 — Baseline (General Knowledge) Assessment · *owner C, content by B*
@@ -648,16 +692,19 @@ below the surface — but nothing calls it with a real score.
 Nothing. `lib/ai/` is six comment-only files totalling 92 lines. No `AI_PROVIDER`
 variable, no `ANTHROPIC_API_KEY` in `.env.example`, no mock fixtures.
 
-### Epic 10 — Quality, Docs & Demo · **0 of 6, 1 partial**
+### Epic 10 — Quality, Docs & Demo · **1 of 9, 1 partial**
 
 | Story | State | |
 |---|---|---|
-| SP-100 Coverage to 75% | **Not done** | Coverage is 0%. There is no runner |
+| SP-100 Coverage to 75% | **Done** | 30 files, 315 tests, green. Gate passes across `lib/domain`, `lib/services`, `lib/validation`, `lib/auth`: 91.74% statements, 92.48% lines, 84.68% branches. `lib/services` is at 100% on all four. The one weak spot is `lib/auth/session.ts` — see SP-121 |
 | SP-101 Playwright happy paths | **Not done** | `e2e/` does not exist |
 | SP-102 Seed script | **Not done** | `package.json` declares `seed` and `seed:users`; both point at missing files and fail |
 | SP-103 README & setup docs | **Partial** | The README is written, but clone-to-running is impossible without access to the existing Supabase project — see SP-003 |
 | SP-104 Acceptance criteria audit | **In progress** | This section is it |
 | SP-105 Demo script & rehearsal | **Not done** | |
+| SP-118 Pin the duplicated constants | **Not done** | Blocked on SP-003 — the SQL is not in the repo |
+| SP-119 Blank input fails at the database | **Not done** | Current behaviour pinned by tests tagged `SEE SP-119` |
+| SP-120 Move current-user behind a repository | **Not done** | The one file in `lib/auth` with no tests — it builds supabase-js queries inline |
 
 ### Epic 11 — Baseline Assessment · **0 of 8**
 
