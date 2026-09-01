@@ -42,11 +42,18 @@ export default defineConfig({
             'tests/lib/errors.test.ts',
             'tests/lib/result.test.ts',
             'tests/lib/utils.test.ts',
+            // The one file under tests/lib/repositories that needs no database:
+            // lib/repositories/paging.ts is three pure functions. It lives in
+            // that folder because its source does, and the exclude below is
+            // written per-file rather than as `repositories/**` so that this
+            // one is not swept up with the integration tests.
+            'tests/lib/repositories/paging.test.ts',
         ],
         exclude: [
             // Need a live Supabase test project — separate script, own CI job.
             'tests/db/**',
-            'tests/lib/repositories/**',
+            'tests/lib/repositories/*.repo.test.ts',
+            'tests/lib/repositories/mappers.test.ts',
             // Inside the domain glob above, but the source is still
             // comment-only: scoring.ts, weak-areas.ts and feedback.ts have a
             // written spec and no function to call. Delete a line here when the
@@ -76,6 +83,11 @@ export default defineConfig({
                 // they are the first line of every protected page and action,
                 // and coverage nobody measures is coverage that rots.
                 'lib/auth/**/*.ts',
+                // Not `lib/repositories/**`: the rest of that folder is I/O
+                // against a real database and is measured by the SP-004 job,
+                // not by this one. paging.ts is pure, fully tested here, and
+                // builds the PostgREST filter string that a search box feeds.
+                'lib/repositories/paging.ts',
             ],
             exclude: [
                 // Type declarations, no runtime. tests/README.md lists this as

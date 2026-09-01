@@ -605,7 +605,7 @@ exists. Several stories are marked partial for the same two reasons throughout
 | SP-002 Supabase project + three clients | **Partial** | Only `server.ts`. No `client.ts`, no `admin.ts`, so the service-role build-failure AC is untested |
 | SP-003 Migration 0001 — schema | **Not done** | The schema exists in the hosted project only. There is no `supabase/` directory and no `.sql` file in the repo. **This is the highest-priority item in the backlog** |
 | SP-004 Migration 0002 — RLS + `answer_options` | **Not done** | RLS is off everywhere; `answers.is_correct` is readable with the anon key |
-| SP-005 CI pipeline | **Not done** | `ci.yml` has no `on:` and no `jobs:`. `main` is not protected |
+| SP-005 CI pipeline | **Done** | `ci.yml` runs on every PR and on push to `main`: typecheck -> test:coverage -> build, cheapest gate first. `npm run lint` was removed rather than fixed — Next 16 dropped `next lint`, so it resolved to `next <dir>` and failed; ESLint is unconfigured here and adding it is SP-122. Branch protection still has to be switched on in the repository settings — the workflow cannot do that for you |
 | SP-006 Tracer bullet | **Not done** | No path exists from a seeded question to a score on screen. Skipped, and the rest of this table is downstream of that |
 
 ### Epic 1 — Auth & Roles · **2 of 6, 3 partial**
@@ -696,15 +696,17 @@ variable, no `ANTHROPIC_API_KEY` in `.env.example`, no mock fixtures.
 
 | Story | State | |
 |---|---|---|
-| SP-100 Coverage to 75% | **Done** | 30 files, 315 tests, green. Gate passes across `lib/domain`, `lib/services`, `lib/validation`, `lib/auth`: 91.74% statements, 92.48% lines, 84.68% branches. `lib/services` is at 100% on all four. The one weak spot is `lib/auth/session.ts` — see SP-121 |
-| SP-101 Playwright happy paths | **Not done** | `e2e/` does not exist |
-| SP-102 Seed script | **Not done** | `package.json` declares `seed` and `seed:users`; both point at missing files and fail |
+| SP-100 Coverage to 75% | **Done** | 32 files, 365 tests, green. 99.11% statements, 99.74% lines, 93.75% branches, 98.36% functions. `lib/services` and `lib/auth` are both at 100% on all four. `lib/domain/derived.ts` at 75% branches is now the weakest file in the gate |
+| SP-101 Playwright happy paths | **Not done** | `e2e/` does not exist. No longer blocked: SP-005 gives it a pipeline and SP-102 gives it deterministic data. Note the story asks for **three** journeys, not two — the admin-creates-question-then-student-sees-it one is the only journey no unit test can approximate, since it crosses the admin/student boundary |
+| SP-102 Seed script | **Done, not yet run against a database** | `scripts/seed.mjs` and `scripts/seed-users.mjs` now exist and both are idempotent — every step matches on a natural key and inserts only what is missing. Creates the sentinel baseline category (id 0) with a 20-question paper ordered beginner -> advanced, four categories of 10, 1 admin and 3 students with graded history at three ability levels. Passwords are scrypt-hashed to the format `lib/auth/current-user.ts` verifies. **Still needs one run against a real project to confirm the column names match the migrations** — the migrations are not in the repo (SP-003), so the schema was read from `database.types.ts` |
 | SP-103 README & setup docs | **Partial** | The README is written, but clone-to-running is impossible without access to the existing Supabase project — see SP-003 |
 | SP-104 Acceptance criteria audit | **In progress** | This section is it |
 | SP-105 Demo script & rehearsal | **Not done** | |
 | SP-118 Pin the duplicated constants | **Not done** | Blocked on SP-003 — the SQL is not in the repo |
 | SP-119 Blank input fails at the database | **Not done** | Current behaviour pinned by tests tagged `SEE SP-119` |
 | SP-120 Move current-user behind a repository | **Not done** | The one file in `lib/auth` with no tests — it builds supabase-js queries inline |
+| SP-121 Test the session cookie | **Done** | `lib/auth/session.ts` went from 5.71% to 100%. Weighted towards forgery, not round-tripping: an edited payload with a kept signature, a cookie signed with a rotated secret, an unsigned payload, an expired-but-validly-signed cookie, and signed-but-invalid payloads. Every guard was mutation-checked — remove the signature comparison, the expiry check, the `typeof` check or `Number.isFinite` and a named test dies |
+| SP-122 Configure ESLint | **New, not done** | Next 16 removed `next lint`, so `npm run lint` was dead and has been deleted. Needs `eslint` + a flat config + a first pass over existing code. Kept out of SP-005 so the first green pipeline was not red for unrelated reasons |
 
 ### Epic 11 — Baseline Assessment · **0 of 8**
 

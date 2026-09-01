@@ -56,7 +56,7 @@ export default async function AdminCategoryQuestionsPage({
     const search = await searchParams;
     const editingId = search.edit ? Number(search.edit) : null;
 
-    if (!Number.isInteger(categoryId) || categoryId <= 0) notFound();
+    if (!Number.isInteger(categoryId) || categoryId < 0) notFound();
 
     const categoryResult = await getCategory(categoryId);
 
