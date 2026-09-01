@@ -1,32 +1,66 @@
 # CI — SP-005
 #
-# ############################################################################
-# THIS WORKFLOW DOES NOT RUN. The entire file is commented out: there is no
-# `on:` trigger and no `jobs:` block, so GitHub Actions parses it, finds
-# nothing to do, and does nothing. It is a design note that happens to live at
-# a path where a working pipeline would go.
+# This workflow runs. It used to be a fully commented-out design note with no
+# `on:` and no `jobs:`, which meant GitHub Actions parsed it, found nothing to
+# do, and did nothing — while the file's presence implied `main` was protected.
+# It was not.
 #
-# It also refers to `npm run typecheck`, `npm run lint` and
-# `npm run test:coverage`, none of which exist in package.json, and to a test
-# suite that has not been written (docs/TESTING.md).
+# Gate order is cheapest-first, so a type error does not wait on a build.
 #
-# Left in place deliberately as the plan for when tests land — not because it
-# is protecting `main`. Nothing is protecting `main`.
-# ############################################################################
+# NOT here, and each one is a decision rather than an oversight:
 #
-# Sketch: one workflow, runs on every PR and on push to main.
+#   lint      — Next 16 removed `next lint`; the old `npm run lint` resolved to
+#               `next <dir>` and failed with "Invalid project directory". ESLint
+#               is not configured in this project, so there is nothing to run.
+#               Adding eslint + eslint-config-next is its own story (SP-122):
+#               it needs a config and a first pass over existing code, and
+#               landing it inside this change would turn the first green
+#               pipeline red for reasons unrelated to the pipeline.
 #
-#   jobs.verify:
-#     - checkout, setup-node (lts, npm cache), npm ci
-#     - npm run typecheck      # tsc --noEmit, strict
-#     - npm run lint           # 'any' and unexplained suppressions fail here
-#     - npm run test:coverage  # vitest --coverage, fails under the threshold
-#     - npm run build          # next build
-#     env: AI_PROVIDER=mock    # a broken API key never blocks a teammate (SP-090)
+#   tests/db and tests/lib/repositories — need a live Supabase test project.
+#               Their own job with secrets once SP-004 lands.
 #
-# Gate order matters: cheapest check first, so a type error does not wait on a build.
-# main is protected — one approval, this workflow green. Nobody approves their own PR.
-#
-# Not here (yet): tests/db and tests/lib/repositories need a live Supabase test
-# project; give them their own job with secrets once SP-004 lands.
-# Playwright (SP-101) runs after the Vercel preview deployment is ready.
+#   Playwright (SP-101) — runs against the Vercel preview deployment, so it
+#               belongs in a workflow triggered by deployment_status, not here.
+
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+
+    env:
+      # The build imports lib/supabase/env.ts, which throws on a missing key.
+      # Every page is server-rendered on demand (`ƒ` in the build output), so
+      # nothing reaches Supabase during the build and placeholders are enough.
+      # Real secrets would buy nothing and would expose them to fork PRs.
+      NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-anon-key
+      SESSION_SECRET: ci-placeholder-secret-at-least-32-characters-long
+      # A broken or absent API key must never block a teammate (SP-090).
+      AI_PROVIDER: mock
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Test + coverage gate
+        run: npm run test:coverage
+
+      - name: Build
+        run: npm run build

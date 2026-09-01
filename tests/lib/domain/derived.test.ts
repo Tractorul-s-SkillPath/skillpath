@@ -1,3 +1,12 @@
+/**
+ * Tests for lib/domain/derived.ts.
+ *
+ * Stories: SP-070, SP-071, SP-072
+ *
+ * The largest pure module in the codebase: it drives badges, quests and the
+ * overall level, and it is the weakest domain file in the coverage report.
+ */
+
 import { describe, it, expect } from 'vitest';
 import {
     dayOf,
@@ -7,13 +16,38 @@ import {
     deriveOverallLevel,
     type DerivationInput,
 } from '../../../lib/domain/derived';
+import { APP_TIMEZONE } from '../../../lib/domain/constants';
 
 describe('derived.ts domain logic', () => {
     describe('dayOf', () => {
-        it('should format a timestamp into yyyy-mm-dd based on app timezone', () => {
-            const timestamp = '2026-06-01T15:30:00Z';
-            const formatted = dayOf(timestamp);
-            expect(formatted).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+        it('answers in the application timezone, not the server’s', () => {
+            // 22:30 UTC is already the NEXT day in Europe/Bucharest (UTC+3 in
+            // June). A shape-only assertion passes here even when dayOf uses
+            // the server's clock, which is the bug that matters: streaks group
+            // by this value, so an off-by-one-day breaks a streak for a member
+            // who did nothing wrong.
+            expect(dayOf('2026-06-01T22:30:00Z')).toBe('2026-06-02');
+        });
+
+        it('stays on the same day when the offset does not push it over', () => {
+            expect(dayOf('2026-06-01T09:00:00Z')).toBe('2026-06-01');
+        });
+
+        it('formats as an ISO date, so days can be compared as strings', () => {
+            // Streak logic sorts and compares these directly. 'yyyy-mm-dd' is
+            // the one common format where lexical order is chronological order.
+            expect(dayOf('2026-06-01T09:00:00Z')).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+        });
+
+        it('agrees with a fresh Intl formatter for the configured zone', () => {
+            // Pins the behaviour to APP_TIMEZONE rather than to the hardcoded
+            // dates above, so moving the constant moves the test with it.
+            const timestamp = '2026-11-15T23:45:00Z';
+            const expected = new Intl.DateTimeFormat('en-CA', { timeZone: APP_TIMEZONE }).format(
+                new Date(timestamp),
+            );
+
+            expect(dayOf(timestamp)).toBe(expected);
         });
     });
 
