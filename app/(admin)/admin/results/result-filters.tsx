@@ -31,14 +31,14 @@ export function ResultFilters({ search, categoryId, sort, categories }: ResultFi
         <form method="GET" action="/admin/results" className="flex flex-wrap items-end gap-3">
             <div className="min-w-56 flex-1 space-y-1.5">
                 <label htmlFor="result-search" className="block text-[0.8125rem] font-medium">
-                    Search
+                    Search member
                 </label>
                 <Input
                     id="result-search"
                     type="search"
                     name="search"
                     defaultValue={search}
-                    placeholder="Member name or email"
+                    placeholder="Name or email"
                 />
             </div>
 
