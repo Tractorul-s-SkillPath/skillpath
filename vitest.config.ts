@@ -48,12 +48,24 @@ export default defineConfig({
             // written per-file rather than as `repositories/**` so that this
             // one is not swept up with the integration tests.
             'tests/lib/repositories/paging.test.ts',
+            // Also pure, and also in that folder only because its source is.
+            // It spent its whole life in `exclude` below, next to the *.repo
+            // integration tests — on the strength of the folder it sits in
+            // rather than anything it does. Every function in mappers.ts takes
+            // a row and returns an object; there is no client and no I/O.
+            'tests/lib/repositories/mappers.test.ts',
+            // Real source, no database, no DOM: middleware.ts is a pure
+            // function from a NextRequest to a NextResponse.
+            'tests/middleware.test.ts',
+            // Server Action contracts. These substitute the SERVICE, the same
+            // way a service test substitutes a repository — so they need no
+            // database and no React.
+            'tests/app/**/*.test.ts',
         ],
         exclude: [
             // Need a live Supabase test project — separate script, own CI job.
             'tests/db/**',
             'tests/lib/repositories/*.repo.test.ts',
-            'tests/lib/repositories/mappers.test.ts',
             // Inside the domain glob above, but the source is still
             // comment-only: scoring.ts, weak-areas.ts and feedback.ts have a
             // written spec and no function to call. Delete a line here when the
@@ -72,6 +84,11 @@ export default defineConfig({
             // against a real test database or after its data access moves
             // behind user.repo — see SP-120. Not testable from here.
             'tests/lib/auth/current-user.test.ts',
+            // Inside the tests/app glob above, but still a docblock-only spec:
+            // its source is a server component that finds-or-creates a run and
+            // redirects, so it needs the service mocked and a redirect that
+            // throws. Delete this line when it is written.
+            'tests/app/(student)/assessments/start/[categoryId]/page.test.ts',
         ],
         coverage: {
             provider: 'v8',

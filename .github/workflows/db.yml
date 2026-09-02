@@ -1,0 +1,78 @@
+# Database-backed tests — SP-004
+#
+# `tests/db` and `tests/lib/repositories/*.repo` assert what the DATABASE
+# guarantees: constraints, triggers, the grading function, and every PostgREST
+# query the repository layer builds. They need a live Supabase project, which is
+# the one thing ci.yml deliberately does without — so they get their own job,
+# exactly as the note in ci.yml said they would.
+#
+# It shares the E2E project and the E2E secrets. That is deliberate: it is the
+# same "a database we are allowed to dirty" requirement, and a third Supabase
+# project would be one more thing to seed and keep in step with a schema that
+# has no migrations to apply (ARCHITECTURE §0).
+#
+# Secrets (Settings -> Secrets and variables -> Actions), from the TEST project
+# and never the demo one:
+#
+#   E2E_SUPABASE_URL
+#   E2E_SUPABASE_ANON_KEY
+#
+# SESSION_SECRET is here too, because tests/lib/auth/current-user.test.ts signs
+# and reads a real session cookie; lib/auth/session.ts refuses a secret shorter
+# than 32 characters, so it cannot be a placeholder.
+#
+# Fork PRs get no secrets, so the job is skipped there rather than failing with
+# a missing-key error that reads as a product bug.
+#
+# WHY IT DOES NOT NEED A SEED, WHERE THE E2E JOB DOES. Every test here creates
+# the rows it needs through `Sandbox` (tests/helpers/supabase-test-client.ts)
+# and deletes exactly those afterwards. Nothing truncates and nothing depends on
+# the seeded bank, so this job cannot leave the project in a state the next run
+# trips over — and it does not have to wait for `npm run seed:e2e`.
+
+name: Database
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# One database. Two of these running at once would have both writing rows the
+# other's aggregates count — `overviewCounts` asserts a delta of exactly one
+# member — so pushes queue rather than overlap.
+concurrency:
+  group: db-tests
+  cancel-in-progress: false
+
+jobs:
+  database:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    # Same-repo only: a fork cannot read the secrets below.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+
+    env:
+      # Read by tests/helpers/supabase-test-client.ts, which prefers the real
+      # environment over .env.e2e — so no file is needed here. Its guard
+      # compares this url against .env.local's, and there is no .env.local in
+      # CI, so the guard passes on absence rather than being bypassed.
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.E2E_SUPABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.E2E_SUPABASE_ANON_KEY }}
+      SESSION_SECRET: ${{ secrets.E2E_SESSION_SECRET }}
+      AI_PROVIDER: mock
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Database tests
+        run: npm run test:db

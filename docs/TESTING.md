@@ -1,12 +1,20 @@
 # Testing — SkillPath
 
-> ## Status: running in CI. 32 files, 365 tests, gate green.
+> ## Status: running in CI. 56 files, 714 tests, gate green.
 >
 > ```
 > npm test            # watch
 > npm run test:run    # once
 > npm run test:coverage   # what CI runs
+> npm run test:db     # the database-backed suite — needs the test project
 > ```
+>
+> | Suite | Files | Tests | Needs a database | CI |
+> |---|---|---|---|---|
+> | `npm run test:coverage` | 44 | 493 | no | `ci.yml` |
+> | `npm run test:db` | 12 | 221 | **yes** | `db.yml` |
+> |  ↳ `SKILLPATH_DB_TEST_KEEP=1` | | | | keeps the rows so you can look at them |
+> | `npm run test:e2e` | 2 | 2 journeys | **yes** | `e2e.yml` |
 >
 > | | Statements | Branches | Functions | Lines |
 > |---|---|---|---|---|
@@ -23,8 +31,16 @@
 > round-trip test passes against an implementation with no signature. Every
 > guard in it was mutation-checked: delete the signature comparison, the expiry
 > check, the `typeof` check or the `Number.isFinite` check and a named test
-> dies. `current-user.ts` is still excluded from the run and the gate
-> (**SP-120**).
+> dies.
+>
+> **SP-120 is closed too.** `current-user.ts` — password hashing, password
+> verification, and who counts as an administrator — is tested in
+> `tests/lib/auth/current-user.test.ts` against the real test project, under
+> `npm run test:db`. It stays out of the *gate* because the gate's suite has no
+> database, not because it is untested. Note while reading ARCHITECTURE §0: it
+> records this file as signing anyone in on an email alone. That is no longer
+> true — passwords are hashed with scrypt and verified — and there is now a test
+> that keeps it that way.
 
 ## The one thing to know before you add a test file
 
@@ -64,10 +80,18 @@ reason the folder is shaped this way.
 | `tests/components` | no | RTL, logic-bearing components only | none |
 | `e2e` | no | one whole journey, in a browser | none — a real test project |
 
-`tests/db`, `tests/app` and `tests/components` are **not written yet**. The
-database-backed folders are excluded from the default run so a teammate without
-a test project can still run `npm test` on a plane; they will need their own
-script and their own CI job.
+`tests/app` and `tests/components` are **not written yet** — see "What is still
+owed" below.
+
+The database-backed files are excluded from the default run so a teammate
+without a test project can still run `npm test` on a plane. **They now have
+their own script and their own CI job**, which this paragraph promised for some
+time before either existed: `npm run test:db`, driven by `vitest.config.db.ts`,
+in `.github/workflows/db.yml`. It shares the E2E project and the E2E secrets.
+
+Nothing there depends on the seed: every test creates the rows it needs through
+`Sandbox` and deletes exactly those, so the suite leaves the project as it found
+it and two runs cannot collide over fixtures.
 
 `e2e` **is** written, and has both — `npm run test:e2e` and
 `.github/workflows/e2e.yml`. It is the one place a real browser and a real
@@ -225,14 +249,58 @@ Beyond those, `vitest.config.ts` excludes named files for two different reasons:
   against a real test database, or after its data access moves behind
   `user.repo`. Tracked as **SP-120**.
 
+## What is still owed
+
+| | Why |
+|---|---|
+| `tests/components` (5 files) and the 4 `.tsx` files under `tests/app` | neither `@testing-library/react` nor `@vitejs/plugin-react` is installed, so a `.tsx` test cannot run at all. The first component test starts by adding them. The nine `.ts` **Server Action** specs under `tests/app` are now written — they substitute the service, so they need no React and no database |
+| `tests/app/(student)/assessments/start/[categoryId]/page.test.ts` | its source is a server component that finds-or-creates a run and redirects; needs the service mocked and a throwing `redirect` |
+| `tests/lib/ai` (6 files) | `lib/ai/` is six comment-only files — no implementation to call |
+| `tests/lib/domain/{scoring,weak-areas,feedback}` | same: written spec, no function |
+| `tests/lib/services/{ai,auth,progress}` | same |
+| `tests/lib/repositories/progress.repo` | same |
+| `tests/lib/logger` and `tests/middleware` | `lib/logger.ts` is comment-only; `middleware.ts` is real and its test is simply unwritten |
+| `tests/db/rls-*` (7 files) | **blocked on the product.** RLS is not enabled on any table, so there are no policies to exercise and no user token to hold. See `tests/db/README.md` |
+
+Everything above except the last two rows is blocked on source that does not
+exist yet, not on test effort.
+
 ## Known gaps
 
-- **The duplicated constants are still unchecked.** The XP amounts and level
-  thresholds exist in both `lib/domain/constants.ts` and
-  `0002_functions.sql`, and nothing verifies the copies agree. A test asserting
-  `XP_PER_ASSESSMENT === 50` does *not* close this — it compares the constant to
-  itself. The check has to read the SQL, which is not in the repository.
-  **SP-118**, blocked on SP-003.
+- **SP-118 is closed, and it found a real divergence.** The XP amounts and level
+  thresholds exist in both `lib/domain/constants.ts` and the SQL. A test
+  asserting `XP_PER_ASSESSMENT === 50` does *not* close this — it compares the
+  constant to itself, and the check was recorded here as blocked on the
+  migration not being in the repository.
+
+  `tests/db/triggers.test.ts` closes it the other way round: it grades real
+  papers at known scores and compares what the database **wrote** against what
+  the constants **claim**. That needs no migration to read, because it asks the
+  authority directly.
+
+  Two results:
+
+  - **Levels agree.** `level_for_score()` in SQL and `estimateLevel()` in
+    TypeScript match at 0, 40, 50, 70, 80 and 100 — including both boundaries.
+  - **XP does not.** TypeScript says the submission award is
+    `XP_PER_ASSESSMENT + score × XP_PER_SCORE_POINT`. The database pays a flat
+    `XP_PER_ASSESSMENT` and nothing per point: a 70% paper and a 0% paper are
+    both worth exactly 50 XP. This is user-visible — `lib/domain/derived.ts`
+    builds the "Sharp today" quest card from `70 * XP_PER_SCORE_POINT` and
+    advertises 70 XP for scoring 70%, which is never awarded. Exactly the
+    failure the header of `constants.ts` predicted in writing. The test pins
+    current behaviour and says so at length; the fix is a product decision
+    (either the SQL starts paying per point, or `XP_PER_SCORE_POINT` and the
+    quest that reads it come out of the TypeScript).
+
+- **`listPaged` errors past the last page instead of returning an empty one.**
+  Found by `tests/lib/repositories/user.repo.test.ts`. PostgREST answers
+  PGRST103 when the offset is past the row count and `fromPostgrestError` has no
+  case for it, so the admin gets "Something went wrong. Try again." The header of
+  `filters.schema.ts` says clamping `?page=` to 1..10 000 makes a hand-edited
+  page number safe; it does not, because safety needs the page to be inside
+  *this* result set. Reachable without touching the URL: page to the end of the
+  members list, then narrow the filter. Pinned as-is, in `user.repo.test.ts`.
 - **`lib/domain/derived.ts` is the weakest domain file** at 75% branches. It is
   the largest pure module in the codebase and drives badges, quests and the
   overall level. Its `dayOf` test used to assert only that the output *looked*
