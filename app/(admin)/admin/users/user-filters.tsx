@@ -30,7 +30,7 @@ export function UserFilters({ search, role, status }: UserFiltersProps) {
         <form method="GET" action="/admin/users" className="flex flex-wrap items-end gap-3">
             <div className="min-w-56 flex-1 space-y-1.5">
                 <label htmlFor="user-search" className="block text-[0.8125rem] font-medium">
-                    Search
+                    Search member
                 </label>
                 <Input
                     id="user-search"

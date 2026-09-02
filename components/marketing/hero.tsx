@@ -28,9 +28,9 @@ export function Hero() {
 
                         <h1
                             id="hero-title"
-                            className="mt-5 text-4xl font-semibold leading-[1.08] tracking-tight text-foreground sm:text-5xl"
+                            className="mt-5 text-3xl font-semibold leading-[1.12] tracking-tight text-foreground sm:text-4xl lg:text-[2.65rem]"
                         >
-                            Find out what you actually know.
+                            Find out what you actually know in software engineering.{' '}
                             <span className="block text-muted-foreground">Then close the gaps.</span>
                         </h1>
 
@@ -65,7 +65,12 @@ export function Hero() {
                         </p>
                     </div>
 
-                    <AssessmentMock />
+                    <div className="space-y-3">
+                        <p className="text-xs font-medium tracking-wide uppercase text-muted-foreground">
+                            Live assessment preview
+                        </p>
+                        <AssessmentMock />
+                    </div>
                 </div>
             </div>
         </section>
