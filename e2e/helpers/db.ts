@@ -127,7 +127,87 @@ export async function readBaselineAnswerKey(db: TestDb): Promise<Map<string, Ans
         });
     }
 
+    // A Map keyed by text silently keeps the LAST of any duplicate pair, and
+    // the spec looks each rendered card up by its text — so a bank with two
+    // questions worded the same would answer one of them against the other's
+    // key. That surfaces as a wrong percentage on the results page, which is
+    // precisely the signal this journey exists to make trustworthy, arriving
+    // for a reason that has nothing to do with grade_assessment().
+    if (key.size !== questions.length) {
+        throw new Error(
+            `The baseline bank has ${questions.length} questions but only ${key.size} distinct ` +
+                'texts. The answer key is keyed by question text, so a duplicate collapses and ' +
+                'the paper would be answered against the wrong entry. Find the repeated text in ' +
+                'the questions table — `npm run seed:e2e` will not fix it, it skips texts that ' +
+                'already exist.',
+        );
+    }
+
     return key;
+}
+
+export async function findCategoryByName(db: TestDb, name: string) {
+    const { data, error } = await db
+        .from('skill_categories')
+        .select('category_id, name, status')
+        .eq('name', name)
+        .maybeSingle();
+
+    if (error) throw new Error(`Could not look up category "${name}": ${error.message}`);
+
+    return data;
+}
+
+/** One admin-written question, read back with the key the admin form set. */
+export interface BankQuestion {
+    questionId: number;
+    text: string;
+    status: string;
+    difficulty: SkillLevel;
+    createdBy: number | null;
+    answers: Array<{ answerId: number; text: string; isCorrect: boolean; position: number }>;
+}
+
+/**
+ * A category's whole bank, whatever its status.
+ *
+ * Deliberately NOT filtered to active: `insertWithAnswers` never sets `status`,
+ * so an admin-created question is active only because the column defaults that
+ * way, and there are no migrations in the repository to read that default out
+ * of (ARCHITECTURE §0). A question that came back `inactive` would never be
+ * drawn into a paper, and the spec would report "the student was not served it"
+ * — true, and the wrong diagnosis. Reading the status back lets it say which.
+ */
+export async function questionsInCategory(
+    db: TestDb,
+    categoryId: number,
+): Promise<BankQuestion[]> {
+    const { data, error } = await db
+        .from('questions')
+        // One string literal, not a concatenation: supabase-js infers the row
+        // type from the select AS A LITERAL TYPE, and `'a' + 'b'` widens to
+        // `string`, which infers to GenericStringError and fails the build.
+        .select('question_id, text, status, difficulty, created_by, answers(answer_id, answer_text, is_correct, position)')
+        .eq('category_id', categoryId)
+        .order('question_id', { ascending: true });
+
+    if (error) throw new Error(`Could not read category ${categoryId}: ${error.message}`);
+
+    return data.map((row) => ({
+        questionId: row.question_id,
+        text: row.text,
+        status: row.status,
+        difficulty: row.difficulty,
+        createdBy: row.created_by,
+        answers: [...row.answers]
+            .sort((a, b) => a.position - b.position)
+            .map((answer) => ({
+                answerId: answer.answer_id,
+                text: answer.answer_text,
+                isCorrect: answer.is_correct,
+                position: answer.position,
+            })),
+    }));
 }
 
 export async function findUserByEmail(db: TestDb, email: string) {
@@ -209,4 +289,45 @@ export async function deleteMember(db: TestDb, userId: number): Promise<void> {
     await db.from('assessments').delete().eq('user_id', userId);
     await db.from('category_progress').delete().eq('user_id', userId);
     await db.from('users').delete().eq('user_id', userId);
+}
+
+/**
+ * Removes a category the admin spec invented, and its bank with it.
+ *
+ * NOT best-effort, unlike deleteMember. A leftover member is invisible to
+ * everybody else; a leftover *category* is active, has a full bank, and shows
+ * up on the /assessments page of every student in the project — one more per
+ * run, forever. So this one reports what it could not remove and names the id
+ * to delete by hand.
+ *
+ * Order is forced by the foreign keys, and one of them reaches outside this
+ * function: `student_responses.question_id`. Delete the member who sat the
+ * paper FIRST, or these questions are still referenced and will not go.
+ */
+export async function deleteCategory(db: TestDb, categoryId: number): Promise<void> {
+    const { data: questions, error: readError } = await db
+        .from('questions')
+        .select('question_id')
+        .eq('category_id', categoryId);
+
+    if (readError) throw new Error(`Could not read category ${categoryId}: ${readError.message}`);
+
+    const ids = questions.map((q) => q.question_id);
+
+    if (ids.length > 0) {
+        // `answers` cascades from `questions`, but the two databases were built
+        // by hand at different times (ARCHITECTURE §0) and the cascade is not
+        // something this repository can point at. Explicit costs one request.
+        const { error } = await db.from('answers').delete().in('question_id', ids);
+        if (error) throw new Error(`Could not remove answers: ${error.message}`);
+
+        const { error: questionError } = await db
+            .from('questions')
+            .delete()
+            .in('question_id', ids);
+        if (questionError) throw new Error(`Could not remove questions: ${questionError.message}`);
+    }
+
+    const { error } = await db.from('skill_categories').delete().eq('category_id', categoryId);
+    if (error) throw new Error(`Could not remove category ${categoryId}: ${error.message}`);
 }

@@ -44,6 +44,7 @@ import {
     storedAnswers,
     testDb,
 } from './helpers/db';
+import { newMember, register, signIn, type Member } from './helpers/member';
 
 /**
  * 12 of 20. Chosen so that the expected score sits well inside a band rather
@@ -57,35 +58,20 @@ const CORRECT_ANSWERS = 12;
 const EXPECTED_SCORE = (CORRECT_ANSWERS / BASELINE_QUESTION_COUNT) * 100;
 const EXPECTED_LEVEL = LEVEL_LABELS[estimateLevel(EXPECTED_SCORE)];
 
-interface Member {
-    firstName: string;
-    lastName: string;
-    email: string;
-    password: string;
-}
-
 /**
- * Unique on BOTH axes, which is not belt-and-braces: `loginAction` rejects a
- * duplicate email *and* a duplicate first-name/last-name pair. A fixed name
- * passes once and then redirects to /register?error=name_already_exists
- * forever after — a second run that fails for a reason unrelated to the code.
+ * Eight misses, eight plan items — every baseline question in the seed carries
+ * both a topic_title and a study_advice, which is what
+ * buildBaselineRecommendations needs to turn a miss into a plan row.
  *
- * Minted inside the test rather than at import time, so a RETRY registers
- * somebody new. Playwright normally discards a worker after a failure and the
- * fresh one would re-import this module anyway — but `retries: 1` is on in CI
- * and a test that only works because of how the runner recycles processes is
- * one step from failing for a reason nobody can see.
+ * A NUMBER, and deliberately not `expectedTopics.length`. That list is what the
+ * plan assertions further down compare against, so it cannot also be the thing
+ * that says how long it should be: if the E2E bank lost topic_title on seven of
+ * these eight, the list would quietly shrink to one, the plan would shrink to
+ * match it, and every assertion below would stay green over a plan feature that
+ * had all but stopped working. Pinning the count is what makes those
+ * comparisons mean something.
  */
-function newMember(): Member {
-    const runId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
-
-    return {
-        firstName: 'E2E',
-        lastName: `Runner-${runId}`,
-        email: `e2e-${runId}@skillpath.test`,
-        password: 'e2e-password-1234',
-    };
-}
+const EXPECTED_PLAN_ITEMS = BASELINE_QUESTION_COUNT - CORRECT_ANSWERS;
 
 const db = testDb();
 
@@ -127,18 +113,37 @@ async function questionTextOf(card: Locator): Promise<string> {
     return (await card.locator('legend span').nth(1).innerText()).trim();
 }
 
-/** "6 of 7 correct" x3, summed. The is_correct snapshots, read back. */
+/**
+ * "6 of 7 correct" x3, summed. The is_correct snapshots, read back.
+ *
+ * Each band is found BY ITS LABEL, not swept off the page with `dl dd`. The
+ * score card owns the only <dl> on the results page today, and the sweep worked
+ * because of it — but it was a page-wide selector standing in for a
+ * card-shaped fact, and a second <dl> added anywhere on this route would have
+ * inflated both halves of the sum in step while every assertion kept passing.
+ *
+ * A row that goes missing or stops reading "N of M correct" now fails here,
+ * naming the band, rather than silently contributing nothing to the total.
+ */
 async function bandTotals(page: Page): Promise<{ correct: number; total: number }> {
-    const rows = await page.locator('dl dd').allInnerTexts();
+    const totals = { correct: 0, total: 0 };
 
-    return rows.reduce(
-        (sum, row) => {
-            const match = row.match(/(\d+)\s+of\s+(\d+)/);
-            if (!match) return sum;
-            return { correct: sum.correct + Number(match[1]), total: sum.total + Number(match[2]) };
-        },
-        { correct: 0, total: 0 },
-    );
+    for (const label of Object.values(LEVEL_LABELS)) {
+        const row = page.locator('dl > div').filter({ hasText: label });
+
+        await expect(row, `the score card has no "${label}" band row`).toHaveCount(1);
+
+        // <dd> is role="definition" — one per band row.
+        const text = (await row.getByRole('definition').innerText()).trim();
+        const match = text.match(/(\d+)\s+of\s+(\d+)/);
+
+        expect(match, `the "${label}" band does not read "N of M correct": "${text}"`).not.toBeNull();
+
+        totals.correct += Number(match![1]);
+        totals.total += Number(match![2]);
+    }
+
+    return totals;
 }
 
 test('a new member registers, sits the baseline, and gets a plan', async ({ page, context }) => {
@@ -165,16 +170,7 @@ test('a new member registers, sits the baseline, and gets a plan', async ({ page
     let assessmentId = 0;
 
     await test.step('register', async () => {
-        await page.goto('/register');
-
-        await page.fill('input[name="firstName"]', who.firstName);
-        await page.fill('input[name="lastName"]', who.lastName);
-        await page.fill('input[name="email"]', who.email);
-        await page.fill('input[name="password"]', who.password);
-
-        await page.getByRole('button', { name: 'Create account' }).click();
-
-        await expect(page).toHaveURL(/\/success$/);
+        await register(page, who);
 
         // Registering does NOT sign you in — loginAction's create branch ends in
         // redirect('/success') and never calls createSession. Pinned here
@@ -203,13 +199,7 @@ test('a new member registers, sits the baseline, and gets a plan', async ({ page
     });
 
     await test.step('sign in', async () => {
-        await page.goto('/login');
-
-        await page.fill('input[name="email"]', who.email);
-        await page.fill('input[name="password"]', who.password);
-        await page.getByRole('button', { name: 'Sign in' }).click();
-
-        await expect(page).toHaveURL(/\/dashboard$/);
+        await signIn(page, who, /\/dashboard$/);
 
         const session = (await context.cookies()).find((c) => c.name === 'skillpath_session');
 
@@ -319,8 +309,11 @@ test('a new member registers, sits the baseline, and gets a plan', async ({ page
     await test.step('the plan was written', async () => {
         expect(
             expectedTopics.length,
-            'the misses produced no topics — this run could not detect a missing plan',
-        ).toBeGreaterThan(0);
+            'the misses did not all produce a topic. buildBaselineRecommendations skips a missed ' +
+                'question with no topic_title or no study_advice, so the E2E bank is missing ' +
+                'those columns on some of them — run e2e/schema-patch.sql, then npm run seed:e2e. ' +
+                'Left alone, the plan assertions below would shrink to fit and pass.',
+        ).toBe(EXPECTED_PLAN_ITEMS);
 
         await expect(page.getByText('What to focus on')).toBeVisible();
 
@@ -359,7 +352,28 @@ test('a new member registers, sits the baseline, and gets a plan', async ({ page
         // lets the request through; readSession must reject it and assertAuth
         // must bounce. This is the step that tells a verified HMAC apart from
         // a cookie nobody checks.
-        const forged = session.value.slice(0, -1) + (session.value.endsWith('A') ? 'B' : 'A');
+        //
+        // THE FLIPPED CHARACTER IS IN THE MIDDLE, AND THAT IS NOT ARBITRARY.
+        // The signature is base64url of a 32-byte HMAC: 43 characters carrying
+        // 258 bits, so the LAST character has two bits that decode to nothing.
+        // `sign(body).slice(0, -1) + 'A'` and the same with 'B' are different
+        // strings that decode to identical buffers. safeEqual() compares the
+        // strings today, so flipping the last character does work — but the
+        // obvious "improvement" to that function is to decode and compare the
+        // raw bytes, and under that version the forgery would VERIFY and this
+        // step would go red for a reason that reads as a product bug. Every bit
+        // of a middle character is significant, so this holds under both.
+        const dot = session.value.lastIndexOf('.');
+        const signature = session.value.slice(dot + 1);
+        const at = Math.floor(signature.length / 2);
+
+        const forged =
+            `${session.value.slice(0, dot)}.` +
+            signature.slice(0, at) +
+            (signature[at] === 'A' ? 'B' : 'A') +
+            signature.slice(at + 1);
+
+        expect(forged, 'the forgery did not change the cookie').not.toBe(session.value);
 
         await context.addCookies([{ ...session, value: forged }]);
         await page.goto('/plan');
