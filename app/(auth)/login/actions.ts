@@ -24,21 +24,32 @@
 
 'use server';
 
-import { loginAction as signIn } from '../../../lib/auth/current-user';
-import { isRedirectError } from "next/dist/client/components/redirect-error";
+import { redirect } from 'next/navigation';
+import { createClient } from '../../../lib/supabase/server';
 
-export async function loginAction(formData: FormData): Promise<void>
-{
-    try
-    {
-        await signIn(formData);
-    } catch (error: any)
-    {
-        if (isRedirectError(error))
-        {
-            throw error;
-        }
+export async function loginAction(formData: FormData): Promise<void> {
+    const email = formData.get('email') as string;
+    const password = formData.get('password') as string;
+    const next = formData.get('next') as string | null;
 
+    const supabase = await createClient();
+
+    // 1. Apelăm metoda oficială Supabase Auth care validează parola și creează o sesiune securizată (token JWT)
+    const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+    });
+
+    // 2. Dacă emailul sau parola sunt greșite, returnăm utilizatorul la formular cu mesaj de eroare
+    if (error) {
         console.error("Login error:", error.message);
+        redirect(`/login?error=invalid`);
+    }
+
+    // 3. Dacă logarea are succes, trimitem utilizatorul la pagina dorită sau direct pe dashboard
+    if (next) {
+        redirect(next);
+    } else {
+        redirect('/dashboard');
     }
 }

@@ -23,9 +23,37 @@
  */
 'use server';
 
-import { loginAction } from '../../../lib/auth/current-user';
+import { redirect } from 'next/navigation';
+import { createClient } from '../../../lib/supabase/server';
 
 export async function registerAction(formData: FormData): Promise<void> {
-    // Ends in a redirect(), which throws NEXT_REDIRECT — let it through.
-    await loginAction(formData);
+    const email = formData.get('email') as string;
+    const password = formData.get('password') as string;
+    const firstName = formData.get('firstName') as string;
+    const lastName = formData.get('lastName') as string;
+    const role = formData.get('role') as string;
+
+    const supabase = await createClient();
+
+    // 1. Creăm contul oficial în Supabase Auth
+    // Trimitem first_name și last_name în 'raw_user_meta_data', de unde le va prelua trigger-ul tău SQL
+    const { error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+            data: {
+                first_name: firstName,
+                last_name: lastName,
+                role: role,
+            }
+        }
+    });
+
+    if (error) {
+        console.error("Register error:", error.message);
+        redirect(`/register?error=email_already_exists`);
+    }
+
+    // 2. Redirecționăm către pagina de succes
+    redirect('/success');
 }
