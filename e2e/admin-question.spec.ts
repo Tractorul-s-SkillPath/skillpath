@@ -383,10 +383,33 @@ test('an admin writes a question, a student is served it, and the key stays behi
         const url = response.url();
         if (!url.startsWith(baseURL!) || url.includes('/_next/static/')) return;
 
+        // Redirects carry no body worth reading, and this run makes one:
+        // /assessments/start/:id bounces to /assessments/:id. That matters more
+        // than it sounds. Chromium drops the body of a response the page has
+        // navigated away from, and response.text() for a body that is already
+        // gone can sit unsettled rather than rejecting — so collecting it hangs
+        // the Promise.all below until the test budget runs out, which is what
+        // CI saw twice while a local run finished in ten seconds.
+        if (response.status() >= 300 && response.status() < 400) return;
+
         // The promise is collected rather than awaited in the handler:
         // Playwright does not wait for event handlers, so a handler that awaits
         // is a handler whose result may land after the assertion has read it.
-        bodies.push(response.text().catch(() => ''));
+        //
+        // Bounded for the same reason the redirect is skipped: one body that
+        // never arrives should cost seconds, not the whole test. Resolving a
+        // lost body to '' cannot quietly weaken the negatives below — the
+        // positive control asserts the captured payload still contains the
+        // question and every option, so a body that genuinely went missing
+        // fails there, loudly, instead of passing vacuously here.
+        bodies.push(
+            Promise.race([
+                response.text().catch(() => ''),
+                new Promise<string>((resolve) => {
+                    setTimeout(() => resolve(''), 10_000);
+                }),
+            ]),
+        );
     });
 
     await test.step('the student is served the paper the admin wrote', async () => {
