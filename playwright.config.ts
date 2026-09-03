@@ -78,6 +78,12 @@ export default defineConfig({
         env: {
             NEXT_PUBLIC_SUPABASE_URL: env.supabaseUrl,
             NEXT_PUBLIC_SUPABASE_ANON_KEY: env.supabaseKey,
+            // Load-bearing. lib/supabase/server.ts reads this now, and both
+            // `next dev` and `next start` load .env.local — so without this
+            // line the app under test runs against the TEST project's url
+            // holding the DEMO project's service-role key. e2e/helpers/env.ts
+            // guards the pair, but it can only guard what it is given.
+            SUPABASE_SERVICE_ROLE_KEY: env.serviceRoleKey,
             SESSION_SECRET: env.sessionSecret,
         },
     },

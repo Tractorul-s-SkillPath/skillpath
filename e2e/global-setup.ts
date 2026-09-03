@@ -37,7 +37,7 @@ export default async function globalSetup(): Promise<void> {
     if (error) {
         throw new Error(
             `Could not reach the E2E Supabase project at ${env.supabaseUrl}:\n  ${error.message}\n\n` +
-                'Check NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in .env.e2e.',
+                'Check NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in .env.e2e.',
         );
     }
 

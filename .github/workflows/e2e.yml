@@ -14,7 +14,13 @@
 #
 #   E2E_SUPABASE_URL
 #   E2E_SUPABASE_ANON_KEY
+#   E2E_SUPABASE_SERVICE_ROLE_KEY
 #   E2E_SESSION_SECRET
+#
+# The service_role key is read twice over: by e2e/helpers/env.ts for the
+# harness's own queries, and by the app under test, which needs it because
+# lib/supabase/server.ts queries with it. RLS is on in the test project and the
+# anon role matches no policy, so neither works without it.
 #
 # Fork PRs get no secrets, so the job is skipped there rather than failing with
 # a missing-key error that looks like a product bug.
@@ -44,6 +50,7 @@ jobs:
       # .env.e2e — so no file is needed here.
       NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.E2E_SUPABASE_URL }}
       NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.E2E_SUPABASE_ANON_KEY }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.E2E_SUPABASE_SERVICE_ROLE_KEY }}
       SESSION_SECRET: ${{ secrets.E2E_SESSION_SECRET }}
       AI_PROVIDER: mock
       # A local run keeps its rows so they can be read in the table editor.

@@ -35,7 +35,10 @@ let cached: TestDb | null = null;
 export function testDb(): TestDb {
     if (!cached) {
         const env = e2eEnv();
-        cached = createClient<Database>(env.supabaseUrl, env.supabaseKey, {
+        // Service role, not anon: RLS is on in the test project and the anon
+        // role matches no policy, so every read came back empty and every
+        // fixture insert was rejected with 42501.
+        cached = createClient<Database>(env.supabaseUrl, env.serviceRoleKey, {
             auth: { persistSession: false, autoRefreshToken: false },
         });
     }

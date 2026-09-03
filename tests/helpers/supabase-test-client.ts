@@ -94,12 +94,16 @@ export function testClient(): TestClient {
         (process.env[name] || file[name] || '').trim() || undefined;
 
     const url = read('NEXT_PUBLIC_SUPABASE_URL');
-    const key = read('NEXT_PUBLIC_SUPABASE_ANON_KEY');
+    // Service role, not anon. These tests insert fixture rows into every table;
+    // with RLS on in the test project the anon role satisfies no policy, so the
+    // sandbox failed 144 of 146 specs with "new row violates row-level security
+    // policy for table users" before it could assert anything.
+    const key = read('SUPABASE_SERVICE_ROLE_KEY');
 
     if (!url || !key) {
         throw new Error(
             'The database-backed tests need NEXT_PUBLIC_SUPABASE_URL and\n' +
-                'NEXT_PUBLIC_SUPABASE_ANON_KEY for the TEST project.\n\n' +
+                'SUPABASE_SERVICE_ROLE_KEY for the TEST project.\n\n' +
                 'Copy the block at the bottom of .env.example into .env.e2e and fill it in\n' +
                 '(Supabase dashboard -> Project Settings -> API Keys). In CI the same names\n' +
                 'come from repository secrets.\n\n' +
@@ -109,7 +113,22 @@ export function testClient(): TestClient {
         );
     }
 
-    const demoUrl = readEnvFile('.env.local').NEXT_PUBLIC_SUPABASE_URL;
+    const demo = readEnvFile('.env.local');
+
+    // Checked before the url, because this key bypasses RLS: holding the demo
+    // project's service-role key is enough to delete its rows whatever the url
+    // says.
+    if (demo.SUPABASE_SERVICE_ROLE_KEY && demo.SUPABASE_SERVICE_ROLE_KEY === key) {
+        throw new Error(
+            'REFUSING TO RUN: SUPABASE_SERVICE_ROLE_KEY in .env.e2e is the demo project\'s key,\n' +
+                'the one in .env.local.\n\n' +
+                'These tests insert and delete rows in every table, and a service-role key goes\n' +
+                'straight through RLS to do it.\n\n' +
+                'Use the TEST project\'s service_role key.',
+        );
+    }
+
+    const demoUrl = demo.NEXT_PUBLIC_SUPABASE_URL;
 
     if (demoUrl && demoUrl === url) {
         throw new Error(

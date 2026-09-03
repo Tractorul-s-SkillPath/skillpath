@@ -28,6 +28,13 @@ const ROOT = path.resolve(__dirname, '../..');
 export interface E2eEnv {
     supabaseUrl: string;
     supabaseKey: string;
+    /**
+     * Reads and writes go through this, not `supabaseKey`. RLS is on in the
+     * test project, and the anon role satisfies no policy — the harness saw an
+     * empty `skill_categories` and reported "the E2E project has no category 0"
+     * about a project that was fully seeded.
+     */
+    serviceRoleKey: string;
     sessionSecret: string;
     port: number;
     baseURL: string;
@@ -94,6 +101,8 @@ export function e2eEnv(): E2eEnv {
     const supabaseUrl = read('NEXT_PUBLIC_SUPABASE_URL') ?? missing('NEXT_PUBLIC_SUPABASE_URL');
     const supabaseKey =
         read('NEXT_PUBLIC_SUPABASE_ANON_KEY') ?? missing('NEXT_PUBLIC_SUPABASE_ANON_KEY');
+    const serviceRoleKey =
+        read('SUPABASE_SERVICE_ROLE_KEY') ?? missing('SUPABASE_SERVICE_ROLE_KEY');
     const sessionSecret = read('SESSION_SECRET') ?? missing('SESSION_SECRET');
 
     if (sessionSecret.length < 32) {
@@ -104,7 +113,27 @@ export function e2eEnv(): E2eEnv {
         );
     }
 
-    const demoUrl = readEnvFile('.env.local').NEXT_PUBLIC_SUPABASE_URL;
+    const demo = readEnvFile('.env.local');
+    const demoUrl = demo.NEXT_PUBLIC_SUPABASE_URL;
+
+    // The URL guard below proves the HARNESS is aimed correctly. It does not
+    // prove the SERVER is: `next start` loads .env.local, so the app under test
+    // takes SUPABASE_SERVICE_ROLE_KEY from there unless playwright.config.ts
+    // overrides it — pointing a demo-project key at a test-project URL. That
+    // combination fails as "Invalid API key", and if the two ever did match it
+    // would write the journey's rows into the demo project. A service-role key
+    // is the one credential that can do that through RLS, so it gets its own
+    // check rather than riding on the URL's.
+    if (demo.SUPABASE_SERVICE_ROLE_KEY && demo.SUPABASE_SERVICE_ROLE_KEY === serviceRoleKey) {
+        throw new Error(
+            'REFUSING TO RUN: SUPABASE_SERVICE_ROLE_KEY in .env.e2e is the same key as the one\n' +
+                'in .env.local — the demo project\'s.\n\n' +
+                'A service-role key bypasses RLS entirely, so this would let the journey write\n' +
+                'into the demo database no matter what the url says.\n\n' +
+                'Use the TEST project\'s service_role key (its own dashboard -> Project Settings\n' +
+                '-> API Keys).',
+        );
+    }
 
     if (demoUrl && demoUrl === supabaseUrl) {
         throw new Error(
@@ -120,6 +149,7 @@ export function e2eEnv(): E2eEnv {
     cached = {
         supabaseUrl,
         supabaseKey,
+        serviceRoleKey,
         sessionSecret,
         port,
         // Deliberately not 3000: a dev server left running on the default port

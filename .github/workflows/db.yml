@@ -16,6 +16,11 @@
 #
 #   E2E_SUPABASE_URL
 #   E2E_SUPABASE_ANON_KEY
+#   E2E_SUPABASE_SERVICE_ROLE_KEY
+#
+# The service_role key is what the sandbox writes fixtures with. RLS is on in
+# the test project and the anon role matches no policy, so without it every
+# insert is rejected with 42501 before a single assertion runs.
 #
 # SESSION_SECRET is here too, because tests/lib/auth/current-user.test.ts signs
 # and reads a real session cookie; lib/auth/session.ts refuses a secret shorter
@@ -60,6 +65,7 @@ jobs:
       # CI, so the guard passes on absence rather than being bypassed.
       NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.E2E_SUPABASE_URL }}
       NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.E2E_SUPABASE_ANON_KEY }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.E2E_SUPABASE_SERVICE_ROLE_KEY }}
       SESSION_SECRET: ${{ secrets.E2E_SESSION_SECRET }}
       AI_PROVIDER: mock
 

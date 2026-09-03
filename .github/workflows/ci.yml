@@ -46,6 +46,11 @@ jobs:
       # Real secrets would buy nothing and would expose them to fork PRs.
       NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
       NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-anon-key
+      # requireEnv('SUPABASE_SERVICE_ROLE_KEY') runs per request, not at module
+      # load, so the build never reads this. It is here so a page that starts
+      # rendering at build time fails on the placeholder rather than on a
+      # missing name — and never with a real key in a fork PR.
+      SUPABASE_SERVICE_ROLE_KEY: placeholder-service-role-key
       SESSION_SECRET: ci-placeholder-secret-at-least-32-characters-long
       # A broken or absent API key must never block a teammate (SP-090).
       AI_PROVIDER: mock
