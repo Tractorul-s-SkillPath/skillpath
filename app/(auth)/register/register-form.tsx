@@ -84,7 +84,7 @@ export default function RegisterForm({ categories }: RegisterFormProps) {
                 </select>
             </Field>
 
-            {categories.length > 0 ? (
+            {!isAdmin && categories.length > 0 ? (
                 <fieldset className="space-y-2">
                     <legend className="block text-[0.8125rem] font-medium text-foreground">
                         What do you want to be assessed on?

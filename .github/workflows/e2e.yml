@@ -1,0 +1,85 @@
+# E2E — SP-101
+#
+# Separate from ci.yml because it needs three things that workflow deliberately
+# does without: real Supabase credentials, a browser, and four minutes.
+#
+# It does NOT run against the Vercel preview deployment, which is what the note
+# in ci.yml used to plan for. The preview is pointed at the demo project, and
+# this journey registers members and writes plan rows — it needs a database it
+# is allowed to dirty. So it builds and starts the app itself, aimed at the E2E
+# project by playwright.config.ts.
+#
+# Secrets (Settings -> Secrets and variables -> Actions), all from the TEST
+# project, never the demo one:
+#
+#   E2E_SUPABASE_URL
+#   E2E_SUPABASE_ANON_KEY
+#   E2E_SUPABASE_SERVICE_ROLE_KEY
+#   E2E_SESSION_SECRET
+#
+# The service_role key is read twice over: by e2e/helpers/env.ts for the
+# harness's own queries, and by the app under test, which needs it because
+# lib/supabase/server.ts queries with it. RLS is on in the test project and the
+# anon role matches no policy, so neither works without it.
+#
+# Fork PRs get no secrets, so the job is skipped there rather than failing with
+# a missing-key error that looks like a product bug.
+
+name: E2E
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  journey:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    # Same-repo only: a fork cannot read the secrets below.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+
+    env:
+      # Read by e2e/helpers/env.ts, which prefers the real environment over
+      # .env.e2e — so no file is needed here.
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.E2E_SUPABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.E2E_SUPABASE_ANON_KEY }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.E2E_SUPABASE_SERVICE_ROLE_KEY }}
+      SESSION_SECRET: ${{ secrets.E2E_SESSION_SECRET }}
+      AI_PROVIDER: mock
+      # A local run keeps its rows so they can be read in the table editor.
+      # Nobody reads CI's, and the project would gain a member per push.
+      E2E_CLEAN: '1'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Journey
+        run: npm run test:e2e
+
+      # The trace is the whole point of a failed E2E run — it replays the
+      # journey step by step, which a stack trace cannot.
+      - name: Upload report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7

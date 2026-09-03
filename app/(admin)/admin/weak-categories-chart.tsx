@@ -22,7 +22,7 @@ import type { CategoryRanking } from '../../../lib/domain/types';
 /** The same boundaries as lib/domain/levels.ts, so a bar agrees with a level. */
 function toneFor(score: number): string {
     if (score < 50) return 'bg-[color:var(--danger)]';
-    if (score < 80) return 'bg-[color:var(--streak)]';
+    if (score < 80) return 'bg-amber-500';
     return 'bg-accent';
 }
 
@@ -33,10 +33,9 @@ function toneFor(score: number): string {
  */
 const LEGEND = [
     { label: 'Beginner', range: 'under 50%', tone: 'bg-[color:var(--danger)]' },
-    { label: 'Intermediate', range: '50–79%', tone: 'bg-[color:var(--streak)]' },
+    { label: 'Intermediate', range: '50–79%', tone: 'bg-amber-500' },
     { label: 'Advanced', range: '80%+', tone: 'bg-accent' },
 ];
-
 export function WeakCategoriesChart({ ranking }: { ranking: CategoryRanking[] }) {
     if (ranking.length === 0) {
         return (
