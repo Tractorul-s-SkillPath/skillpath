@@ -22,8 +22,17 @@ import type {
     SkillCategory,
 } from '../../lib/domain/types';
 
-export const MEMBER_ID = 7;
-export const ADMIN_ID = 1;
+/**
+ * UUIDs, because `users.user_id` is the `auth.users` id now rather than an
+ * identity integer.
+ *
+ * Written out in full rather than generated, so a failure message names the
+ * same id every run and two tests comparing "the member" against "the admin"
+ * are comparing constants a reader can tell apart at a glance. The readable
+ * suffix is the point of the shape.
+ */
+export const MEMBER_ID = '00000000-0000-4000-8000-000000000007';
+export const ADMIN_ID = '00000000-0000-4000-8000-000000000001';
 
 export function aCurrentUser(overrides: Partial<CurrentUser> = {}): CurrentUser {
     return {

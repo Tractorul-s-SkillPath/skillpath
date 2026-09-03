@@ -22,9 +22,16 @@
 # the test project and the anon role matches no policy, so without it every
 # insert is rejected with 42501 before a single assertion runs.
 #
-# SESSION_SECRET is here too, because tests/lib/auth/current-user.test.ts signs
-# and reads a real session cookie; lib/auth/session.ts refuses a secret shorter
-# than 32 characters, so it cannot be a placeholder.
+# SESSION_SECRET used to be here too, for tests/lib/auth/current-user.test.ts,
+# which signed and read a real `skillpath_session` cookie. That cookie is gone —
+# the session is Supabase's and lib/auth/session.ts is deleted — so the secret
+# is no longer set anywhere. The E2E_SESSION_SECRET repository secret can be
+# deleted; nothing reads it.
+#
+# The anon key IS needed, and is new here: tests/lib/auth/current-user.test.ts
+# now signs in as its fixture members over the anon key, which is the only way
+# to have an `auth.uid()` and therefore the only way to test RLS at all. The
+# service-role key goes straight through the policies.
 #
 # Fork PRs get no secrets, so the job is skipped there rather than failing with
 # a missing-key error that reads as a product bug.
@@ -43,11 +50,25 @@ on:
   pull_request:
   workflow_dispatch:
 
-# One database. Two of these running at once would have both writing rows the
-# other's aggregates count — `overviewCounts` asserts a delta of exactly one
-# member — so pushes queue rather than overlap.
+# One database, and THIS JOB IS NOT ITS ONLY WRITER.
+#
+# The group used to be `db-tests`, which serialized this workflow against
+# itself and against nothing else. e2e.yml runs on the same `pull_request`
+# event, against the same Supabase project, and its journey registers a member
+# — so the two overlapped on every PR, and stats.repo.test.ts, which reads a
+# global count before and after creating one member, failed with
+#
+#     AssertionError: expected 48 to be 47
+#
+# intermittently and only in CI. The name is now the shared resource rather
+# than the job, and e2e.yml names the same one, so the two queue behind each
+# other. Renaming it back re-opens the race.
+#
+# `cancel-in-progress: false` because a cancelled run leaves its fixture rows
+# behind: Sandbox.destroy() runs in afterAll and a killed process never reaches
+# it.
 concurrency:
-  group: db-tests
+  group: supabase-test-project
   cancel-in-progress: false
 
 jobs:
@@ -66,7 +87,6 @@ jobs:
       NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.E2E_SUPABASE_URL }}
       NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.E2E_SUPABASE_ANON_KEY }}
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.E2E_SUPABASE_SERVICE_ROLE_KEY }}
-      SESSION_SECRET: ${{ secrets.E2E_SESSION_SECRET }}
       AI_PROVIDER: mock
 
     steps:

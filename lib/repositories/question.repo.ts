@@ -39,7 +39,7 @@ export interface NewQuestion {
     difficulty: SkillLevel;
     answers: NewAnswer[];
     /** The admin writing it. Recorded so an AI-generated bank stays tellable apart. */
-    createdBy: number;
+    createdBy: string;
 }
 
 /**

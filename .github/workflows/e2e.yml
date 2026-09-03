@@ -15,12 +15,16 @@
 #   E2E_SUPABASE_URL
 #   E2E_SUPABASE_ANON_KEY
 #   E2E_SUPABASE_SERVICE_ROLE_KEY
-#   E2E_SESSION_SECRET
 #
-# The service_role key is read twice over: by e2e/helpers/env.ts for the
-# harness's own queries, and by the app under test, which needs it because
-# lib/supabase/server.ts queries with it. RLS is on in the test project and the
-# anon role matches no policy, so neither works without it.
+# The service_role key is read by e2e/helpers/env.ts, for the harness's own
+# queries and for provisioning the seeded admin through the auth admin API. It
+# bypasses RLS, which is what a fixture-arranging client needs.
+#
+# The app under test no longer uses it for ordinary traffic: lib/supabase/server
+# .ts builds its default client on the ANON key plus the caller's session, so
+# the RLS policies actually apply to the journey. The service-role key stays in
+# the app's environment for createServiceClient(), which the admin screens and
+# the question bank need — see that file's header for the two cases.
 #
 # Fork PRs get no secrets, so the job is skipped there rather than failing with
 # a missing-key error that looks like a product bug.
@@ -33,9 +37,20 @@ on:
   pull_request:
   workflow_dispatch:
 
+# The SAME group db.yml uses, and the same project behind it.
+#
+# This was `e2e-${{ github.ref }}`, which serialized a branch against itself
+# while leaving it free to run alongside the database job. Both write to the
+# test project, and the database suite reads global counts, so the overlap
+# showed up there as an off-by-one that no code change could fix. One group per
+# shared resource, not per workflow.
+#
+# The cost is real and accepted: E2E no longer cancels a superseded run on the
+# same branch, so a rapid series of pushes queues instead of skipping ahead.
+# Correct-and-slower beats fast-and-flaky on a database with one copy of itself.
 concurrency:
-  group: e2e-${{ github.ref }}
-  cancel-in-progress: true
+  group: supabase-test-project
+  cancel-in-progress: false
 
 jobs:
   journey:
@@ -51,7 +66,6 @@ jobs:
       NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.E2E_SUPABASE_URL }}
       NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.E2E_SUPABASE_ANON_KEY }}
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.E2E_SUPABASE_SERVICE_ROLE_KEY }}
-      SESSION_SECRET: ${{ secrets.E2E_SESSION_SECRET }}
       AI_PROVIDER: mock
       # A local run keeps its rows so they can be read in the table editor.
       # Nobody reads CI's, and the project would gain a member per push.

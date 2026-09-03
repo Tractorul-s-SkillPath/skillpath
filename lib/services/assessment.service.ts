@@ -50,7 +50,7 @@ export type BaselineStart =
  * does not restart (SP-042: the check is the first line of defence, the
  * partial unique index would be the backstop once it exists). Only then create.
  */
-export async function startBaseline(userId: number): Promise<Result<BaselineStart, AppError>> {
+export async function startBaseline(userId: string): Promise<Result<BaselineStart, AppError>> {
     const supabase = await createClient();
 
     const submitted = await assessmentRepo.findByStatus(
@@ -112,7 +112,7 @@ export async function startBaseline(userId: number): Promise<Result<BaselineStar
  * produce between the check and the insert.
  */
 export async function startCategory(
-    userId: number,
+    userId: string,
     categoryId: number,
 ): Promise<Result<number, AppError>> {
     const supabase = await createClient();
@@ -197,7 +197,7 @@ export interface AssessmentsOverview {
  * appears on the next load, one that empties out drops to disabled.
  */
 export async function getAssessmentsOverview(
-    userId: number,
+    userId: string,
 ): Promise<Result<AssessmentsOverview, AppError>> {
     const supabase = await createClient();
 
@@ -253,7 +253,7 @@ export async function getAssessmentsOverview(
  * error deliberately cannot say whether the id exists (SP-053 AC2).
  */
 export async function getRun(
-    userId: number,
+    userId: string,
     assessmentId: number,
 ): Promise<Result<AssessmentRun, AppError>> {
     const supabase = await createClient();
@@ -288,7 +288,7 @@ export async function getRun(
  * timer gains nothing (SP-045 AC2). The grace covers latency, not cheating.
  */
 export async function saveAnswer(
-    userId: number,
+    userId: string,
     assessmentId: number,
     questionId: number,
     answerId: number,

@@ -1,694 +1,259 @@
 /**
- * current-user — against the real test database. SP-120 is what this closes.
+ * getCurrentUser — against the real test database, through a real session.
  *
- * Stories: SP-010, SP-011, SP-012, SP-013
+ * Stories: SP-010, SP-011, SP-012
  *
- * WHY THIS FILE IS HERE AND NOT IN THE DEFAULT RUN. `lib/auth/current-user.ts`
- * builds its own supabase-js queries instead of going through a repository, and
- * `tests/README.md` rules out mocking supabase-js. That left it excluded from
- * the runner and excluded from the coverage gate — the only file in the project
- * whose test was *owed* rather than waived. It has been the most security-
- * relevant untested file in the repository the whole time: it hashes passwords,
- * verifies them, and decides who is an administrator.
+ * ---------------------------------------------------------------------------
+ * WHAT THIS FILE STOPPED TESTING, AND WHY THAT IS NOT A LOSS OF COVERAGE.
+ * ---------------------------------------------------------------------------
  *
- * The three things mocked below are the ones that are not the database:
+ * The previous version was 694 lines and most of it tested code that no longer
+ * exists: a scrypt hash/verify pair, an account-creation branch inside
+ * loginAction, and a signed cookie of our own. Passwords are Supabase's now, in
+ * `auth.users`, hashed by them; sign-in is `signInWithPassword` in
+ * app/(auth)/login/actions.ts, tested there; the session is Supabase's.
  *
- *  - `next/navigation`'s redirect, which in production throws to stop the
- *    action. The fake throws too, so control flow here matches control flow
- *    there — a redirect that merely recorded a call would let every test run
- *    on past the guard it was checking.
- *  - `next/cache`'s revalidatePath, which needs a request scope.
- *  - `next/headers`'s cookies, replaced with a plain jar so a session can be
- *    created and read back.
+ * Deleting those tests removes assertions about deleted code, not assertions
+ * about behaviour. The behaviour that survived is the reason this file is still
+ * database-backed rather than a unit test with a double:
  *
- * `createClient` is pointed at the TEST PROJECT, not replaced with a fake. That
- * is the distinction tests/README.md draws: supplying a real client against a
- * real database is not mocking supabase-js, it is the alternative to it.
+ *   1. The profile join. `auth.users` knows an id and an email; everything this
+ *      application cares about — name, role, status — is in `public.users`, and
+ *      getCurrentUser() is the one place the two are put together.
+ *
+ *   2. RLS. Every read here goes through an anon-key client carrying a real
+ *      user token, so `auth.uid()` is set and the policies apply. A double
+ *      cannot tell a query that is allowed from one the database would refuse,
+ *      and that distinction is the entire point of the security migration.
+ *
+ * `memberClient()` is what makes the second one possible; tests/helpers has the
+ * note about why that helper could not exist before this branch.
  */
 
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { Sandbox, testClient, type TestClient } from '../../helpers/supabase-test-client';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import {
+    Sandbox,
+    memberClient,
+    testClient,
+    type SandboxUser,
+    type TestClient,
+} from '../../helpers/supabase-test-client';
 
-// -----------------------------------------------------------------------------
-// The three non-database seams
-// -----------------------------------------------------------------------------
-
-/** Thrown by the redirect fake, the way Next's own redirect throws. */
-class Redirected extends Error {
-    constructor(readonly url: string) {
-        super(`redirect(${url})`);
-    }
-}
-
-vi.mock('next/navigation', () => ({
-    redirect: (url: string) => {
-        throw new Redirected(url);
-    },
-}));
-
-vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }));
-
-const jar = new Map<string, string>();
-
-vi.mock('next/headers', () => ({
-    cookies: async () => ({
-        get: (name: string) => (jar.has(name) ? { name, value: jar.get(name) } : undefined),
-        set: (name: string, value: string) => void jar.set(name, value),
-        delete: (name: string) => void jar.delete(name),
-    }),
-}));
+/**
+ * Whatever the current test wants getCurrentUser() to be looking through.
+ *
+ * lib/supabase/server.ts reads request cookies, which do not exist outside a
+ * request — so the module is replaced and the client swapped per test. Every
+ * client assigned here is a REAL one against the test project; the mock decides
+ * whose session is in play, not what the database does.
+ */
+let clientForRequest: TestClient | null = null;
 
 vi.mock('../../../lib/supabase/server', () => ({
-    createClient: async () => testClient(),
+    createClient: async () => clientForRequest,
+    createServiceClient: () => testClient(),
 }));
 
-// Imported after the mocks are declared; vi.mock is hoisted, but keeping the
-// order explicit stops a later edit from quietly breaking it.
-const { getCurrentUser, loginAction, logoutAction, changePasswordAction, resetPasswordAction } =
-    await import('../../../lib/auth/current-user');
+const { getCurrentUser } = await import('../../../lib/auth/current-user');
 
 let db: TestClient;
 let sandbox: Sandbox;
 
-/** Runs an action that is expected to redirect, and returns where to. */
-async function redirectOf(run: () => Promise<unknown>): Promise<string> {
-    try {
-        await run();
-    } catch (error) {
-        if (error instanceof Redirected) return error.url;
-        throw error;
-    }
+let member: SandboxUser;
+let other: SandboxUser;
+let admin: SandboxUser;
 
-    throw new Error('expected a redirect, but the action returned normally');
-}
-
-function form(fields: Record<string, string | string[]>): FormData {
-    const data = new FormData();
-
-    for (const [key, value] of Object.entries(fields)) {
-        if (Array.isArray(value)) value.forEach((v) => data.append(key, v));
-        else data.set(key, value);
-    }
-
-    return data;
-}
-
-const PASSWORD = 'correct horse battery';
-
-beforeAll(() => {
+beforeAll(async () => {
     db = testClient();
-    sandbox = new Sandbox(db, 'cur-user');
+    sandbox = new Sandbox(db, 'current-user');
 
-    // session.ts refuses to sign anything with a short secret, and every test
-    // below either creates or reads a session.
-    process.env.SESSION_SECRET ??= 'a'.repeat(64);
-});
-
-beforeEach(() => {
-    jar.clear();
-});
-
-afterEach(() => {
-    // getCurrentUser is wrapped in React's cache(), so a second call in the
-    // same test would otherwise return the first call's answer — including the
-    // null from before a session existed.
-    vi.resetModules();
+    member = await sandbox.createUser({ firstName: 'Ada', lastName: 'Lovelace' });
+    other = await sandbox.createUser({ firstName: 'Grace', lastName: 'Hopper' });
+    admin = await sandbox.createUser({ firstName: 'Root', role: 'admin' });
 });
 
 afterAll(async () => {
-    // Accounts registered THROUGH loginAction are not sandbox-created, so they
-    // are removed by the tag every test email carries.
-    const { data: strays } = await db
-        .from('users')
-        .select('user_id')
-        .like('email', `%${sandbox.name}%`);
-
-    const ids = (strays ?? []).map((u) => u.user_id);
-
-    if (ids.length > 0) {
-        await db.from('category_progress').delete().in('user_id', ids);
-        await db.from('xp_events').delete().in('user_id', ids);
-        await db.from('users').delete().in('user_id', ids);
-    }
-
     await sandbox.destroy();
 });
 
-describe('getCurrentUser', () => {
-    it('is null with no session cookie', async () => {
-        expect(await getCurrentUser()).toBeNull();
-    });
-
-    it('is null when the cookie is not a valid signature', async () => {
-        // The forgery case session.test.ts covers in depth; here it matters
-        // that a bad cookie reads as signed out rather than throwing.
-        jar.set('skillpath_session', 'not-a-real-session');
-
-        expect(await getCurrentUser()).toBeNull();
-    });
-
-    it('loads the member behind a real session, without their password', async () => {
-        const member = await sandbox.createUser({ firstName: 'Ada', lastName: 'Lovelace' });
-
-        const { createSession } = await import('../../../lib/auth/session');
-        await createSession(member.userId);
+describe('behind a real session', () => {
+    it('loads the profile that belongs to the signed-in account', async () => {
+        clientForRequest = await memberClient(member);
 
         const current = await getCurrentUser();
 
         expect(current).not.toBeNull();
-        expect(current?.userId).toBe(member.userId);
-        expect(current?.email).toBe(member.email);
-        expect(current?.role).toBe('student');
-        // USER_PUBLIC_COLUMNS. `current.user` is handed to components.
-        expect(Object.keys(current!.user)).not.toContain('password');
+        expect(current!.userId).toBe(member.userId);
+        expect(current!.email).toBe(member.email);
+        expect(current!.user.first_name).toBe('Ada');
     });
 
-    it('reads the role from the database, never from the cookie', async () => {
-        // The guarantee the file header makes. The cookie carries a user id and
-        // an expiry and nothing else, so promoting yourself means editing the
-        // users table, not the cookie.
-        const admin = await sandbox.createUser({ role: 'admin' });
+    it('returns a UUID, not a number', async () => {
+        // The shape changed with the schema, and a test that only checked
+        // truthiness would not notice a repository quietly coercing it.
+        clientForRequest = await memberClient(member);
 
-        const { createSession } = await import('../../../lib/auth/session');
-        await createSession(admin.userId);
+        const current = await getCurrentUser();
 
-        expect((await getCurrentUser())?.role).toBe('admin');
+        expect(typeof current!.userId).toBe('string');
+        expect(current!.userId).toMatch(
+            /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
+        );
     });
 
-    it('is null when the session points at a member who has been deleted', async () => {
-        const member = await sandbox.createUser();
+    it('carries no password field, because there is no longer a column', async () => {
+        clientForRequest = await memberClient(member);
 
-        const { createSession } = await import('../../../lib/auth/session');
-        await createSession(member.userId);
+        const current = await getCurrentUser();
 
-        await db.from('users').delete().eq('user_id', member.userId);
+        expect(current!.user).not.toHaveProperty('password');
+    });
 
-        // A valid signature over a user id that no longer resolves. Without the
-        // `if (!user) return null`, every page would treat this as signed in
-        // and dereference a null row.
+    it('reads the role from the database, never from the token', async () => {
+        // The JWT is minted at sign-in and stays valid for its lifetime, so a
+        // role read out of it would be stale for exactly as long as the token
+        // lives. This demotes an admin AFTER their session exists: a build that
+        // trusted a custom claim would still report 'admin' here.
+        const client = await memberClient(admin);
+        clientForRequest = client;
+
+        expect((await getCurrentUser())!.role).toBe('admin');
+
+        await db.from('users').update({ role: 'student' }).eq('user_id', admin.userId);
+
+        // Same session, same token, no re-authentication.
+        expect((await getCurrentUser())!.role).toBe('student');
+
+        await db.from('users').update({ role: 'admin' }).eq('user_id', admin.userId);
+    });
+
+    it('reports a status change on the same session, so a ban takes effect', async () => {
+        // assertAuth() bounces on anything but 'active' (SP-014). It can only
+        // do that if this reads the column live.
+        const client = await memberClient(member);
+        clientForRequest = client;
+
+        await db.from('users').update({ status: 'inactive' }).eq('user_id', member.userId);
+
+        expect((await getCurrentUser())!.status).toBe('inactive');
+
+        await db.from('users').update({ status: 'active' }).eq('user_id', member.userId);
+    });
+});
+
+describe('with no usable session', () => {
+    it('is null when nobody is signed in', async () => {
+        // The anon key with no token at all: getUser() has nothing to verify.
+        clientForRequest = await memberClient(member);
+        await clientForRequest.auth.signOut();
+
+        expect(await getCurrentUser()).toBeNull();
+    });
+
+    it('is null when the account has been deleted underneath the session', async () => {
+        // Deliberately NOT sandbox.createUser(): this test deletes the account
+        // itself, and destroy() would then fail with "User not found" for a row
+        // the test removed on purpose — reporting a teardown problem where
+        // there is none, and taking the whole file down with it.
+        const email = `doomed-${sandbox.name}@skillpath.test`;
+        const password = 'sandbox-password-1234';
+
+        const { data: created, error } = await db.auth.admin.createUser({
+            email,
+            password,
+            email_confirm: true,
+            user_metadata: { first_name: 'Doomed', last_name: sandbox.name },
+        });
+
+        if (error || !created.user) throw new Error(`could not create: ${error?.message}`);
+
+        const doomed = {
+            userId: created.user.id,
+            email,
+            password,
+            firstName: 'Doomed',
+            lastName: sandbox.name,
+        };
+
+        clientForRequest = await memberClient(doomed);
+
+        expect(await getCurrentUser()).not.toBeNull();
+
+        await db.auth.admin.deleteUser(doomed.userId);
+
+        // getUser() verifies against the auth server rather than decoding the
+        // cookie, so the token stops working the moment the account does. A
+        // build using getSession() would keep returning the deleted member
+        // until the token expired.
         expect(await getCurrentUser()).toBeNull();
     });
 });
 
-describe('loginAction — registering', () => {
-    it('creates the account, hashes the password and never stores it in the clear', async () => {
-        const email = `reg-${sandbox.name}@skillpath.test`;
+describe('RLS is doing the work, not the .eq()', () => {
+    it('a member reading the users table sees only themselves', async () => {
+        // No filter at all. Under the "Acces profil propriu" policy this comes
+        // back as exactly one row; with RLS off — or with the anon-key client
+        // swapped back to service-role, which is the mistake this branch fixed
+        // — it would come back as the whole table.
+        const client = await memberClient(member);
 
-        const where = await redirectOf(() =>
-            loginAction(
-                form({ email, password: PASSWORD, firstName: 'New', lastName: sandbox.name }),
-            ),
-        );
+        const { data, error } = await client.from('users').select('user_id');
 
-        expect(where).toBe('/success');
+        expect(error).toBeNull();
+        expect(data).toHaveLength(1);
+        expect(data![0].user_id).toBe(member.userId);
+    });
+
+    it('a member cannot read another member by asking for them directly', async () => {
+        const client = await memberClient(member);
+
+        const { data, error } = await client
+            .from('users')
+            .select('user_id, email')
+            .eq('user_id', other.userId);
+
+        // Zero rows, NOT an error. The two look identical from the UI, which is
+        // why the count is what gets asserted.
+        expect(error).toBeNull();
+        expect(data).toHaveLength(0);
+    });
+
+    it('a member cannot edit another member', async () => {
+        const client = await memberClient(member);
+
+        await client.from('users').update({ first_name: 'Pwned' }).eq('user_id', other.userId);
+
+        // Read back with the service-role client: the victim's own client would
+        // be subject to the same policy and could not prove the row survived.
+        const { data } = await db
+            .from('users')
+            .select('first_name')
+            .eq('user_id', other.userId)
+            .single();
+
+        expect(data!.first_name).toBe('Grace');
+    });
+
+    it('a member CAN edit their own row', async () => {
+        // The mirror of the case above. Without it, a policy that denied
+        // everything would pass every other test in this block.
+        const client = await memberClient(member);
+
+        const { error } = await client
+            .from('users')
+            .update({ first_name: 'Ada B.' })
+            .eq('user_id', member.userId);
+
+        expect(error).toBeNull();
 
         const { data } = await db
             .from('users')
-            .select('password, role, status, first_name')
-            .eq('email', email)
-            .single();
-
-        expect(data?.first_name).toBe('New');
-        expect(data?.role).toBe('student');
-        expect(data?.status).toBe('active');
-
-        // scrypt, `salt:key`. The assertion that matters is the second one:
-        // storing the plaintext would satisfy "a password is present".
-        expect(data?.password).toContain(':');
-        expect(data?.password).not.toContain(PASSWORD);
-        expect(data?.password?.split(':')[1]).toHaveLength(128);
-    });
-
-    it('records the interests picked at registration', async () => {
-        const email = `regskills-${sandbox.name}@skillpath.test`;
-        const category = await sandbox.createCategory();
-
-        await redirectOf(() =>
-            loginAction(
-                form({
-                    email,
-                    password: PASSWORD,
-                    firstName: 'Skilled',
-                    lastName: sandbox.name,
-                    skills: [String(category.categoryId)],
-                }),
-            ),
-        );
-
-        const { data: user } = await db
-            .from('users')
-            .select('user_id')
-            .eq('email', email)
-            .single();
-
-        const { data: interests } = await db
-            .from('category_progress')
-            .select('category_id, current_level')
-            .eq('user_id', user!.user_id);
-
-        expect(interests).toHaveLength(1);
-        expect(interests?.[0].category_id).toBe(category.categoryId);
-        expect(interests?.[0].current_level).toBe('beginner');
-    });
-
-    it('refuses a duplicate email', async () => {
-        const member = await sandbox.createUser();
-
-        const where = await redirectOf(() =>
-            loginAction(
-                form({
-                    email: member.email,
-                    password: PASSWORD,
-                    firstName: 'Someone',
-                    lastName: 'Else',
-                }),
-            ),
-        );
-
-        expect(where).toBe('/register?error=email_already_exists');
-    });
-
-    it('refuses a duplicate first+last name', async () => {
-        // Not tidiness: the e2e journeys need a fresh identity in BOTH fields
-        // every run because of this rule.
-        const member = await sandbox.createUser({ firstName: 'Twin', lastName: sandbox.name });
-
-        const where = await redirectOf(() =>
-            loginAction(
-                form({
-                    email: `other-${sandbox.name}@skillpath.test`,
-                    password: PASSWORD,
-                    firstName: 'Twin',
-                    lastName: member.lastName,
-                }),
-            ),
-        );
-
-        expect(where).toBe('/register?error=name_already_exists');
-    });
-
-    it('will not hand out an administrator account without approval', async () => {
-        // A signup form does not hand out accounts that can read the answer
-        // key. The admin e2e journey has no way around this either — its
-        // administrator comes from the seed.
-        const where = await redirectOf(() =>
-            loginAction(
-                form({
-                    email: `admin-${sandbox.name}@skillpath.test`,
-                    password: PASSWORD,
-                    firstName: 'Would-be',
-                    lastName: 'Admin',
-                    role: 'admin',
-                }),
-            ),
-        );
-
-        expect(where).toBe('/register?error=manager_approval_required');
-
-        const { count } = await db
-            .from('users')
-            .select('*', { count: 'exact', head: true })
-            .eq('email', `admin-${sandbox.name}@skillpath.test`);
-
-        expect(count).toBe(0);
-    });
-
-    it('creates an administrator when approval is supplied', async () => {
-        const email = `approved-${sandbox.name}@skillpath.test`;
-
-        const where = await redirectOf(() =>
-            loginAction(
-                form({
-                    email,
-                    password: PASSWORD,
-                    firstName: 'Approved',
-                    lastName: `Admin ${sandbox.name}`,
-                    role: 'admin',
-                    managerApproval: 'yes',
-                }),
-            ),
-        );
-
-        expect(where).toBe('/success');
-
-        const { data } = await db.from('users').select('role').eq('email', email).single();
-        expect(data?.role).toBe('admin');
-    });
-});
-
-describe('loginAction — signing in', () => {
-    /** Registers a member through the action, so the password is really hashed. */
-    async function aRegisteredMember(suffix: string) {
-        const email = `login-${suffix}-${sandbox.name}@skillpath.test`;
-
-        await redirectOf(() =>
-            loginAction(
-                form({
-                    email,
-                    password: PASSWORD,
-                    firstName: `Login${suffix}`,
-                    lastName: sandbox.name,
-                }),
-            ),
-        );
-
-        jar.clear();
-
-        return email;
-    }
-
-    it('signs a member in with the right password and sets a session', async () => {
-        const email = await aRegisteredMember('ok');
-
-        const where = await redirectOf(() => loginAction(form({ email, password: PASSWORD })));
-
-        expect(where).toBe('/dashboard');
-        expect(jar.has('skillpath_session')).toBe(true);
-    });
-
-    it('sends an administrator to the admin console', async () => {
-        const email = `adminlogin-${sandbox.name}@skillpath.test`;
-
-        await redirectOf(() =>
-            loginAction(
-                form({
-                    email,
-                    password: PASSWORD,
-                    firstName: 'Console',
-                    lastName: `Admin ${sandbox.name}`,
-                    role: 'admin',
-                    managerApproval: 'yes',
-                }),
-            ),
-        );
-        jar.clear();
-
-        expect(await redirectOf(() => loginAction(form({ email, password: PASSWORD })))).toBe(
-            '/admin',
-        );
-    });
-
-    it('REJECTS a wrong password and sets no session', async () => {
-        // The assertion the whole file is for. ARCHITECTURE §0 still records
-        // this function as signing anyone in on an email alone; it does not,
-        // and this is what keeps it that way.
-        const email = await aRegisteredMember('wrong');
-
-        const where = await redirectOf(() =>
-            loginAction(form({ email, password: 'not the password' })),
-        );
-
-        expect(where).toBe('/login?error=invalid');
-        expect(jar.has('skillpath_session')).toBe(false);
-    });
-
-    it('rejects an empty password', async () => {
-        const email = await aRegisteredMember('empty');
-
-        expect(await redirectOf(() => loginAction(form({ email, password: '' })))).toBe(
-            '/login?error=invalid',
-        );
-        expect(jar.has('skillpath_session')).toBe(false);
-    });
-
-    it('rejects an unknown email as not_found', async () => {
-        const where = await redirectOf(() =>
-            loginAction(form({ email: `nobody-${sandbox.name}@skillpath.test`, password: PASSWORD })),
-        );
-
-        expect(where).toBe('/login?error=not_found');
-    });
-
-    it('refuses a deactivated account before it checks the password', async () => {
-        const email = await aRegisteredMember('disabled');
-        await db.from('users').update({ status: 'inactive' }).eq('email', email);
-
-        const where = await redirectOf(() => loginAction(form({ email, password: PASSWORD })));
-
-        expect(where).toBe('/login?error=disabled');
-        expect(jar.has('skillpath_session')).toBe(false);
-    });
-
-    it('treats an account with an unhashed password as unable to sign in', async () => {
-        // A row seeded with plaintext has no colon, so verifyPassword bails and
-        // isPasswordValid stays false. That is the safe direction — the account
-        // exists but cannot be entered — and worth pinning, because the
-        // alternative reading of `user.password.includes(':')` would be to skip
-        // the check entirely for such rows.
-        const member = await sandbox.createUser();
-        await db.from('users').update({ password: 'plaintext' }).eq('user_id', member.userId);
-
-        const where = await redirectOf(() =>
-            loginAction(form({ email: member.email, password: 'plaintext' })),
-        );
-
-        expect(where).toBe('/login?error=invalid');
-    });
-
-    it('lowercases and trims the email before looking it up', async () => {
-        const email = await aRegisteredMember('case');
-
-        const where = await redirectOf(() =>
-            loginAction(form({ email: `  ${email.toUpperCase()}  `, password: PASSWORD })),
-        );
-
-        expect(where).toBe('/dashboard');
-    });
-
-    it('honours a safe `next`, and ignores an off-site one', async () => {
-        const email = await aRegisteredMember('next');
-
-        expect(
-            await redirectOf(() => loginAction(form({ email, password: PASSWORD, next: '/plan' }))),
-        ).toBe('/plan');
-
-        jar.clear();
-
-        // `//evil.example` is protocol-relative — a browser treats it as
-        // another origin, so an open redirect straight off the login form.
-        expect(
-            await redirectOf(() =>
-                loginAction(form({ email, password: PASSWORD, next: '//evil.example' })),
-            ),
-        ).toBe('/dashboard');
-
-        jar.clear();
-
-        expect(
-            await redirectOf(() =>
-                loginAction(form({ email, password: PASSWORD, next: 'https://evil.example' })),
-            ),
-        ).toBe('/dashboard');
-    });
-});
-
-describe('resetPasswordAction', () => {
-    it('rejects a short password without touching the row', async () => {
-        const member = await sandbox.createUser();
-
-        const { data: before } = await db
-            .from('users')
-            .select('password')
+            .select('first_name')
             .eq('user_id', member.userId)
             .single();
 
-        const result = await resetPasswordAction(
-            form({ email: member.email, newPassword: 'short', confirmPassword: 'short' }),
-        );
+        expect(data!.first_name).toBe('Ada B.');
 
-        expect(result).toEqual({ error: 'password_too_short' });
-
-        const { data: after } = await db
-            .from('users')
-            .select('password')
-            .eq('user_id', member.userId)
-            .single();
-
-        expect(after?.password).toBe(before?.password);
-    });
-
-    it('rejects a mismatched confirmation', async () => {
-        const member = await sandbox.createUser();
-
-        expect(
-            await resetPasswordAction(
-                form({
-                    email: member.email,
-                    newPassword: 'a long enough one',
-                    confirmPassword: 'a different one',
-                }),
-            ),
-        ).toEqual({ error: 'passwords_dont_match' });
-    });
-
-    it('rejects a missing email', async () => {
-        expect(
-            await resetPasswordAction(
-                form({ email: '', newPassword: PASSWORD, confirmPassword: PASSWORD }),
-            ),
-        ).toEqual({ error: 'missing_email' });
-    });
-
-    it('sets a new password the member can then sign in with', async () => {
-        const email = `reset-${sandbox.name}@skillpath.test`;
-
-        await redirectOf(() =>
-            loginAction(
-                form({ email, password: PASSWORD, firstName: 'Reset', lastName: sandbox.name }),
-            ),
-        );
-        jar.clear();
-
-        const next = 'a brand new password';
-
-        expect(
-            await resetPasswordAction(
-                form({ email, newPassword: next, confirmPassword: next }),
-            ),
-        ).toEqual({ success: true });
-
-        expect(await redirectOf(() => loginAction(form({ email, password: next })))).toBe(
-            '/dashboard',
-        );
-
-        jar.clear();
-
-        expect(await redirectOf(() => loginAction(form({ email, password: PASSWORD })))).toBe(
-            '/login?error=invalid',
-        );
-    });
-
-    it('reports success for an address nobody holds', async () => {
-        // A zero-row UPDATE is not an error, so this returns success — which is
-        // the right answer to give a stranger, because saying "no such account"
-        // tells them which addresses are registered. Pinned deliberately: it
-        // looks like a missing check and is not one.
-        expect(
-            await resetPasswordAction(
-                form({
-                    email: `ghost-${sandbox.name}@skillpath.test`,
-                    newPassword: 'a long enough one',
-                    confirmPassword: 'a long enough one',
-                }),
-            ),
-        ).toEqual({ success: true });
-    });
-});
-
-describe('changePasswordAction', () => {
-    async function signedIn(suffix: string) {
-        const email = `chg-${suffix}-${sandbox.name}@skillpath.test`;
-
-        await redirectOf(() =>
-            loginAction(
-                form({
-                    email,
-                    password: PASSWORD,
-                    firstName: `Chg${suffix}`,
-                    lastName: sandbox.name,
-                }),
-            ),
-        );
-
-        jar.clear();
-        await redirectOf(() => loginAction(form({ email, password: PASSWORD })));
-
-        return email;
-    }
-
-    it('changes the password when the current one is right', async () => {
-        const email = await signedIn('ok');
-        const next = 'another good password';
-
-        expect(
-            await redirectOf(() =>
-                changePasswordAction(
-                    form({
-                        currentPassword: PASSWORD,
-                        newPassword: next,
-                        confirmPassword: next,
-                    }),
-                ),
-            ),
-        ).toBe('/settings/password/success');
-
-        jar.clear();
-        expect(await redirectOf(() => loginAction(form({ email, password: next })))).toBe(
-            '/dashboard',
-        );
-    });
-
-    it('refuses a wrong current password', async () => {
-        await signedIn('bad');
-
-        expect(
-            await redirectOf(() =>
-                changePasswordAction(
-                    form({
-                        currentPassword: 'not it',
-                        newPassword: 'a good new one',
-                        confirmPassword: 'a good new one',
-                    }),
-                ),
-            ),
-        ).toBe('/settings/password?error=invalid_current');
-    });
-
-    it('refuses a short new password', async () => {
-        await signedIn('short');
-
-        expect(
-            await redirectOf(() =>
-                changePasswordAction(
-                    form({ currentPassword: PASSWORD, newPassword: 'abc', confirmPassword: 'abc' }),
-                ),
-            ),
-        ).toBe('/settings/password?error=password_too_short');
-    });
-
-    it('refuses a mismatched confirmation', async () => {
-        await signedIn('mismatch');
-
-        expect(
-            await redirectOf(() =>
-                changePasswordAction(
-                    form({
-                        currentPassword: PASSWORD,
-                        newPassword: 'a good new one',
-                        confirmPassword: 'a different one',
-                    }),
-                ),
-            ),
-        ).toBe('/settings/password?error=passwords_dont_match');
-    });
-
-    it('sends a signed-out caller to the login page', async () => {
-        jar.clear();
-
-        expect(
-            await redirectOf(() =>
-                changePasswordAction(
-                    form({
-                        currentPassword: PASSWORD,
-                        newPassword: 'a good new one',
-                        confirmPassword: 'a good new one',
-                    }),
-                ),
-            ),
-        ).toBe('/login');
-    });
-});
-
-describe('logoutAction', () => {
-    it('clears the session and sends the member home', async () => {
-        const member = await sandbox.createUser();
-
-        const { createSession } = await import('../../../lib/auth/session');
-        await createSession(member.userId);
-
-        expect(jar.has('skillpath_session')).toBe(true);
-
-        expect(await redirectOf(() => logoutAction())).toBe('/');
-        expect(jar.has('skillpath_session')).toBe(false);
+        await db.from('users').update({ first_name: 'Ada' }).eq('user_id', member.userId);
     });
 });

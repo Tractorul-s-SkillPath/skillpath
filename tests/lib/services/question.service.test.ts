@@ -27,7 +27,12 @@ import {
 vi.mock('../../../lib/auth/assertAdmin');
 vi.mock('../../../lib/repositories/question.repo');
 vi.mock('../../../lib/supabase/server', () => ({
+    // The admin services query through createServiceClient — service role, because
+    // RLS has no admin policy and every write here would be refused with 42501.
+    // Mocked alongside createClient so a service that is moved between the two
+    // fails on its assertions rather than on an undefined import.
     createClient: vi.fn(async () => FAKE_CLIENT),
+    createServiceClient: vi.fn(() => FAKE_CLIENT),
 }));
 
 const REDIRECTED = new Error('NEXT_REDIRECT /dashboard');
@@ -88,13 +93,13 @@ describe('createQuestion', () => {
     });
 
     it('records whichever admin is signed in, not a fixed id', async () => {
-        vi.mocked(assertAdmin).mockResolvedValue(anAdmin({ userId: 4242 }));
+        vi.mocked(assertAdmin).mockResolvedValue(anAdmin({ userId: '00000000-0000-4000-8000-000000004242' }));
 
         await createQuestion(validInput);
 
         expect(questionRepo.insertWithAnswers).toHaveBeenCalledWith(
             FAKE_CLIENT,
-            expect.objectContaining({ createdBy: 4242 }),
+            expect.objectContaining({ createdBy: '00000000-0000-4000-8000-000000004242' }),
         );
     });
 

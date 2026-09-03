@@ -49,7 +49,7 @@ import type {
 } from '../../../lib/supabase/database.types';
 
 const aUserRow = (overrides: Partial<UserPublicRow> = {}): UserPublicRow => ({
-    user_id: 7,
+    user_id: '00000000-0000-4000-8000-000000000007',
     first_name: 'Ada',
     last_name: 'Lovelace',
     email: 'ada@skillpath.test',
@@ -72,7 +72,7 @@ const aCategoryRow = (overrides: Partial<SkillCategoryRow> = {}): SkillCategoryR
 
 const anAssessmentRow = (overrides: Partial<AssessmentRow> = {}): AssessmentRow => ({
     assessment_id: 42,
-    user_id: 7,
+    user_id: '00000000-0000-4000-8000-000000000007',
     category_id: 3,
     session_id: null,
     requested_level: 'beginner',
@@ -99,7 +99,7 @@ describe('toProfile', () => {
         const profile = toProfile(aUserRow());
 
         expect(profile).toEqual({
-            userId: 7,
+            userId: '00000000-0000-4000-8000-000000000007',
             firstName: 'Ada',
             lastName: 'Lovelace',
             email: 'ada@skillpath.test',
@@ -121,7 +121,7 @@ describe('toProfile', () => {
 describe('toManagedUser', () => {
     it('drops the timestamps the admin table does not show', () => {
         expect(toManagedUser(aUserRow())).toEqual({
-            userId: 7,
+            userId: '00000000-0000-4000-8000-000000000007',
             firstName: 'Ada',
             lastName: 'Lovelace',
             email: 'ada@skillpath.test',
@@ -222,7 +222,7 @@ describe('toAssessment', () => {
 describe('toInterest', () => {
     const aProgressRow = (overrides: Partial<CategoryProgressRow> = {}): CategoryProgressRow => ({
         progress_id: 1,
-        user_id: 7,
+        user_id: '00000000-0000-4000-8000-000000000007',
         category_id: 3,
         current_level: 'intermediate',
         last_score: 72,
@@ -331,7 +331,7 @@ describe('toAdminAnswer and toAdminQuestion', () => {
         difficulty: 'beginner',
         status: 'active',
         source: 'manual',
-        created_by: 1,
+        created_by: '00000000-0000-4000-8000-000000000001',
         created_at: '2026-01-01T00:00:00Z',
         updated_at: '2026-01-01T00:00:00Z',
         topic_title: 'Indexes',
@@ -379,7 +379,7 @@ describe('toAdminAnswer and toAdminQuestion', () => {
 describe('toPlanItem', () => {
     const aPlanRow = (overrides: Partial<RecommendationPlanRow> = {}): RecommendationPlanRow => ({
         recommendation_id: 100,
-        user_id: 7,
+        user_id: '00000000-0000-4000-8000-000000000007',
         category_id: 3,
         assessment_id: 42,
         topic_title: 'Indexes',

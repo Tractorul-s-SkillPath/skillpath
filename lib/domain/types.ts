@@ -21,7 +21,7 @@ export type PlanStatus = 'not_started' | 'in_progress' | 'completed';
 export type AssessmentStatus = 'in_progress' | 'submitted' | 'abandoned';
 
 export interface StudentProfile {
-    userId: number;
+    userId: string;
     firstName: string;
     lastName: string;
     email: string;
@@ -203,7 +203,7 @@ export interface CategoryRanking {
 
 /** A member as the user-management table sees them. */
 export interface ManagedUser {
-    userId: number;
+    userId: string;
     firstName: string;
     lastName: string;
     email: string;

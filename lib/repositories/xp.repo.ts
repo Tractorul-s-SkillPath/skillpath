@@ -30,7 +30,7 @@ type Client = SupabaseClient<Database>;
 /** A member's total XP. One indexed read of the `user_xp_totals` view. */
 export async function totalFor(
     supabase: Client,
-    userId: number,
+    userId: string,
 ): Promise<Result<number, AppError>> {
     const { data, error } = await supabase
         .from('user_xp_totals')
@@ -51,7 +51,7 @@ export async function totalFor(
  */
 export async function streakFor(
     supabase: Client,
-    userId: number,
+    userId: string,
 ): Promise<Result<number, AppError>> {
     const { data, error } = await supabase.rpc('current_streak', { p_user_id: userId });
 
@@ -62,7 +62,7 @@ export async function streakFor(
 /** The most recent awards, for a "why do I have this much XP" list. */
 export async function historyFor(
     supabase: Client,
-    userId: number,
+    userId: string,
     limit = 20,
 ): Promise<Result<XpEntry[], AppError>> {
     const { data, error } = await supabase
@@ -86,7 +86,7 @@ export async function historyFor(
 /** Badge code -> when it was awarded. The source of every badge date shown. */
 export async function badgeAwardsFor(
     supabase: Client,
-    userId: number,
+    userId: string,
 ): Promise<Result<Record<string, string>, AppError>> {
     const { data, error } = await supabase
         .from('xp_events')
@@ -116,7 +116,7 @@ export async function badgeAwardsFor(
  */
 export async function awardBadges(
     supabase: Client,
-    userId: number,
+    userId: string,
     codes: string[],
 ): Promise<Result<string[], AppError>> {
     if (codes.length === 0) return ok([]);
@@ -185,7 +185,7 @@ export async function awardBadges(
  */
 export async function leaderboard(
     supabase: Client,
-    currentUserId: number,
+    currentUserId: string,
     size: number,
 ): Promise<Result<{ entries: LeaderboardEntry[]; myRank: MyRank | null }, AppError>> {
     const [top, mine, total] = await Promise.all([

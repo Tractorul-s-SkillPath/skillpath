@@ -79,7 +79,7 @@ const db = testDb();
 
 /** Set as they come into existence, so teardown knows what to unwind. */
 let student: Member | null = null;
-let studentId: number | null = null;
+let studentId: string | null = null;
 let categoryId: number | null = null;
 
 /** Flipped by the last line of the test. Teardown reads it — see below. */

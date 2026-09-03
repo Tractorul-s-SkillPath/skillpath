@@ -42,7 +42,7 @@ export interface NewPlanItem {
  */
 export async function insertMany(
     supabase: Client,
-    userId: number,
+    userId: string,
     categoryId: number,
     assessmentId: number,
     items: NewPlanItem[],
@@ -67,7 +67,7 @@ export async function insertMany(
 /** Every plan item, most urgent first. */
 export async function listByUser(
     supabase: Client,
-    userId: number,
+    userId: string,
 ): Promise<Result<PlanItem[], AppError>> {
     const { data, error } = await supabase
         .from('recommendation_plans')
@@ -89,7 +89,7 @@ export async function listByUser(
  */
 export async function findById(
     supabase: Client,
-    userId: number,
+    userId: string,
     recommendationId: number,
 ): Promise<Result<PlanItem | null, AppError>> {
     const { data, error } = await supabase
@@ -115,7 +115,7 @@ export async function findById(
  */
 export async function setStatus(
     supabase: Client,
-    userId: number,
+    userId: string,
     recommendationId: number,
     status: PlanStatus,
 ): Promise<Result<void, AppError>> {

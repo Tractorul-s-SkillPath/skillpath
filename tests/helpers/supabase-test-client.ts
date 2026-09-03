@@ -147,6 +147,64 @@ export function testClient(): TestClient {
 }
 
 /**
+ * A client signed in AS a fixture member, on the anon key.
+ *
+ * ---------------------------------------------------------------------------
+ * THE HEADER OF THIS FILE USED TO SAY THIS HELPER COULD NOT EXIST.
+ * ---------------------------------------------------------------------------
+ *
+ * It said a `studentClient(userId)` would be "the same anon client with a label
+ * on it", because the project had no Supabase Auth and no RLS: there was no
+ * user token to hold, and the anon key already read and wrote every table. A
+ * label implying an authorization boundary nobody applied was judged worse than
+ * no helper, and that was right.
+ *
+ * Both halves of the reason are now gone. `auth.users` holds real accounts,
+ * every table has RLS enabled, and the policies key on `auth.uid()` — so this
+ * returns a client that genuinely cannot see another member's rows, and a test
+ * written against it fails for the reason it claims to.
+ *
+ * This is the ONLY way to exercise the policy set. `testClient()` above is
+ * service-role and goes straight through RLS, which is what makes it useful for
+ * arranging fixtures and useless for asserting a boundary.
+ */
+export async function memberClient(member: SandboxUser): Promise<TestClient> {
+    const file = readEnvFile('.env.e2e');
+    const read = (name: string): string | undefined =>
+        (process.env[name] || file[name] || '').trim() || undefined;
+
+    const url = read('NEXT_PUBLIC_SUPABASE_URL');
+    const anonKey = read('NEXT_PUBLIC_SUPABASE_ANON_KEY');
+
+    if (!url || !anonKey) {
+        throw new Error(
+            'memberClient() needs NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY\n' +
+                'for the TEST project. The service-role key is not a substitute: it bypasses RLS,\n' +
+                'which is the thing a client built by this function exists to be subject to.',
+        );
+    }
+
+    // A fresh client per call, and `persistSession: false`: two of these in one
+    // file would otherwise share a storage slot and the second sign-in would
+    // silently re-scope the first, so a cross-member test would assert that a
+    // member cannot read their own rows.
+    const client = createClient<Database>(url, anonKey, {
+        auth: { persistSession: false, autoRefreshToken: false },
+    });
+
+    const { error } = await client.auth.signInWithPassword({
+        email: member.email,
+        password: member.password,
+    });
+
+    if (error) {
+        throw new Error(`Could not sign in as the fixture member ${member.email}: ${error.message}`);
+    }
+
+    return client;
+}
+
+/**
  * A string no other run can collide with.
  *
  * Every fixture below is named through this. Two things depend on it: `users`
@@ -159,10 +217,13 @@ export function uniqueTag(prefix: string): string {
 }
 
 export interface SandboxUser {
-    userId: number;
+    /** The `auth.users` UUID. `public.users.user_id` is the same value. */
+    userId: string;
     email: string;
     firstName: string;
     lastName: string;
+    /** What `signInWithPassword` accepts for this fixture. */
+    password: string;
 }
 
 export interface SandboxQuestion {
@@ -189,7 +250,7 @@ export class Sandbox {
     private readonly db: TestClient;
     private readonly tag: string;
 
-    private readonly userIds: number[] = [];
+    private readonly userIds: string[] = [];
     private readonly categoryIds: number[] = [];
     private readonly questionIds: number[] = [];
     private readonly assessmentIds: number[] = [];
@@ -215,34 +276,83 @@ export class Sandbox {
     ): Promise<SandboxUser> {
         const suffix = `${this.tag}-${this.userIds.length}`;
 
-        const row = {
-            first_name: overrides.firstName ?? 'Test',
-            last_name: overrides.lastName ?? suffix,
-            email: overrides.email ?? `${suffix}@skillpath.test`,
-            // NOT NULL, and read by nothing — sign-in is by email alone, by team
-            // decision (lib/auth/current-user.ts). The value still has to have
-            // the `salt:key` shape or a test that DOES exercise verification
-            // would fail on the fixture rather than on the code.
-            password: 'aa:bb',
-            role: overrides.role ?? ('student' as const),
-            status: overrides.status ?? ('active' as const),
-        };
+        const firstName = overrides.firstName ?? 'Test';
+        const lastName = overrides.lastName ?? suffix;
+        const email = overrides.email ?? `${suffix}@skillpath.test`;
+        const password = 'sandbox-password-1234';
 
-        const { data, error } = await this.db
+        // ------------------------------------------------------------------
+        // auth.admin.createUser, NOT an insert into public.users, and NOT
+        // signUp. Each half of that matters.
+        //
+        // The insert is impossible now: `users.user_id` references
+        // `auth.users(id)`, so a profile row cannot exist without an account
+        // behind it, and there is no `password` column left to put a fixture
+        // hash in. The profile row appears on its own — `on_auth_user_created`
+        // writes it — which is why nothing below inserts one.
+        //
+        // signUp is possible and wrong. It goes through the public sign-up
+        // path, which sends a confirmation mail, and the project's built-in
+        // SMTP allows about two an hour. A suite that creates a few dozen
+        // members would spend that quota in its first file and then fail every
+        // remaining test with `429 email rate limit exceeded` — which is
+        // exactly what happened to the E2E suite before this. The admin API
+        // sends nothing, and `email_confirm: true` marks the address confirmed
+        // outright so the account can sign in immediately.
+        // ------------------------------------------------------------------
+        const { data: created, error } = await this.db.auth.admin.createUser({
+            email,
+            password,
+            email_confirm: true,
+            user_metadata: { first_name: firstName, last_name: lastName },
+        });
+
+        if (error) throw new Error(`Sandbox could not create an auth user: ${error.message}`);
+
+        const userId = created.user.id;
+        this.userIds.push(userId);
+
+        // The trigger hardcodes 'student'/'active' — deliberately, so that a
+        // crafted sign-up cannot mint an admin. A test that wants either of the
+        // other combinations has to ask for it explicitly, here, with the
+        // service-role client that is allowed to.
+        if (overrides.role || overrides.status) {
+            const { error: roleError } = await this.db
+                .from('users')
+                .update({
+                    ...(overrides.role ? { role: overrides.role } : {}),
+                    ...(overrides.status ? { status: overrides.status } : {}),
+                })
+                .eq('user_id', userId);
+
+            if (roleError) {
+                throw new Error(`Sandbox could not set role/status: ${roleError.message}`);
+            }
+        }
+
+        // Read back rather than returned from the arguments: if the trigger
+        // ever stops copying the metadata across, a test asserting on a name
+        // should fail here — on the fixture — rather than three files away.
+        const { data: profile, error: profileError } = await this.db
             .from('users')
-            .insert(row)
             .select('user_id, email, first_name, last_name')
+            .eq('user_id', userId)
             .single();
 
-        if (error) throw new Error(`Sandbox could not create a user: ${error.message}`);
-
-        this.userIds.push(data.user_id);
+        if (profileError) {
+            throw new Error(
+                `Sandbox created auth user ${userId} but no profile row appeared: ` +
+                    `${profileError.message}\n\nThat is on_auth_user_created not firing — check ` +
+                    'the trigger exists in this project (supabase db push).',
+            );
+        }
 
         return {
-            userId: data.user_id,
-            email: data.email,
-            firstName: data.first_name,
-            lastName: data.last_name,
+            userId: profile.user_id,
+            email: profile.email,
+            firstName: profile.first_name,
+            lastName: profile.last_name,
+            password,
         };
     }
 
@@ -350,7 +460,7 @@ export class Sandbox {
      * that sets only the answer id fails on the insert.
      */
     async createAssessment(
-        userId: number,
+        userId: string,
         categoryId: number,
         questions: SandboxQuestion[],
         overrides: { requestedLevel?: SkillLevel; answerCorrectly?: number } = {},
@@ -505,8 +615,17 @@ export class Sandbox {
             await run('questions', this.db.from('questions').delete().in('question_id', this.questionIds));
         }
 
-        if (this.userIds.length > 0) {
-            await run('users', this.db.from('users').delete().in('user_id', this.userIds));
+        // The AUTH user, not the profile row. `public.users.user_id` is
+        // `references auth.users(id) on delete cascade`, so removing the
+        // account takes the profile with it — and deleting only the profile
+        // would leave an orphaned account that still holds the email address,
+        // so the next run creating the same address would fail on a duplicate
+        // in a table this sandbox never looks at.
+        //
+        // One call per user because the admin API has no bulk delete.
+        for (const userId of this.userIds) {
+            const { error } = await this.db.auth.admin.deleteUser(userId);
+            if (error) problems.push(`auth user ${userId}: ${error.message}`);
         }
 
         if (this.categoryIds.length > 0) {

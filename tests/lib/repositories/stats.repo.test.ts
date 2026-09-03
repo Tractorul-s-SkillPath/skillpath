@@ -102,8 +102,33 @@ describe('overviewCounts', () => {
         expect(after.ok).toBe(true);
         if (!after.ok) return;
 
-        expect(after.value.totalUsers).toBe(before.value.totalUsers + 1);
-        expect(after.value.totalAssessments).toBe(before.value.totalAssessments + 1);
+        // ------------------------------------------------------------------
+        // `toBeGreaterThanOrEqual`, NOT `toBe(… + 1)`. The exact form failed in
+        // CI with "expected 48 to be 47" while passing on every laptop.
+        //
+        // These are GLOBAL counts over a database this process does not own.
+        // `fileParallelism: false` makes the suite sequential, so nothing
+        // inside it can race — but .github/workflows/e2e.yml runs against the
+        // same Supabase project, on the same `pull_request` event, and its
+        // journey registers a member. When that landed between these two reads,
+        // the delta was 2 and the run went red for something no code change
+        // could fix.
+        //
+        // The workflows now share a concurrency group so they no longer
+        // overlap. This assertion is still written the loose way, because the
+        // exact version was only ever correct by assumption: a hosted project
+        // shared by a team has other writers — a teammate running `npm run
+        // test:db` locally is one — and a test that fails on their timing is
+        // reporting on the schedule, not on the code.
+        //
+        // What is actually under test survives the loosening: the view has to
+        // SEE the new member and the new submission. A view that counted the
+        // wrong table, or did not update, still fails here.
+        // ------------------------------------------------------------------
+        expect(after.value.totalUsers).toBeGreaterThanOrEqual(before.value.totalUsers + 1);
+        expect(after.value.totalAssessments).toBeGreaterThanOrEqual(
+            before.value.totalAssessments + 1,
+        );
     });
 });
 

@@ -19,7 +19,19 @@
 
 import 'server-only';
 import { assertAdmin } from '../auth/assertAdmin';
-import { createClient } from '../supabase/server';
+// createServiceClient, NOT createClient: RLS has no admin policy, deliberately.
+//
+// The policies in *_securitate_rls.sql are all `auth.uid()` = own rows, plus
+// read-only SELECT on the content bank. An admin client on the anon key is
+// therefore refused every write here — `42501 new row violates row-level
+// security policy for table "skill_categories"` was this file creating a
+// category through the member's own session.
+//
+// The fix is not an is_admin() policy. That would put the role check in the
+// database AND in assertAdmin(), where the two can drift; ARCHITECTURE §5c puts
+// it in one place. EVERY exported function below calls assertAdmin() before it
+// touches this client, and that is the whole of the authorization story.
+import { createServiceClient } from '../supabase/server';
 import * as statsRepo from '../repositories/stats.repo';
 import { PAGE_SIZE, WEAK_CATEGORY_LIMIT, type ResultFilterInput } from '../validation/filters.schema';
 import type { AppError } from '../errors';
@@ -28,12 +40,12 @@ import type { AdminOverview, AdminResult, CategoryRanking, Page } from '../domai
 
 export async function getOverview(): Promise<Result<AdminOverview, AppError>> {
     await assertAdmin();
-    return statsRepo.overviewCounts(await createClient());
+    return statsRepo.overviewCounts(createServiceClient());
 }
 
 export async function getWeakCategoryRanking(): Promise<Result<CategoryRanking[], AppError>> {
     await assertAdmin();
-    return statsRepo.weakCategoryRanking(await createClient(), WEAK_CATEGORY_LIMIT);
+    return statsRepo.weakCategoryRanking(createServiceClient(), WEAK_CATEGORY_LIMIT);
 }
 
 /**
@@ -47,7 +59,7 @@ export async function listAllResults(
 ): Promise<Result<Page<AdminResult>, AppError>> {
     await assertAdmin();
 
-    return statsRepo.resultsPaged(await createClient(), {
+    return statsRepo.resultsPaged(createServiceClient(), {
         search: filters.search,
         categoryId: filters.categoryId,
         sort: filters.sort,

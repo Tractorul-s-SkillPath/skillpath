@@ -42,7 +42,7 @@ type Client = SupabaseClient<Database>;
  */
 export async function findByUserId(
     supabase: Client,
-    userId: number,
+    userId: string,
 ): Promise<Result<StudentProfile, AppError>> {
     const { data, error } = await supabase
         .from('users')
@@ -56,7 +56,7 @@ export async function findByUserId(
 
 export async function updateName(
     supabase: Client,
-    userId: number,
+    userId: string,
     patch: UserUpdate,
 ): Promise<Result<void, AppError>> {
     const { error } = await supabase.from('users').update(patch).eq('user_id', userId);
@@ -100,7 +100,7 @@ export async function listActiveCategories(
  */
 export async function listInterests(
     supabase: Client,
-    userId: number,
+    userId: string,
 ): Promise<Result<Interest[], AppError>> {
     const { data, error } = await supabase
         .from('category_progress')
@@ -129,7 +129,7 @@ export async function listInterests(
  */
 export async function syncInterests(
     supabase: Client,
-    userId: number,
+    userId: string,
     categoryIds: number[],
 ): Promise<Result<void, AppError>> {
     const { data: existing, error } = await supabase
@@ -182,7 +182,7 @@ export async function syncInterests(
  */
 export async function setCategoryLevel(
     supabase: Client,
-    userId: number,
+    userId: string,
     categoryId: number,
     level: SkillLevel,
 ): Promise<Result<void, AppError>> {

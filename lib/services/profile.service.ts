@@ -45,7 +45,7 @@ export function today(): string {
  * the same rows again underneath it. Without this the two fetch independently.
  */
 const loadDashboard = cache(
-    async (userId: number): Promise<Result<ProfileDashboard, AppError>> => {
+    async (userId: string): Promise<Result<ProfileDashboard, AppError>> => {
         const supabase = await createClient();
 
         const [profile, interests, catalog, assessments, plan, xp, streak] = await Promise.all([
@@ -112,7 +112,7 @@ const loadDashboard = cache(
     },
 );
 
-export function getProfileDashboard(userId: number): Promise<Result<ProfileDashboard, AppError>> {
+export function getProfileDashboard(userId: string): Promise<Result<ProfileDashboard, AppError>> {
     return loadDashboard(userId);
 }
 
@@ -122,13 +122,13 @@ export function getProfileDashboard(userId: number): Promise<Result<ProfileDashb
  * One read of a view. This used to fetch a member's entire assessment history
  * and every plan item they had, on every page, to add three numbers up.
  */
-export async function getHeaderXp(userId: number): Promise<number> {
+export async function getHeaderXp(userId: string): Promise<number> {
     const supabase = await createClient();
     return unwrapOr(await xpRepo.totalFor(supabase, userId), 0);
 }
 
 export async function updateName(
-    userId: number,
+    userId: string,
     firstName: string,
     lastName: string,
 ): Promise<Result<void, AppError>> {
@@ -140,7 +140,7 @@ export async function updateName(
 }
 
 export async function setInterests(
-    userId: number,
+    userId: string,
     categoryIds: number[],
 ): Promise<Result<void, AppError>> {
     const supabase = await createClient();
@@ -148,7 +148,7 @@ export async function setInterests(
 }
 
 export async function setCategoryLevel(
-    userId: number,
+    userId: string,
     categoryId: number,
     level: SkillLevel,
 ): Promise<Result<void, AppError>> {

@@ -14,7 +14,19 @@
 
 import 'server-only';
 import { assertAdmin } from '../auth/assertAdmin';
-import { createClient } from '../supabase/server';
+// createServiceClient, NOT createClient: RLS has no admin policy, deliberately.
+//
+// The policies in *_securitate_rls.sql are all `auth.uid()` = own rows, plus
+// read-only SELECT on the content bank. An admin client on the anon key is
+// therefore refused every write here — `42501 new row violates row-level
+// security policy for table "skill_categories"` was this file creating a
+// category through the member's own session.
+//
+// The fix is not an is_admin() policy. That would put the role check in the
+// database AND in assertAdmin(), where the two can drift; ARCHITECTURE §5c puts
+// it in one place. EVERY exported function below calls assertAdmin() before it
+// touches this client, and that is the whole of the authorization story.
+import { createServiceClient } from '../supabase/server';
 import * as userRepo from '../repositories/user.repo';
 import type { UserStatus } from '../supabase/database.types';
 import { appError, type AppError } from '../errors';
@@ -27,7 +39,7 @@ export async function listUsers(
 ): Promise<Result<Page<ManagedUser>, AppError>> {
     await assertAdmin();
 
-    return userRepo.listPaged(await createClient(), {
+    return userRepo.listPaged(createServiceClient(), {
         search: filters.search,
         role: filters.role,
         status: filters.status,
@@ -50,7 +62,7 @@ export async function listUsers(
  * may do what, which is what this layer is for.
  */
 export async function setUserStatus(
-    userId: number,
+    userId: string,
     status: UserStatus,
 ): Promise<Result<void, AppError>> {
     const admin = await assertAdmin();
@@ -64,5 +76,5 @@ export async function setUserStatus(
         );
     }
 
-    return userRepo.setStatus(await createClient(), userId, status);
+    return userRepo.setStatus(createServiceClient(), userId, status);
 }

@@ -1,21 +1,32 @@
 /**
- * Session + sign in / sign out with Secure Password Authentication.
+ * Who is signed in, and the actions that change that.
  *
  * Stories: SP-010, SP-011, SP-012
  *
  * ---------------------------------------------------------------------------
- * SECURITY & PASSWORD AUTHENTICATION
- *
- * Signing in requires both a valid email address and a correct password.
- * Passwords are securely hashed and verified with a random salt using
- * node:crypto (scrypt), preventing unauthorized access to user accounts.
- *
- * What IS protected:
- * - The session cookie is HMAC-signed (lib/auth/session.ts), preventing a
- *   signed-in member from tampering with their cookie to become an administrator.
- * - The user role is always read directly from the database (users table) on
- *   every request, never taken from the cookie or from form inputs.
+ * THIS FILE NO LONGER OWNS AUTHENTICATION. SUPABASE AUTH DOES.
  * ---------------------------------------------------------------------------
+ *
+ * It used to hold a scrypt hash/verify pair, an account-creation branch, and a
+ * signed cookie of our own (lib/auth/session.ts). All three are gone:
+ *
+ *  - Passwords live in `auth.users` and are hashed by Supabase. `public.users`
+ *    has no `password` column any more, so there is nothing here to compare.
+ *  - The session is Supabase's, carried in its own cookies and refreshed by
+ *    middleware. `skillpath_session` is not written or read anywhere.
+ *  - Sign-in and sign-up are `app/(auth)/login|register/actions.ts`, calling
+ *    `signInWithPassword` and `signUp` directly.
+ *
+ * What this file still owns is the *profile*: `auth.users` knows an id and an
+ * email and nothing else this application cares about, so every request that
+ * needs a name, a role or a status reads `public.users` — and getCurrentUser()
+ * is the one place that join happens.
+ *
+ * THE ROLE IS STILL READ FROM THE DATABASE ON EVERY REQUEST, never from the
+ * JWT. Supabase will happily put custom claims in the token, and a token stays
+ * valid for its lifetime — so an admin demoted a minute ago would keep the
+ * claim until it expired. `users.role` is the authority; assertAdmin() reads it
+ * through here.
  *
  * Test: tests/lib/auth/current-user.test.ts
  */
@@ -24,41 +35,68 @@
 
 import 'server-only';
 import { cache } from 'react';
-import { randomBytes, scryptSync, timingSafeEqual } from 'node:crypto';
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { createClient } from '../supabase/server';
-import { createSession, destroySession, readSession } from './session';
 import { USER_PUBLIC_COLUMNS, type UserPublicRow } from '../supabase/database.types';
 
 export type UserRole = 'student' | 'admin';
 
 export interface CurrentUser {
-    userId: number;
+    /** The `auth.users` UUID. A string now, not an identity integer. */
+    userId: string;
     email: string;
     role: UserRole;
     status: string;
     user: UserPublicRow;
 }
 
+/**
+ * The signed-in member, or null.
+ *
+ * `getUser()` and NOT `getSession()`. getSession() decodes whatever cookie the
+ * request carried and believes it; getUser() sends the token to the auth server
+ * and gets it verified. On a Server Component the difference is the whole
+ * security property — a forged or expired token has to fail here, not render a
+ * dashboard.
+ *
+ * Wrapped in React's `cache` so the several components that each ask "who is
+ * this?" during one render share a single round trip.
+ */
 export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
-    const userId = await readSession();
-    if (userId === null) return null;
-
     const supabase = await createClient();
 
+    const {
+        data: { user: authUser },
+        error: authError,
+    } = await supabase.auth.getUser();
+
+    if (authError || !authUser) return null;
+
+    // RLS ("Acces profil propriu") restricts this to the caller's own row, so
+    // the .eq() is belt and braces rather than the boundary — which is the
+    // point of the anon-key client: a mistake here returns nothing instead of
+    // returning somebody else.
     const { data: user, error } = await supabase
         .from('users')
         .select(USER_PUBLIC_COLUMNS)
-        .eq('user_id', userId)
+        .eq('user_id', authUser.id)
         .maybeSingle();
 
     if (error) {
-        console.error('[auth] could not load user', userId, error.message);
+        console.error('[auth] could not load profile', authUser.id, error.message);
         return null;
     }
 
-    if (!user) return null;
+    // An auth user with no profile row means `on_auth_user_created` did not
+    // fire — a broken migration, not a signed-out visitor. Treating it as
+    // signed out is the safe direction, but it is worth the log line: the
+    // symptom otherwise is a member who can sign in and then bounces straight
+    // back to /login with no explanation.
+    if (!user) {
+        console.error('[auth] no profile row for auth user', authUser.id);
+        return null;
+    }
 
     return {
         userId: user.user_id,
@@ -69,175 +107,6 @@ export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
     };
 });
 
-function hashPassword(password: string): string {
-    const salt = randomBytes(16).toString('hex');
-    const buf = scryptSync(password, salt, 64) as Buffer;
-    return `${salt}:${buf.toString('hex')}`;
-}
-
-function verifyPassword(supplied: string, stored: string): boolean {
-    const [salt, key] = stored.split(':');
-    if (!salt || !key) return false;
-    try {
-        const keyBuffer = Buffer.from(key, 'hex');
-        const suppliedBuffer = scryptSync(supplied, salt, 64) as Buffer;
-        return timingSafeEqual(keyBuffer, suppliedBuffer);
-    } catch {
-        return false;
-    }
-}
-
-function splitName(full: string): { firstName: string; lastName: string } {
-    const parts = full.trim().split(/\s+/).filter(Boolean);
-
-    if (parts.length === 0) return { firstName: '', lastName: '' };
-    if (parts.length === 1) return { firstName: parts[0], lastName: '' };
-
-    return { firstName: parts.slice(0, -1).join(' '), lastName: parts[parts.length - 1] };
-}
-
-function nameFrom(formData: FormData): { firstName: string; lastName: string } {
-    const firstName = String(formData.get('firstName') ?? '').trim();
-    const lastName = String(formData.get('lastName') ?? '').trim();
-
-    if (firstName || lastName) return { firstName, lastName };
-
-    return splitName(String(formData.get('name') ?? '').trim());
-}
-
-function safeNext(formData: FormData): string | null {
-    const next = String(formData.get('next') ?? '').trim();
-
-    if (!next.startsWith('/')) return null;
-    if (next.startsWith('//')) return null;
-    if (next.includes('\\')) return null;
-
-    return next;
-}
-
-export async function loginAction(formData: FormData): Promise<void> {
-    'use server';
-
-    const cleanEmail = String(formData.get('email') ?? '').trim().toLowerCase();
-    const rawPassword = String(formData.get('password') ?? '');
-
-    if (!cleanEmail || !rawPassword) {
-        redirect('/login?error=invalid');
-    }
-
-    const requestedRole = String(formData.get('role') ?? '') === 'admin' ? 'admin' : 'student';
-    const { firstName, lastName } = nameFrom(formData);
-
-    const supabase = await createClient();
-
-    const { data: existingEmailUser } = await supabase
-        .from('users')
-        .select('*')
-        .eq('email', cleanEmail)
-        .maybeSingle();
-
-    const isRegistering = formData.has('firstName') || formData.has('skills') || formData.has('name') || formData.has('role');
-
-    if (!isRegistering && !existingEmailUser) {
-        redirect('/login?error=not_found');
-    }
-
-    if (isRegistering) {
-        if (firstName && lastName) {
-            const { data: existingNameUser } = await supabase
-                .from('users')
-                .select(USER_PUBLIC_COLUMNS)
-                .eq('first_name', firstName)
-                .eq('last_name', lastName)
-                .maybeSingle();
-
-            if (existingNameUser) {
-                redirect('/register?error=name_already_exists');
-            }
-        }
-
-        if (existingEmailUser) {
-            redirect('/register?error=email_already_exists');
-        }
-
-        if (requestedRole === 'admin') {
-            const managerApproval = formData.get('managerApproval');
-            if (!managerApproval) {
-                redirect('/register?error=manager_approval_required');
-            }
-        }
-
-        const resolvedFirstName = firstName || splitName(cleanEmail.split('@')[0]).firstName;
-        const resolvedLastName = lastName || splitName(cleanEmail.split('@')[0]).lastName;
-
-        const hashedPassword = hashPassword(rawPassword);
-
-        const { data: created, error: insertError } = await supabase
-            .from('users')
-            .insert({
-                first_name: resolvedFirstName,
-                last_name: resolvedLastName,
-                email: cleanEmail,
-                password: hashedPassword,
-                role: requestedRole,
-                status: 'active',
-            })
-            .select(USER_PUBLIC_COLUMNS)
-            .single();
-
-        if (insertError || !created) {
-            console.error('[auth] could not create account:', insertError?.message);
-            redirect('/login?error=unavailable');
-        }
-
-        const chosen = [
-            ...new Set(
-                formData
-                    .getAll('skills')
-                    .map((value) => Number(value))
-                    .filter((id) => Number.isInteger(id) && id > 0),
-            ),
-        ];
-
-        if (chosen.length > 0) {
-            await supabase.from('category_progress').insert(
-                chosen.map((category_id) => ({
-                    user_id: created.user_id,
-                    category_id,
-                    current_level: 'beginner' as const,
-                })),
-            );
-        }
-
-        redirect('/success');
-    }
-
-    let user = existingEmailUser;
-
-    if (!user) {
-        redirect('/login?error=not_found');
-    }
-
-    if (user.status !== 'active') {
-        redirect('/login?error=disabled');
-    }
-
-    let isPasswordValid = false;
-
-    if (user.password && user.password.includes(':')) {
-        isPasswordValid = verifyPassword(rawPassword, user.password);
-    }
-
-    if (!isPasswordValid) {
-        redirect('/login?error=invalid');
-    }
-
-    await createSession(user.user_id);
-    revalidatePath('/', 'layout');
-
-    redirect(safeNext(formData) ?? (user.role === 'admin' ? '/admin' : '/dashboard'));
-}
-
 export async function changePasswordAction(formData: FormData): Promise<void> {
     'use server';
 
@@ -245,7 +114,7 @@ export async function changePasswordAction(formData: FormData): Promise<void> {
     const newPassword = String(formData.get('newPassword') ?? '');
     const confirmPassword = String(formData.get('confirmPassword') ?? '');
 
-    if (!newPassword || !confirmPassword) {
+    if (!currentPassword || !newPassword || !confirmPassword) {
         redirect('/settings/password?error=missing_fields');
     }
 
@@ -257,44 +126,32 @@ export async function changePasswordAction(formData: FormData): Promise<void> {
         redirect('/settings/password?error=passwords_dont_match');
     }
 
-    const currentUser = await getCurrentUser();
-    if (!currentUser) {
+    const user = await getCurrentUser();
+    if (!user) {
         redirect('/login');
     }
 
     const supabase = await createClient();
 
-    const { data: dbUser, error } = await supabase
-        .from('users')
-        .select('password')
-        .eq('user_id', currentUser.userId)
-        .single();
+    // Supabase's updateUser() does NOT ask for the current password — a live
+    // session is enough for it. That is too weak here: it means a borrowed
+    // laptop with an open tab can change the password and lock the owner out.
+    // Re-authenticating first is the check, and it is why currentPassword is
+    // required above rather than optional as it used to be for accounts that
+    // had no hash yet.
+    const { error: reauthError } = await supabase.auth.signInWithPassword({
+        email: user.email,
+        password: currentPassword,
+    });
 
-    if (error || !dbUser) {
-        redirect('/settings/password?error=unavailable');
+    if (reauthError) {
+        redirect('/settings/password?error=invalid_current');
     }
 
-    const hasSecurePassword = dbUser.password && dbUser.password.includes(':');
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
 
-    if (hasSecurePassword) {
-        if (!currentPassword) {
-            redirect('/settings/password?error=missing_fields');
-        }
-        const isCurrentValid = verifyPassword(currentPassword, dbUser.password);
-        if (!isCurrentValid) {
-            redirect('/settings/password?error=invalid_current');
-        }
-    }
-
-    const newHashedPassword = hashPassword(newPassword);
-
-    const { error: updateError } = await supabase
-        .from('users')
-        .update({ password: newHashedPassword })
-        .eq('user_id', currentUser.userId);
-
-    if (updateError) {
-        console.error('[auth] could not update password:', updateError.message);
+    if (error) {
+        console.error('[auth] could not update password:', error.message);
         redirect('/settings/password?error=unavailable');
     }
 
@@ -304,43 +161,54 @@ export async function changePasswordAction(formData: FormData): Promise<void> {
 export async function logoutAction(): Promise<void> {
     'use server';
 
-    await destroySession();
+    const supabase = await createClient();
+
+    // Clears the session cookies through the same `setAll` the client was built
+    // with, so the browser is signed out as well as the server.
+    await supabase.auth.signOut();
+
     revalidatePath('/', 'layout');
     redirect('/');
 }
 
-export async function resetPasswordAction(formData: FormData): Promise<{ success?: boolean; error?: string }> {
+/**
+ * Start a password reset — by EMAIL, not by setting the new password here.
+ *
+ * ---------------------------------------------------------------------------
+ * THIS REPLACES AN ACCOUNT-TAKEOVER HOLE, AND THE UI CHANGED WITH IT.
+ * ---------------------------------------------------------------------------
+ *
+ * The previous version took an email and a new password from an unauthenticated
+ * form and ran:
+ *
+ *     update users set password = <hash> where email = <whatever was posted>
+ *
+ * with no token, no ownership check and no rate limit. Anyone who knew an
+ * address — admin@skillpath.dev is in the seed — could set its password and
+ * sign in as it. It is the reason app/reset-password/page.tsx now collects only
+ * an address.
+ *
+ * The reply is deliberately identical whether or not the address exists.
+ * Reporting "no such account" would turn this form into a membership oracle,
+ * which is the same leak in a smaller box.
+ */
+export async function resetPasswordAction(
+    formData: FormData,
+): Promise<{ success?: boolean; error?: string }> {
     const email = String(formData.get('email') ?? '').trim().toLowerCase();
-    const newPassword = String(formData.get('newPassword') ?? '');
-    const confirmPassword = String(formData.get('confirmPassword') ?? '');
 
     if (!email) {
         return { error: 'missing_email' };
     }
 
-    if (!newPassword || !confirmPassword) {
-        return { error: 'missing_fields' };
-    }
-
-    if (newPassword.length < 8) {
-        return { error: 'password_too_short' };
-    }
-
-    if (newPassword !== confirmPassword) {
-        return { error: 'passwords_dont_match' };
-    }
-
     const supabase = await createClient();
-    const hashedPassword = hashPassword(newPassword);
 
-    const { error: updateError } = await supabase
-        .from('users')
-        .update({ password: hashedPassword })
-        .eq('email', email);
+    const { error } = await supabase.auth.resetPasswordForEmail(email);
 
-    if (updateError) {
-        console.error('[auth] could not reset password:', updateError.message);
-        return { error: 'unavailable' };
+    // Logged, not returned. A failure here is almost always the project's mail
+    // quota rather than anything the visitor can act on.
+    if (error) {
+        console.error('[auth] could not send a reset mail:', error.message);
     }
 
     return { success: true };
