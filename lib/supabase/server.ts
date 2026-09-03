@@ -13,7 +13,7 @@
  * place, column names and row shapes are checked for real and those casts come
  * out.
  */
-
+import 'server-only'
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { requireEnv } from './env';
@@ -24,7 +24,7 @@ export async function createClient() {
 
     return createServerClient<Database>(
         requireEnv('NEXT_PUBLIC_SUPABASE_URL'),
-        requireEnv('NEXT_PUBLIC_SUPABASE_ANON_KEY'),
+        requireEnv('SUPABASE_SERVICE_ROLE_KEY'),
         {
             cookies: {
                 getAll() {
