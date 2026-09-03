@@ -84,7 +84,6 @@ export default defineConfig({
             // holding the DEMO project's service-role key. e2e/helpers/env.ts
             // guards the pair, but it can only guard what it is given.
             SUPABASE_SERVICE_ROLE_KEY: env.serviceRoleKey,
-            SESSION_SECRET: env.sessionSecret,
         },
     },
 });

@@ -51,14 +51,14 @@ export function aRepoFailure(message = 'Something went wrong. Try again.'): AppE
  * missing item from someone else's, which is the distinction plan.service
  * exists to make.
  */
-export function createPlanRepo(seed: ReadonlyArray<{ userId: number; item: PlanItem }> = []) {
+export function createPlanRepo(seed: ReadonlyArray<{ userId: string; item: PlanItem }> = []) {
     const rows = seed.map((row) => ({ ...row, item: { ...row.item } }));
 
     return {
         rows,
 
         listByUser: vi.fn(
-            async (_client: unknown, userId: number): Promise<Result<PlanItem[], AppError>> =>
+            async (_client: unknown, userId: string): Promise<Result<PlanItem[], AppError>> =>
                 ok(
                     rows
                         .filter((row) => row.userId === userId)
@@ -70,7 +70,7 @@ export function createPlanRepo(seed: ReadonlyArray<{ userId: number; item: PlanI
         findById: vi.fn(
             async (
                 _client: unknown,
-                userId: number,
+                userId: string,
                 recommendationId: number,
             ): Promise<Result<PlanItem | null, AppError>> => {
                 const found = rows.find(
@@ -84,7 +84,7 @@ export function createPlanRepo(seed: ReadonlyArray<{ userId: number; item: PlanI
         setStatus: vi.fn(
             async (
                 _client: unknown,
-                userId: number,
+                userId: string,
                 recommendationId: number,
                 status: PlanStatus,
             ): Promise<Result<void, AppError>> => {

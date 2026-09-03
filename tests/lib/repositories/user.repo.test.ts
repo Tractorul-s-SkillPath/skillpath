@@ -248,6 +248,6 @@ describe('setStatus', () => {
         // Same gap as category.repo.setStatus, recorded for the same reason:
         // PostgREST does not call a zero-row UPDATE an error, and this function
         // does not ask for a count, so the caller cannot tell.
-        expect((await userRepo.setStatus(db, -1, 'inactive')).ok).toBe(true);
+        expect((await userRepo.setStatus(db, '00000000-0000-4000-8000-0000000000ff', 'inactive')).ok).toBe(true);
     });
 });

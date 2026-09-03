@@ -40,9 +40,16 @@ vi.mock('../../../lib/supabase/server', () => ({
     createClient: vi.fn(async () => FAKE_CLIENT),
 }));
 
-/** A fresh id per dashboard test, to step around the cache() memoisation. */
+/**
+ * A fresh id per dashboard test, to step around the cache() memoisation.
+ *
+ * A UUID rather than a counter now, because that is what `users.user_id` is.
+ * The counter still drives it, so the ids stay readable and ordered in a
+ * failure message instead of being sixteen random bytes.
+ */
 let nextUserId = 1000;
-const anUnseenUser = () => (nextUserId += 1);
+const anUnseenUser = () =>
+    `00000000-0000-4000-8000-${String((nextUserId += 1)).padStart(12, '0')}`;
 
 const aProfile = {
     userId: MEMBER_ID,

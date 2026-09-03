@@ -1,55 +1,82 @@
 /**
- * Login server action.
+ * Sign in.
  *
- * Layer: ACTION — the thin edge between the form and the auth slice (§3).
- * Stories: SP-010, SP-014
+ * Stories: SP-010, SP-012
  *
- * This used to parse the form and then redirect('/dashboard') without creating
- * a session. Middleware saw no cookie on /dashboard and sent the browser
- * straight back to /login, so signing in was an infinite bounce. The real
- * implementation — look the account up, create the signed session, redirect by
- * the role stored in the database — has always been in lib/auth/current-user.ts;
- * this file exists so the page keeps importing an action from its own slice.
+ * Supabase Auth verifies the password and sets the session cookies; the cookie
+ * write lands because a Server Action CAN set cookies, which is the half of
+ * `lib/supabase/server.ts`'s `setAll` that is not swallowed.
  *
- * Read the header of lib/auth/current-user.ts before trusting this with
- * anything: sign-in is passwordless by team decision. The password field on the
- * form is collected and never verified.
- *
- * Not handled: middleware appends ?next= when it bounces you off a protected
- * page, and this ignores it — you land on your role's home instead of where you
- * were headed. That needs a hidden field on the form and a next-aware redirect.
- *
- * Test: tests/app/(auth)/login/actions.test.ts
+ * Where it sends you afterwards is read from `public.users.role`, not from the
+ * form and not from the token. That is the same rule getCurrentUser() follows,
+ * and e2e/helpers/member.ts asserts it: every sign-in in the suite states which
+ * role it believes it is signing in as, so a build that stopped reading the
+ * column fails there rather than deep inside a page.
  */
 
 'use server';
 
 import { redirect } from 'next/navigation';
+import { revalidatePath } from 'next/cache';
 import { createClient } from '../../../lib/supabase/server';
 
+/**
+ * `next` comes from the query string, so it is attacker-controlled: without
+ * these four lines `/login?next=https://elsewhere.example` is an open redirect
+ * wearing our domain. Only a path on this site is allowed — `//host` and a
+ * backslash are the two ways a value that starts with `/` can still leave.
+ */
+function safeNext(formData: FormData): string | null {
+    const next = String(formData.get('next') ?? '').trim();
+
+    if (!next.startsWith('/')) return null;
+    if (next.startsWith('//')) return null;
+    if (next.includes('\\')) return null;
+
+    return next;
+}
+
 export async function loginAction(formData: FormData): Promise<void> {
-    const email = formData.get('email') as string;
-    const password = formData.get('password') as string;
-    const next = formData.get('next') as string | null;
+    const email = String(formData.get('email') ?? '').trim().toLowerCase();
+    const password = String(formData.get('password') ?? '');
+
+    if (!email || !password) {
+        redirect('/login?error=invalid');
+    }
 
     const supabase = await createClient();
 
-    // 1. Apelăm metoda oficială Supabase Auth care validează parola și creează o sesiune securizată (token JWT)
-    const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-    });
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
-    // 2. Dacă emailul sau parola sunt greșite, returnăm utilizatorul la formular cu mesaj de eroare
-    if (error) {
-        console.error("Login error:", error.message);
-        redirect(`/login?error=invalid`);
+    // One message for a bad address and a bad password alike. Telling them
+    // apart would confirm which addresses have accounts.
+    if (error || !data.user) {
+        console.error('[auth] sign-in failed:', error?.message);
+        redirect('/login?error=invalid');
     }
 
-    // 3. Dacă logarea are succes, trimitem utilizatorul la pagina dorită sau direct pe dashboard
-    if (next) {
-        redirect(next);
-    } else {
-        redirect('/dashboard');
+    // The account can be disabled without the credentials changing (SP-014), so
+    // the profile row decides whether this session is allowed to continue —
+    // and signOut() runs first, or a disabled member keeps a usable cookie and
+    // only the redirect stops them.
+    const { data: profile } = await supabase
+        .from('users')
+        .select('role, status')
+        .eq('user_id', data.user.id)
+        .maybeSingle();
+
+    if (!profile) {
+        console.error('[auth] no profile row for', data.user.id);
+        await supabase.auth.signOut();
+        redirect('/login?error=unavailable');
     }
+
+    if (profile.status !== 'active') {
+        await supabase.auth.signOut();
+        redirect('/login?error=disabled');
+    }
+
+    revalidatePath('/', 'layout');
+
+    redirect(safeNext(formData) ?? (profile.role === 'admin' ? '/admin' : '/dashboard'));
 }

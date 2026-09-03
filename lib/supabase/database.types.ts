@@ -42,26 +42,35 @@ export type XpReason =
 // -----------------------------------------------------------------------------
 
 export type UserRow = {
-    user_id: number;
+    /**
+     * The `auth.users` id, not an identity key of our own. The profile row is
+     * created by the `on_auth_user_created` trigger, so this value always comes
+     * from Supabase Auth — never from an insert the application writes.
+     *
+     * There is no `password` column any more: credentials live in `auth.users`
+     * and are Supabase's to hold. That is why UserPublicRow below is now the
+     * whole row rather than a subset of it.
+     */
+    user_id: string;
     first_name: string;
     last_name: string;
     email: string;
-    /**
-     * Present, NOT NULL, and read by nothing: sign-in is by email alone, by
-     * team decision. See the header of lib/auth/current-user.ts.
-     *
-     * Never `select('*')` from `users` in a path that reaches a component —
-     * ask for the columns you need. UserPublicRow below is the safe shape.
-     */
-    password: string;
     role: UserRole;
     status: UserStatus;
     created_at: string;
     updated_at: string;
 };
 
-/** `users` without the password column. What every read path should ask for. */
-export type UserPublicRow = Omit<UserRow, 'password'>;
+/**
+ * Kept as a distinct name even though it no longer omits anything.
+ *
+ * It used to mean "`users` without the password column", and roughly forty read
+ * paths ask for it by name. Collapsing it into UserRow would be a rename across
+ * all of them for no behavioural gain, and would lose the signal that these are
+ * the columns a component is allowed to see — which is the thing to re-check if
+ * a sensitive column is ever added back.
+ */
+export type UserPublicRow = UserRow;
 
 export const USER_PUBLIC_COLUMNS =
     'user_id, first_name, last_name, email, role, status, created_at, updated_at' as const;
@@ -82,7 +91,7 @@ export type QuestionRow = {
     difficulty: SkillLevel;
     status: ContentStatus;
     source: QuestionSource;
-    created_by: number | null;
+    created_by: string | null;
     /**
      * What this question probes, and what to study when it is missed (0004).
      *
@@ -110,7 +119,7 @@ export type AnswerOptionRow = Omit<AnswerRow, 'is_correct'>;
 
 export type AssessmentRow = {
     assessment_id: number;
-    user_id: number;
+    user_id: string;
     category_id: number;
     session_id: string | null;
     requested_level: SkillLevel;
@@ -137,7 +146,7 @@ export type StudentResponseRow = {
 
 export type CategoryProgressRow = {
     progress_id: number;
-    user_id: number;
+    user_id: string;
     category_id: number;
     current_level: SkillLevel;
     last_score: number | null;
@@ -148,7 +157,7 @@ export type CategoryProgressRow = {
 
 export type RecommendationPlanRow = {
     recommendation_id: number;
-    user_id: number;
+    user_id: string;
     category_id: number;
     assessment_id: number | null;
     topic_title: string;
@@ -173,7 +182,7 @@ export type RecommendationPlanRow = {
  */
 export type XpEventRow = {
     xp_event_id: number;
-    user_id: number;
+    user_id: string;
     amount: number;
     reason: XpReason;
     assessment_id: number | null;
@@ -190,12 +199,12 @@ export type XpEventRow = {
 // -----------------------------------------------------------------------------
 
 export type UserXpTotalRow = {
-    user_id: number;
+    user_id: string;
     total_xp: number;
 };
 
 export type LeaderboardRow = {
-    user_id: number;
+    user_id: string;
     display_name: string;
     total_xp: number;
     rank: number;
@@ -267,7 +276,20 @@ type ToUser<Name extends string> = BelongsTo<Name, 'user_id', 'users', 'user_id'
 export type Database = {
     public: {
         Tables: {
-            users: Table<UserRow, Omit<UserRow, 'user_id' | Generated>>;
+            // `user_id` is REQUIRED on insert, where it used to be omitted as a
+            // generated identity key. It is now the `auth.users` id, so the
+            // caller has to have created the auth user first and pass its id —
+            // which is the type-level statement that a profile cannot exist
+            // without an account behind it. In the application nothing inserts
+            // here at all: `on_auth_user_created` does it. The test harness is
+            // the only writer, and it goes through auth.admin.createUser.
+            users: Table<
+                UserRow,
+                Omit<UserRow, Generated | 'role' | 'status'> & {
+                    role?: UserRole;
+                    status?: UserStatus;
+                }
+            >;
             skill_categories: Table<
                 SkillCategoryRow,
                 Omit<SkillCategoryRow, 'category_id' | Generated | 'status'> & {
@@ -288,7 +310,7 @@ export type Database = {
                 > & {
                     status?: ContentStatus;
                     source?: QuestionSource;
-                    created_by?: number | null;
+                    created_by?: string | null;
                     topic_title?: string | null;
                     study_advice?: string | null;
                 },
@@ -398,7 +420,7 @@ export type Database = {
             };
             /** Consecutive days with XP activity, ending today or yesterday. */
             current_streak: {
-                Args: { p_user_id: number };
+                Args: { p_user_id: string };
                 Returns: number;
             };
         };

@@ -92,7 +92,7 @@ function anInterest(overrides: Record<string, unknown> = {}) {
 function attemptsBy(answer: (status: string) => unknown) {
     vi.mocked(assessmentRepo.findByStatus).mockImplementation((async (
         _client: unknown,
-        _userId: number,
+        _userId: string,
         _categoryId: number,
         status: string,
     ) => answer(status)) as never);

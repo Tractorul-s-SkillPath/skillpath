@@ -167,7 +167,7 @@ export interface BankQuestion {
     text: string;
     status: string;
     difficulty: SkillLevel;
-    createdBy: number | null;
+    createdBy: string | null;
     answers: Array<{ answerId: number; text: string; isCorrect: boolean; position: number }>;
 }
 
@@ -225,7 +225,7 @@ export async function findUserByEmail(db: TestDb, email: string) {
     return data;
 }
 
-export async function assessmentsFor(db: TestDb, userId: number) {
+export async function assessmentsFor(db: TestDb, userId: string) {
     const { data, error } = await db
         .from('assessments')
         .select('assessment_id, category_id, status, total_score, submitted_at')
@@ -259,7 +259,7 @@ export async function storedAnswers(
     return new Map(data.map((row) => [row.question_id, row.selected_answer_id]));
 }
 
-export async function planFor(db: TestDb, userId: number) {
+export async function planFor(db: TestDb, userId: string) {
     const { data, error } = await db
         .from('recommendation_plans')
         .select('recommendation_id, category_id, topic_title, priority, progress_status')
@@ -279,7 +279,7 @@ export async function planFor(db: TestDb, userId: number) {
  * Nothing here is load-bearing — every run uses a fresh identity, so a failed
  * delete costs housekeeping, never correctness.
  */
-export async function deleteMember(db: TestDb, userId: number): Promise<void> {
+export async function deleteMember(db: TestDb, userId: string): Promise<void> {
     const runs = await assessmentsFor(db, userId).catch(() => []);
     const ids = runs.map((r) => r.assessment_id);
 
@@ -291,7 +291,16 @@ export async function deleteMember(db: TestDb, userId: number): Promise<void> {
     await db.from('recommendation_plans').delete().eq('user_id', userId);
     await db.from('assessments').delete().eq('user_id', userId);
     await db.from('category_progress').delete().eq('user_id', userId);
-    await db.from('users').delete().eq('user_id', userId);
+
+    // The AUTH user last, not the profile row. `public.users.user_id` cascades
+    // from `auth.users(id)`, so this removes both — and removing only the
+    // profile would strand an account still holding the email address, which
+    // nothing in this suite ever looks at and which no later run can reuse.
+    //
+    // This is also what stops the test project accumulating a member per run:
+    // 35 `@skillpath.test` rows had built up while cleanup deleted a profile
+    // row that a foreign key immediately recreated the need for.
+    await db.auth.admin.deleteUser(userId);
 }
 
 /**

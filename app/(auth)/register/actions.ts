@@ -1,25 +1,32 @@
 /**
- * Registration server action.
+ * Create an account.
  *
- * Layer: ACTION
- * Story: SP-011
+ * Stories: SP-010, SP-011
  *
- * There is no separate sign-up path: loginAction creates the account when the
- * email has never been seen, so registering and signing in are the same call
- * with different fields posted. This wrapper exists so the register page
- * imports a verb that matches what the user thinks they are doing, and so the
- * two can diverge later without touching the page.
+ * ---------------------------------------------------------------------------
+ * EVERY FAILURE USED TO REPORT ITSELF AS `email_already_exists`.
+ * ---------------------------------------------------------------------------
  *
- * What it inherits from that action, and what the team has agreed to:
- *  - no password is verified. The field is collected and dropped (see the
- *    header of lib/auth/current-user.ts)
- *  - registering with an email that already exists signs you into that account
- *    rather than failing. There is no credential, so there is nothing to get
- *    wrong — but it does mean "email already taken" is not a state that exists
- *  - the role dropdown is honoured only when the account is created; after
- *    that role comes from the database and the dropdown does nothing
+ * That one line cost an afternoon. The E2E journey registers a freshly minted
+ * address every run, so "email already exists" was impossible by construction —
+ * and it was what the page said, for two days, while the real error was
  *
- * Test: tests/app/(auth)/register/actions.test.ts
+ *     429 email rate limit exceeded
+ *
+ * Supabase's built-in SMTP allows a couple of confirmation mails an hour, and
+ * the suite asks for more than that. A masked error does not just hide the
+ * cause; it actively argues for the wrong fix, because the message that IS
+ * shown is a plausible story about a different bug.
+ *
+ * So each condition below carries its own code, and anything unrecognised is
+ * logged with its status and reported as `unavailable` rather than being dressed
+ * up as something specific.
+ *
+ * ROLE IS NOT READ FROM THIS FORM. `on_auth_user_created` writes 'student',
+ * full stop — an account that can read the answer key is not something a public
+ * signup form hands out. The old code enforced that in TypeScript with a
+ * `managerApproval` field; the trigger enforces it in the database, where a
+ * crafted POST cannot argue with it.
  */
 'use server';
 
@@ -27,33 +34,118 @@ import { redirect } from 'next/navigation';
 import { createClient } from '../../../lib/supabase/server';
 
 export async function registerAction(formData: FormData): Promise<void> {
-    const email = formData.get('email') as string;
-    const password = formData.get('password') as string;
-    const firstName = formData.get('firstName') as string;
-    const lastName = formData.get('lastName') as string;
-    const role = formData.get('role') as string;
+    const email = String(formData.get('email') ?? '').trim().toLowerCase();
+    const password = String(formData.get('password') ?? '');
+    const firstName = String(formData.get('firstName') ?? '').trim();
+    const lastName = String(formData.get('lastName') ?? '').trim();
+
+    if (!email || !password) {
+        redirect('/register?error=missing_fields');
+    }
+
+    // Supabase's own floor is 6. Asking for 8 here keeps the message ours and
+    // in one place; letting it through and translating Supabase's wording back
+    // into a code is the same check written twice.
+    if (password.length < 8) {
+        redirect('/register?error=password_too_short');
+    }
 
     const supabase = await createClient();
 
-    // 1. Creăm contul oficial în Supabase Auth
-    // Trimitem first_name și last_name în 'raw_user_meta_data', de unde le va prelua trigger-ul tău SQL
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
         email,
         password,
-        options: {
-            data: {
-                first_name: firstName,
-                last_name: lastName,
-                role: role,
-            }
-        }
+        // Read by `on_auth_user_created`, which copies them into public.users.
+        // `role` is deliberately NOT sent: the trigger ignores it anyway, and
+        // sending it would imply it were negotiable.
+        options: { data: { first_name: firstName, last_name: lastName } },
     });
 
     if (error) {
-        console.error("Register error:", error.message);
-        redirect(`/register?error=email_already_exists`);
+        console.error('[auth] sign-up failed:', error.status, error.message);
+
+        if (error.status === 429) {
+            redirect('/register?error=rate_limited');
+        }
+
+        if (error.code === 'user_already_exists') {
+            redirect('/register?error=email_already_exists');
+        }
+
+        if (error.code === 'weak_password') {
+            redirect('/register?error=password_too_short');
+        }
+
+        redirect('/register?error=unavailable');
     }
 
-    // 2. Redirecționăm către pagina de succes
+    // A duplicate address does NOT come back as an error when email
+    // confirmation is on: Supabase returns a user with an empty `identities`
+    // array instead, so that a signup form cannot be used to enumerate who has
+    // an account. The page says "check your email" either way; this branch just
+    // stops us reporting success to the test suite.
+    if (data.user && data.user.identities?.length === 0) {
+        redirect('/register?error=email_already_exists');
+    }
+
+    // Chosen starting categories. Best-effort on purpose: the account exists at
+    // this point, and failing the registration over a preference would strand a
+    // member with credentials they were never told worked.
+    //
+    // Only possible when signUp returned a session — with email confirmation ON
+    // there is no session yet, RLS would reject the insert (auth.uid() is
+    // null), and the member picks their categories after confirming instead.
+    const chosen = [
+        ...new Set(
+            formData
+                .getAll('skills')
+                .map((value) => Number(value))
+                .filter((id) => Number.isInteger(id) && id > 0),
+        ),
+    ];
+
+    if (chosen.length > 0 && data.session && data.user) {
+        const { error: progressError } = await supabase.from('category_progress').insert(
+            chosen.map((category_id) => ({
+                user_id: data.user!.id,
+                category_id,
+                current_level: 'beginner' as const,
+            })),
+        );
+
+        if (progressError) {
+            console.error('[auth] could not save chosen categories:', progressError.message);
+        }
+    }
+
+    // ---------------------------------------------------------------------
+    // SIGN OUT AGAIN BEFORE LEAVING. THIS IS NOT UNDOING THE REGISTRATION.
+    // ---------------------------------------------------------------------
+    //
+    // With email confirmation ON — how the project is meant to run — signUp
+    // returns no session, and a new member arrives at /success signed out. With
+    // it OFF, which is how the test project is configured so the E2E suite does
+    // not exhaust the ~2/hour mail quota, signUp hands back a live session
+    // instead. Two different post-registration states for the same code path,
+    // decided by a dashboard toggle.
+    //
+    // The signed-in one breaks the flow the product actually has: /success sits
+    // in the (auth) group, and app/(auth)/layout.tsx redirects anyone signed in
+    // to their role's home. So the member never saw "Account created
+    // successfully — you can now sign in", they were thrown to /dashboard, and
+    // both E2E specs failed with
+    //
+    //     Expected pattern: /\/success$/
+    //     Received string:  "http://localhost:3100/dashboard"
+    //
+    // Signing out here makes the two configurations behave identically, and
+    // makes the one the tests run under match the one production uses. It also
+    // keeps the sign-in step of those journeys honest: a member who is already
+    // authenticated would sail through /login on the layout's redirect, and the
+    // assertion that sign-in works would pass without sign-in ever happening.
+    //
+    // A no-op when confirmation is on — there is no session to clear.
+    await supabase.auth.signOut();
+
     redirect('/success');
 }

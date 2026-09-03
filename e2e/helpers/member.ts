@@ -48,13 +48,63 @@ export const SEEDED_ADMIN = {
  * and a test that only works because of how the runner recycles processes is
  * one step from failing for a reason nobody can see.
  */
+/**
+ * The domain the journey registers under. NOT `skillpath.test`, and that is not
+ * a style preference.
+ *
+ * Supabase Auth validates the address on the public sign-up path and rejects
+ * reserved TLDs:
+ *
+ *     [auth] sign-up failed: 400 Email address "e2e-…@skillpath.test" is invalid
+ *
+ * `.test` is reserved by RFC 2606 and can never be delivered to, so the
+ * validator refuses it. The seeded accounts elsewhere in this suite keep
+ * `@skillpath.test` and still work, because they are created through
+ * `auth.admin.createUser`, which is the admin API and skips that validation —
+ * which is exactly why this failure showed up only for the browser journey.
+ *
+ * `example.com` is IANA's documentation domain: a real registrable TLD, so it
+ * passes validation, and permanently reserved, so a stray confirmation mail can
+ * never reach a real person. Override it if this project's validator ever
+ * disagrees — nothing else in the suite depends on the domain.
+ */
+const E2E_EMAIL_DOMAIN = process.env.E2E_EMAIL_DOMAIN ?? 'example.com';
+
+/**
+ * The cookies that actually hold the Supabase session — all of them, and
+ * nothing else.
+ *
+ * ---------------------------------------------------------------------------
+ * WHY THIS IS A REGEX AND NOT `name.includes('auth-token')`.
+ * ---------------------------------------------------------------------------
+ *
+ * `includes` also matches `sb-<ref>-auth-token-code-verifier`, the PKCE cookie,
+ * which is not the session. A step that picked THAT one and corrupted it left
+ * the real session untouched, so the request went through and the assertion
+ * failed — but only sometimes, because `context.cookies()` does not promise an
+ * order. It passed under `npm run test:e2e` and failed under
+ * `test:e2e:dev` on the same commit, which is the signature of a test picking
+ * one of several matches at random.
+ *
+ * Anchoring on the end of the name excludes the verifier. Allowing a `.N`
+ * suffix keeps the chunks: @supabase/ssr splits a large session across
+ * `…auth-token.0`, `…auth-token.1`, and a caller that took only the first would
+ * be back to corrupting part of a value that still reassembles.
+ *
+ * Returns an array, deliberately. Every caller must handle "more than one", and
+ * a helper returning a single cookie would put the same bug back.
+ */
+export function sessionCookies<T extends { name: string }>(cookies: readonly T[]): T[] {
+    return cookies.filter((cookie) => /^sb-.+-auth-token(\.\d+)?$/.test(cookie.name));
+}
+
 export function newMember(firstName = 'E2E'): Member {
     const runId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
 
     return {
         firstName,
         lastName: `Runner-${runId}`,
-        email: `${firstName.toLowerCase()}-${runId}@skillpath.test`,
+        email: `${firstName.toLowerCase()}-${runId}@${E2E_EMAIL_DOMAIN}`,
         password: 'e2e-password-1234',
     };
 }

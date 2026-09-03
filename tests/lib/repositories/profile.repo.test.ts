@@ -54,7 +54,7 @@ describe('findByUserId', () => {
     it('fails for a member who does not exist', async () => {
         // `.single()`, so PostgREST answers PGRST116 and this maps to not_found
         // rather than returning a null the caller would have to check.
-        const result = await profileRepo.findByUserId(db, -1);
+        const result = await profileRepo.findByUserId(db, '00000000-0000-4000-8000-0000000000ff');
 
         expect(result.ok).toBe(false);
         if (result.ok) return;

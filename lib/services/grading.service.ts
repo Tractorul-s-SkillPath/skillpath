@@ -40,7 +40,7 @@ import type { PlanItem, ReviewItem, SkillLevel } from '../domain/types';
  * refuses a run that is no longer in_progress.
  */
 export async function submit(
-    userId: number,
+    userId: string,
     assessmentId: number,
 ): Promise<Result<{ score: number }, AppError>> {
     const supabase = await createClient();
@@ -110,7 +110,7 @@ export interface AssessmentResults {
  * gets the same not_found a nonexistent one does (SP-053 AC2).
  */
 export async function getResults(
-    userId: number,
+    userId: string,
     assessmentId: number,
 ): Promise<Result<AssessmentResults, AppError>> {
     const supabase = await createClient();

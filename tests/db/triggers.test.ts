@@ -65,7 +65,7 @@ afterAll(async () => {
  * Ten questions so a score lands exactly on a threshold: 5/10 is 50 and 8/10 is
  * 80, which are the two boundaries level_for_score() turns on.
  */
-async function sitAPaper(correct: number, existing?: { userId: number; categoryId: number }) {
+async function sitAPaper(correct: number, existing?: { userId: string; categoryId: number }) {
     const member = existing ?? { userId: (await sandbox.createUser()).userId, categoryId: 0 };
 
     const category = existing

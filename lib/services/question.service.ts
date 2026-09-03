@@ -21,7 +21,19 @@
 
 import 'server-only';
 import { assertAdmin } from '../auth/assertAdmin';
-import { createClient } from '../supabase/server';
+// createServiceClient, NOT createClient: RLS has no admin policy, deliberately.
+//
+// The policies in *_securitate_rls.sql are all `auth.uid()` = own rows, plus
+// read-only SELECT on the content bank. An admin client on the anon key is
+// therefore refused every write here — `42501 new row violates row-level
+// security policy for table "skill_categories"` was this file creating a
+// category through the member's own session.
+//
+// The fix is not an is_admin() policy. That would put the role check in the
+// database AND in assertAdmin(), where the two can drift; ARCHITECTURE §5c puts
+// it in one place. EVERY exported function below calls assertAdmin() before it
+// touches this client, and that is the whole of the authorization story.
+import { createServiceClient } from '../supabase/server';
 import * as questionRepo from '../repositories/question.repo';
 import type { AppError } from '../errors';
 import type { Result } from '../result';
@@ -40,7 +52,7 @@ export async function listQuestionsByCategory(
     categoryId: number,
 ): Promise<Result<AdminQuestion[], AppError>> {
     await assertAdmin();
-    return questionRepo.listByCategory(await createClient(), categoryId);
+    return questionRepo.listByCategory(createServiceClient(), categoryId);
 }
 
 /**
@@ -50,7 +62,7 @@ export async function listQuestionsByCategory(
 export async function createQuestion(input: QuestionInput): Promise<Result<number, AppError>> {
     const admin = await assertAdmin();
 
-    return questionRepo.insertWithAnswers(await createClient(), {
+    return questionRepo.insertWithAnswers(createServiceClient(), {
         categoryId: input.categoryId,
         text: input.text,
         difficulty: input.difficulty,
@@ -69,5 +81,5 @@ export async function setQuestionStatus(
     status: ContentStatus,
 ): Promise<Result<void, AppError>> {
     await assertAdmin();
-    return questionRepo.setStatus(await createClient(), questionId, status);
+    return questionRepo.setStatus(createServiceClient(), questionId, status);
 }

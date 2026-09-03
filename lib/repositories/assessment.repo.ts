@@ -34,7 +34,7 @@ type Client = SupabaseClient<Database>;
  */
 export async function listByUser(
     supabase: Client,
-    userId: number,
+    userId: string,
     limit = 20,
 ): Promise<Result<AssessmentSummary[], AppError>> {
     const { data, error } = await supabase
@@ -56,7 +56,7 @@ export async function listByUser(
  */
 export async function findByStatus(
     supabase: Client,
-    userId: number,
+    userId: string,
     categoryId: number,
     status: 'in_progress' | 'submitted',
 ): Promise<Result<AssessmentRow | null, AppError>> {
@@ -84,7 +84,7 @@ export async function findByStatus(
  */
 export async function listInProgress(
     supabase: Client,
-    userId: number,
+    userId: string,
 ): Promise<Result<Map<number, number>, AppError>> {
     const { data, error } = await supabase
         .from('assessments')
@@ -100,7 +100,7 @@ export async function listInProgress(
 /** One run, only if it belongs to this member. The `user_id` clause IS the 404. */
 export async function findOwn(
     supabase: Client,
-    userId: number,
+    userId: string,
     assessmentId: number,
 ): Promise<Result<AssessmentRow | null, AppError>> {
     const { data, error } = await supabase
@@ -130,7 +130,7 @@ export async function findOwn(
 export async function createWithResponses(
     supabase: Client,
     input: {
-        userId: number;
+        userId: string;
         categoryId: number;
         requestedLevel: 'beginner' | 'intermediate' | 'advanced';
         timeLimitSeconds: number;

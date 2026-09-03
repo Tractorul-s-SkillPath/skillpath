@@ -44,7 +44,7 @@ import {
     storedAnswers,
     testDb,
 } from './helpers/db';
-import { newMember, register, signIn, type Member } from './helpers/member';
+import { newMember, register, sessionCookies, signIn, type Member } from './helpers/member';
 
 /**
  * 12 of 20. Chosen so that the expected score sits well inside a band rather
@@ -77,7 +77,7 @@ const db = testDb();
 
 /** Both set once the account exists, so teardown knows what to remove. */
 let member: Member | null = null;
-let memberId: number | null = null;
+let memberId: string | null = null;
 
 /**
  * Rows are KEPT by default. The run is meant to be inspectable afterwards — a
@@ -201,13 +201,25 @@ test('a new member registers, sits the baseline, and gets a plan', async ({ page
     await test.step('sign in', async () => {
         await signIn(page, who, /\/dashboard$/);
 
-        const session = (await context.cookies()).find((c) => c.name === 'skillpath_session');
+        // The cookie is Supabase's now, not `skillpath_session` — that scheme
+        // and lib/auth/session.ts are gone. See sessionCookies() for why this
+        // is a helper rather than an inline name match.
+        const session = sessionCookies(await context.cookies());
 
-        expect(session, 'signing in did not set a session cookie').toBeDefined();
-        expect(session!.httpOnly, 'the session cookie is readable from JavaScript').toBe(true);
-        // body.signature — a payload with nothing after the dot is the
-        // unsigned cookie this scheme replaced.
-        expect(session!.value).toMatch(/^[\w-]+\.[\w-]+$/);
+        expect(session.length, 'signing in did not set a Supabase session cookie')
+            .toBeGreaterThan(0);
+
+        for (const cookie of session) {
+            // KEPT FROM THE OLD SCHEME ON PURPOSE. @supabase/ssr defaults this
+            // to FALSE, because the usual setup has a browser client that reads
+            // the token with JavaScript. This app has none, so
+            // lib/supabase/server.ts overrides it — and without this assertion
+            // that override can be dropped, or the library's default can
+            // change, and the session becomes XSS-readable with nothing going
+            // red.
+            expect(cookie.httpOnly, `${cookie.name} is readable from JavaScript`).toBe(true);
+            expect(cookie.value.length, `${cookie.name} is empty`).toBeGreaterThan(0);
+        }
     });
 
     await test.step('open the baseline', async () => {
@@ -346,36 +358,55 @@ test('a new member registers, sits the baseline, and gets a plan', async ({ page
     });
 
     await test.step('a forged cookie is not a session', async () => {
-        const session = (await context.cookies()).find((c) => c.name === 'skillpath_session')!;
-
-        // Break the signature, keep the shape. Middleware sees a cookie and
-        // lets the request through; readSession must reject it and assertAuth
-        // must bounce. This is the step that tells a verified HMAC apart from
-        // a cookie nobody checks.
+        // ------------------------------------------------------------------
+        // REWRITTEN FOR SUPABASE AUTH, ASSERTING THE SAME PROPERTY.
         //
-        // THE FLIPPED CHARACTER IS IN THE MIDDLE, AND THAT IS NOT ARBITRARY.
-        // The signature is base64url of a 32-byte HMAC: 43 characters carrying
-        // 258 bits, so the LAST character has two bits that decode to nothing.
-        // `sign(body).slice(0, -1) + 'A'` and the same with 'B' are different
-        // strings that decode to identical buffers. safeEqual() compares the
-        // strings today, so flipping the last character does work — but the
-        // obvious "improvement" to that function is to decode and compare the
-        // raw bytes, and under that version the forgery would VERIFY and this
-        // step would go red for a reason that reads as a product bug. Every bit
-        // of a middle character is significant, so this holds under both.
-        const dot = session.value.lastIndexOf('.');
-        const signature = session.value.slice(dot + 1);
-        const at = Math.floor(signature.length / 2);
+        // This used to flip a character in the HMAC of our own
+        // `skillpath_session` cookie. That cookie no longer exists: the session
+        // is Supabase's, held in `sb-<project-ref>-auth-token`, and it is a JWT
+        // signed with a key the browser has never seen.
+        //
+        // The property under test is unchanged and is still worth a step — a
+        // tampered session must not be a session. What makes it worth keeping
+        // is that it is the only check on the ONE thing this migration could
+        // have got quietly wrong: middleware calls `getUser()`, which verifies
+        // the token against the auth server, and not `getSession()`, which
+        // decodes whatever the request carried and believes it. Both compile,
+        // both work when the cookie is honest, and only one of them fails here.
+        //
+        // EVERY session cookie is corrupted, not the first one found. The
+        // earlier version took a single match on `name.includes('auth-token')`,
+        // which also matches the PKCE cookie `…auth-token-code-verifier` — so
+        // on a run where that one came back first, the real session survived
+        // untouched, /plan answered 200 and this step failed. It passed under
+        // `npm run test:e2e` and failed under `test:e2e:dev` on the same
+        // commit. sessionCookies() carries the rest of that note.
+        // ------------------------------------------------------------------
+        const session = sessionCookies(await context.cookies());
 
-        const forged =
-            `${session.value.slice(0, dot)}.` +
-            signature.slice(0, at) +
-            (signature[at] === 'A' ? 'B' : 'A') +
-            signature.slice(at + 1);
+        expect(
+            session.length,
+            'no Supabase session cookie on the context — the sign-in step did not leave one, ' +
+                'so this step would pass without proving anything',
+        ).toBeGreaterThan(0);
 
-        expect(forged, 'the forgery did not change the cookie').not.toBe(session.value);
+        // A character in the middle of each, so the change lands in the payload
+        // rather than in base64 padding that may decode to the same bytes. Two
+        // candidate replacements because the original might already be the one
+        // we would substitute.
+        const forged = session.map((cookie) => {
+            const at = Math.floor(cookie.value.length / 2);
+            const value =
+                cookie.value.slice(0, at) +
+                (cookie.value[at] === 'A' ? 'B' : 'A') +
+                cookie.value.slice(at + 1);
 
-        await context.addCookies([{ ...session, value: forged }]);
+            expect(value, `the forgery did not change ${cookie.name}`).not.toBe(cookie.value);
+
+            return { ...cookie, value };
+        });
+
+        await context.addCookies(forged);
         await page.goto('/plan');
 
         await expect(page).toHaveURL(/\/login/);

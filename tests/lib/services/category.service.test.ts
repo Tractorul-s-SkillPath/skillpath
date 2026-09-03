@@ -24,7 +24,12 @@ import {
 vi.mock('../../../lib/auth/assertAdmin');
 vi.mock('../../../lib/repositories/category.repo');
 vi.mock('../../../lib/supabase/server', () => ({
+    // The admin services query through createServiceClient — service role, because
+    // RLS has no admin policy and every write here would be refused with 42501.
+    // Mocked alongside createClient so a service that is moved between the two
+    // fails on its assertions rather than on an undefined import.
     createClient: vi.fn(async () => FAKE_CLIENT),
+    createServiceClient: vi.fn(() => FAKE_CLIENT),
 }));
 
 /** What assertAdmin does to a non-admin: redirect() throws, so nothing returns. */

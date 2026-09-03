@@ -62,7 +62,27 @@ export async function listPaged(
         query = query.or(`first_name.ilike.${term},last_name.ilike.${term},email.ilike.${term}`);
     }
 
+    // ---------------------------------------------------------------------
+    // created_at, NOT user_id. THIS ORDERING WAS SILENTLY BROKEN BY THE UUID
+    // MIGRATION.
+    // ---------------------------------------------------------------------
+    //
+    // `order('user_id', { ascending: false })` meant "newest first" only while
+    // user_id was a monotonically increasing identity integer. It is now the
+    // auth.users UUID, which is random — so the admin users table was sorting
+    // members into an arbitrary order while still calling it newest-first.
+    //
+    // Nothing threw. The list rendered, paged and searched correctly; it was
+    // just in the wrong order, and page 2 was not the second-newest twenty
+    // members but an arbitrary twenty. tests/lib/repositories/user.repo.test.ts
+    // caught it as "expected 7 to be less than 3".
+    //
+    // user_id stays as the tiebreak. Two members can share a created_at — the
+    // seed inserts several in one statement — and without a second key their
+    // relative order is whatever the planner chose, which makes a paged list
+    // able to show the same row twice or skip one.
     const { data, count, error } = await query
+        .order('created_at', { ascending: false })
         .order('user_id', { ascending: false })
         .range(from, to);
 
@@ -73,7 +93,7 @@ export async function listPaged(
 
 export async function setStatus(
     supabase: Client,
-    userId: number,
+    userId: string,
     status: UserStatus,
 ): Promise<Result<void, AppError>> {
     const { error } = await supabase.from('users').update({ status }).eq('user_id', userId);

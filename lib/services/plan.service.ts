@@ -20,7 +20,7 @@ import { err, type Result } from '../result';
 import type { PlanItem, PlanStatus } from '../domain/types';
 
 /** Every plan item the member has, most urgent first. Grouping is the page's job. */
-export async function getPlan(userId: number): Promise<Result<PlanItem[], AppError>> {
+export async function getPlan(userId: string): Promise<Result<PlanItem[], AppError>> {
     const supabase = await createClient();
     return planRepo.listByUser(supabase, userId);
 }
@@ -33,7 +33,7 @@ export async function getPlan(userId: number): Promise<Result<PlanItem[], AppErr
  * exactly once however many times an item is ticked and un-ticked.
  */
 export async function setItemStatus(
-    userId: number,
+    userId: string,
     recommendationId: number,
     status: PlanStatus,
 ): Promise<Result<void, AppError>> {

@@ -35,7 +35,7 @@ import { GENERAL_KNOWLEDGE_CATEGORY_ID } from '../../lib/domain/constants';
 
 let db: TestClient;
 let sandbox: Sandbox;
-let member: { userId: number };
+let member: { userId: string };
 let category: { categoryId: number };
 let question: { questionId: number };
 
@@ -419,6 +419,16 @@ describe('skill_categories', () => {
 });
 
 describe('users', () => {
+    // ---------------------------------------------------------------------
+    // NEITHER OF THESE CAN INSERT A `users` ROW ANY MORE, AND THAT IS THE
+    // CONSTRAINT WORKING.
+    //
+    // `users.user_id` is `uuid references auth.users(id)` with no default, and
+    // the `password` column is gone. So a profile row cannot be conjured — it
+    // arrives when `on_auth_user_created` fires. Both tests below now go
+    // through the auth admin API to get one, which is also what the code under
+    // test does.
+    // ---------------------------------------------------------------------
     it('rejects a duplicate email', async () => {
         const { data: existing } = await db
             .from('users')
@@ -426,26 +436,35 @@ describe('users', () => {
             .eq('user_id', member.userId)
             .single();
 
-        const { error } = await raw('users').insert({
-            first_name: 'Duplicate',
-            last_name: sandbox.name,
-            email: existing!.email,
-            password: 'aa:bb',
-        });
+        // An UPDATE rather than an INSERT. The unique index is the same either
+        // way, and this is the only way to aim a second row at an address that
+        // is already taken now that every row's id has to come from an account.
+        const other = await sandbox.createUser();
+
+        const { error } = await db
+            .from('users')
+            .update({ email: existing!.email })
+            .eq('user_id', other.userId);
 
         expect(error?.code).toBe('23505');
         expect(error?.message).toContain('users_email_key');
     });
 
     it('cascades a deletion to the member’s assessments', async () => {
-        const doomed = await raw('users').insert({
-                first_name: 'Doomed',
-                last_name: `${sandbox.name}-cascade`,
-                email: `cascade-${sandbox.name}@skillpath.test`,
-                password: 'aa:bb',
-            })
-            .select('user_id')
-            .single();
+        // Deliberately NOT sandbox.createUser(): this test deletes the account
+        // itself, and a sandbox that tried to delete it again in destroy()
+        // would report a teardown failure for a row the test removed on
+        // purpose.
+        const { data: created, error: createError } = await db.auth.admin.createUser({
+            email: `cascade-${sandbox.name}@skillpath.test`,
+            password: 'sandbox-password-1234',
+            email_confirm: true,
+            user_metadata: { first_name: 'Doomed', last_name: `${sandbox.name}-cascade` },
+        });
+
+        expect(createError, 'could not create the doomed account').toBeNull();
+
+        const doomed = { data: { user_id: created.user!.id } };
 
         await raw('assessments').insert({
             user_id: doomed.data!.user_id,
@@ -454,7 +473,12 @@ describe('users', () => {
             status: 'in_progress',
         });
 
-        const { error } = await db.from('users').delete().eq('user_id', doomed.data!.user_id);
+        // Delete the ACCOUNT, which is the deletion that actually happens in
+        // production — a member removing themselves goes through auth, not
+        // through a DELETE on a profile row. It exercises one more link than
+        // the old version did: auth.users -> public.users -> assessments, and
+        // a break anywhere along that chain leaves the count non-zero.
+        const { error } = await db.auth.admin.deleteUser(doomed.data!.user_id);
 
         expect(error).toBeNull();
 
@@ -593,8 +617,16 @@ describe('enums', () => {
     // is exactly what happened to assessment_status and xp_reason the first
     // time this file ran.
     const cases: Array<[string, () => PromiseLike<{ error: { code?: string } | null }>]> = [
-        ['user_role', () => raw('users').insert({ first_name: 'E', last_name: `${sandbox.name}-role`, email: `enum-role-${sandbox.name}@skillpath.test`, password: 'aa:bb', role: 'wizard' })],
-        ['user_status', () => raw('users').insert({ first_name: 'E', last_name: `${sandbox.name}-status`, email: `enum-status-${sandbox.name}@skillpath.test`, password: 'aa:bb', status: 'wizard' })],
+        // These two UPDATE where the rest INSERT, and the note above about
+        // "each case inserts its own row" does not apply to them: a `users` row
+        // cannot be inserted any more (its id has to come from auth.users), so
+        // there is nothing to insert into. The row being updated is the
+        // sandbox's own member, and the update is rejected by the enum before
+        // it can change anything — so the concern the note guards against, a
+        // zero-row UPDATE passing while asserting nothing, does not arise: a
+        // failure here is 22P02, not an empty result.
+        ['user_role', () => raw('users').update({ role: 'wizard' }).eq('user_id', member.userId)],
+        ['user_status', () => raw('users').update({ status: 'wizard' }).eq('user_id', member.userId)],
         ['skill_level', () => raw('questions').insert({ category_id: category.categoryId, text: `enum skill ${sandbox.name}`, difficulty: 'wizard' })],
         ['content_status', () => raw('questions').insert({ category_id: category.categoryId, text: `enum content ${sandbox.name}`, difficulty: 'beginner', status: 'wizard' })],
         ['question_source', () => raw('questions').insert({ category_id: category.categoryId, text: `enum source ${sandbox.name}`, difficulty: 'beginner', source: 'wizard' })],

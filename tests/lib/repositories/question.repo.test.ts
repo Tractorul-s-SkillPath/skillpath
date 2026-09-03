@@ -23,7 +23,7 @@ import { Sandbox, testClient, type TestClient } from '../../helpers/supabase-tes
 
 let db: TestClient;
 let sandbox: Sandbox;
-let admin: { userId: number };
+let admin: { userId: string };
 
 beforeAll(async () => {
     db = testClient();

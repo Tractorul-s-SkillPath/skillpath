@@ -23,7 +23,12 @@ import * as userAdminService from '../../../../lib/services/user-admin.service';
 import { formError, formSuccess, type FormState } from '../../../../lib/validation/common';
 
 const statusSchema = z.object({
-    userId: z.coerce.number().int().positive(),
+    // A UUID now, not an identity integer — `users.user_id` is the auth.users
+    // id. `.uuid()` rather than a bare string on purpose: this value goes
+    // straight into a `.eq('user_id', …)`, and a malformed one comes back from
+    // PostgREST as a 22P02 parse error that surfaces to the admin as "that
+    // change could not be applied" with nothing in the log to explain it.
+    userId: z.string().uuid(),
     status: z.enum(['active', 'inactive']),
 });
 

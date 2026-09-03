@@ -35,7 +35,6 @@ export interface E2eEnv {
      * about a project that was fully seeded.
      */
     serviceRoleKey: string;
-    sessionSecret: string;
     port: number;
     baseURL: string;
 }
@@ -103,15 +102,18 @@ export function e2eEnv(): E2eEnv {
         read('NEXT_PUBLIC_SUPABASE_ANON_KEY') ?? missing('NEXT_PUBLIC_SUPABASE_ANON_KEY');
     const serviceRoleKey =
         read('SUPABASE_SERVICE_ROLE_KEY') ?? missing('SUPABASE_SERVICE_ROLE_KEY');
-    const sessionSecret = read('SESSION_SECRET') ?? missing('SESSION_SECRET');
-
-    if (sessionSecret.length < 32) {
-        throw new Error(
-            'SESSION_SECRET for the E2E run is shorter than 32 characters, which lib/auth/session.ts\n' +
-                'rejects — every page would 500. Generate one with:\n' +
-                '  node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))"',
-        );
-    }
+    // SESSION_SECRET IS NO LONGER READ, AND IS NO LONGER REQUIRED.
+    //
+    // It signed `skillpath_session`, the app's own HMAC session cookie. The
+    // session is Supabase's now, carried in `sb-*-auth-token` and signed with a
+    // key that never leaves the project — so lib/auth/session.ts is deleted and
+    // nothing consumes this value.
+    //
+    // It is deliberately not merely ignored: this function used to THROW when
+    // it was missing or shorter than 32 characters, which would have blocked
+    // every first run on a secret that does nothing. Deleting the check is the
+    // point; the name stays in the workflows only until the repository secret
+    // is removed too.
 
     const demo = readEnvFile('.env.local');
     const demoUrl = demo.NEXT_PUBLIC_SUPABASE_URL;
@@ -150,7 +152,6 @@ export function e2eEnv(): E2eEnv {
         supabaseUrl,
         supabaseKey,
         serviceRoleKey,
-        sessionSecret,
         port,
         // Deliberately not 3000: a dev server left running on the default port
         // is pointed at .env.local, and reusing it would defeat every guard above.

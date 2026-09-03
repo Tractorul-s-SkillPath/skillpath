@@ -3,15 +3,11 @@
 import { useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { resetPasswordAction } from '../../lib/auth/current-user';
-import { Field, Input } from '../../components/ui/field';
 import { SubmitButton } from '../../components/submit-button';
 import { buttonClass } from '../../components/ui/button';
 
 const ERRORS: Record<string, string> = {
     missing_email: 'Email address is missing. Please restart the process.',
-    missing_fields: 'Please fill in all fields.',
-    password_too_short: 'Password must be at least 8 characters long.',
-    passwords_dont_match: 'Passwords do not match.',
     unavailable: 'We could not reach the account service. Try again in a moment.'
 };
 
@@ -74,9 +70,10 @@ export default function ResetPasswordPage() {
                             </svg>
                         </div>
 
-                        <h1 className="text-xl font-semibold tracking-tight">Password reset successfully!</h1>
+                        <h1 className="text-xl font-semibold tracking-tight">Check your email</h1>
                         <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
-                            Your password has been changed securely. Click OK to continue.
+                            If <span className="font-medium text-foreground">{email}</span> has an
+                            account, a reset link is on its way. Open it to choose a new password.
                         </p>
 
                         <div className="mt-6 w-full">
@@ -95,9 +92,25 @@ export default function ResetPasswordPage() {
                     </div>
                 ) : (
                     <div className="w-full text-left">
-                        <h1 className="text-lg font-semibold tracking-tight text-center">Set new password</h1>
+                        {/*
+                          * THE NEW PASSWORD IS NOT CHOSEN HERE ANY MORE, AND THAT IS A FIX.
+                          *
+                          * This form used to collect an address and a new password and post
+                          * both to an unauthenticated action that ran, in effect,
+                          *
+                          *     update users set password = <hash> where email = <posted>
+                          *
+                          * with no token and no proof of ownership. Anyone who knew an
+                          * address could take the account — and admin@skillpath.dev is in
+                          * the seed. Supabase Auth sends a signed, expiring link instead,
+                          * and the password is chosen on the page that link opens, so
+                          * possession of the mailbox is what authorises the change.
+                          */}
+                        <h1 className="text-lg font-semibold tracking-tight text-center">Reset your password</h1>
                         <p className="mt-2 text-sm leading-relaxed text-muted-foreground text-center">
-                            Please choose a new password for <span className="font-medium text-foreground">{email}</span>.
+                            We&rsquo;ll email a reset link to{' '}
+                            <span className="font-medium text-foreground">{email}</span>. The link
+                            opens a page where you can choose a new password.
                         </p>
 
                         {error ? (
@@ -110,33 +123,13 @@ export default function ResetPasswordPage() {
                         ) : null}
 
                         <form onSubmit={handleSubmit} className="mt-6 space-y-5">
-                            <Field label="New password" htmlFor="newPassword">
-                                <Input
-                                    id="newPassword"
-                                    name="newPassword"
-                                    type="password"
-                                    placeholder="At least 8 characters"
-                                    required
-                                />
-                            </Field>
-
-                            <Field label="Confirm password" htmlFor="confirmPassword">
-                                <Input
-                                    id="confirmPassword"
-                                    name="confirmPassword"
-                                    type="password"
-                                    placeholder="Re-enter password"
-                                    required
-                                />
-                            </Field>
-
                             <SubmitButton
                                 variant="primary"
-                                pendingLabel="Updating password…"
+                                pendingLabel="Sending link…"
                                 className="w-full justify-center py-3"
                                 disabled={isPending}
                             >
-                                Update password
+                                Send reset link
                             </SubmitButton>
                         </form>
                     </div>
