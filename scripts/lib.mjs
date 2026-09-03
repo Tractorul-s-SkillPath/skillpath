@@ -23,6 +23,13 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
  * should not have to remember a flag.
  */
 export function loadEnv() {
+    // Already supplied, so there is nothing to read: `npm run seed:e2e` passes
+    // --env-file=.env.e2e and CI passes secrets. Nothing below overwrites
+    // process.env anyway, so .env.local could not win — but demanding the file
+    // would stop the seed running anywhere it does not exist, which is every
+    // machine that only has the test project's credentials.
+    if (process.env.NEXT_PUBLIC_SUPABASE_URL) return;
+
     let raw;
 
     try {

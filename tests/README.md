@@ -12,10 +12,15 @@ before adding a test.
 ## Before you add a test file
 
 **`vitest.config.ts` lists the folders that hold written tests. It does not glob
-`tests/**`.** Most mirrors here are still docblock-only specs, and Vitest counts
+`tests/**`.** Many mirrors here are still docblock-only specs, and Vitest counts
 a file with no test in it as a failure. Add your folder to `include` in the same
 commit that gives it its first real test; if the file you are covering is named
 in `exclude`, delete that line. Both lists say why each entry is there.
+
+**There are two configs.** `vitest.config.ts` is `npm test` and needs nothing but
+node. `vitest.config.db.ts` is `npm run test:db` and needs the Supabase test
+project — it includes exactly what the other one excludes. If your new test
+talks to a database, it belongs to the second one.
 
 ## What counts toward the gate
 
@@ -31,14 +36,25 @@ almost nothing to cover.
 | `tests/lib/validation` | yes | no | valid / invalid / boundary per schema |
 | `tests/lib/auth` | yes | no | fake session, fake cookie jar, mocked `next/navigation` |
 | `tests/lib/ai` | no | no | mock provider + failure injection |
-| `tests/lib/repositories/paging` | yes | no | pure — the one exception in that folder |
+| `tests/lib/repositories/paging` | yes | no | pure — one of two exceptions in that folder |
+| `tests/lib/repositories/mappers` | no | no | pure — the other. Row in, object out |
 | `tests/lib/repositories/*.repo` | no | **yes** | integration |
-| `tests/db` | no | **yes** | SQL: policies, triggers, constraints |
-| `tests/app` | no | no | action contract + RTL where there is logic |
-| `tests/components` | no | no | RTL, logic-bearing components only |
+| `tests/lib/auth/current-user` | no | **yes** | integration — SP-120, see below |
+| `tests/db` | no | **yes** | SQL: triggers and constraints |
+| `tests/app/**/*.test.ts` | no | no | Server Action contract — service substituted, like a service test substitutes a repository |
+| `tests/app/**/*.test.tsx` | no | no | RTL — **not runnable yet**, see below |
+| `tests/components` | no | no | RTL, logic-bearing components only — **not runnable yet** |
+| `tests/middleware` | no | no | pure: a NextRequest in, a NextResponse out |
 
-The two database-backed folders run in their own script and their own CI job, so
-a teammate without a test project can still run `npm test` on a plane.
+The database-backed files run in their own script (`npm run test:db`) and their
+own CI job (`.github/workflows/db.yml`), so a teammate without a test project
+can still run `npm test` on a plane. That script and that job exist now; this
+paragraph described both for some time before either did.
+
+`mappers.test.ts` is not among them, though it lives in the repositories folder.
+Every function in it takes a row and returns an object — no client, no I/O. It
+was excluded on the strength of the folder it sits in rather than anything it
+does.
 
 ## How service tests substitute repositories
 
@@ -89,17 +105,31 @@ find tests -name '*.test.ts*' -not -path 'tests/db/*' | while read t; do
 done
 ```
 
-One file has a mirror that is excluded rather than absent, which means something
-different — the test is owed, not waived:
+Two files used to sit in a table here of mirrors that were *owed* rather than
+waived. **Both are now closed.**
 
-| File | Why | Story |
+`lib/auth/session.ts` — **SP-121**, see `session.test.ts`. Weighted towards
+forgery rather than round-tripping, because a round-trip test passes against an
+implementation with no signature at all.
+
+`lib/auth/current-user.ts` — **SP-120**, see `tests/lib/auth/current-user.test.ts`,
+which runs under `npm run test:db`. It builds its own supabase-js queries instead
+of going through a repository, and mocking supabase-js is ruled out — so it is
+tested against the real test project instead, which is the alternative that rule
+points at rather than a loophole in it. `next/navigation`, `next/cache` and
+`next/headers` are substituted; `createClient` is pointed at the test project.
+It was the most security-relevant untested file in the repository: it hashes
+passwords, verifies them, and decides who is an administrator.
+
+One mirror is still owed:
+
+| File | Why | Blocked on |
 |---|---|---|
-| `lib/auth/current-user.ts` | builds its own supabase-js queries instead of going through a repository, and mocking supabase-js is ruled out | SP-120 |
+| `lib/repositories/progress.repo.ts` | the source is comment-only — a sketch of `upsert` / `listForUser` / `scoreTrend` with no function to call | the source landing |
 
-`lib/auth/session.ts` used to sit in that table as well. **SP-121 is closed** —
-see `session.test.ts`, and note that it is weighted towards forgery rather than
-round-tripping, because a round-trip test passes against an implementation with
-no signature at all.
+And seven are blocked on the product rather than on effort: the `tests/db/rls-*`
+specs describe Row Level Security, which is not enabled on any table. See
+`tests/db/README.md`.
 
 ## Rules
 
