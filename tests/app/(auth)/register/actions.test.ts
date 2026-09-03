@@ -43,10 +43,11 @@ let signUpResult: {
 
 const insert = vi.fn(async () => ({ error: null }));
 const signOut = vi.fn(async () => ({ error: null }));
+const signUp = vi.fn(async (_args: unknown) => signUpResult);
 
 vi.mock('../../../../lib/supabase/server', () => ({
     createClient: async () => ({
-        auth: { signUp: async () => signUpResult, signOut },
+        auth: { signUp, signOut },
         from: () => ({ insert }),
     }),
 }));
@@ -210,12 +211,49 @@ describe('each failure keeps its own name', () => {
 });
 
 describe('role', () => {
-    it('is never taken from the form', async () => {
-        // `on_auth_user_created` hardcodes 'student'. The old code enforced
-        // this in TypeScript with a managerApproval field; the trigger enforces
-        // it where a crafted POST cannot argue. Nothing here should forward it.
-        await landsOn(signup({ role: 'admin' }));
+    // The bug these cover: the form posted `role` and `managerApproval`, this
+    // action read neither, and the trigger wrote 'student' whatever arrived.
+    // Registering as an Administrator therefore produced a student account and
+    // loginAction — which reads users.role — sent it to /dashboard. If someone
+    // drops `role` out of the signUp metadata again, that returns, and it
+    // returns silently: registration still succeeds, and the difference is only
+    // visible one sign-in later.
 
-        expect(insert).not.toHaveBeenCalled();
+    /** The metadata handed to signUp on the last call. */
+    function metadata(): Record<string, unknown> {
+        const [args] = signUp.mock.calls.at(-1) as [{ options: { data: Record<string, unknown> } }];
+        return args.options.data;
+    }
+
+    it('reaches the trigger as `student` when the form says student', async () => {
+        await landsOn(signup());
+
+        expect(metadata().role).toBe('student');
+    });
+
+    it('reaches the trigger as `admin` when the form says admin and the box is ticked', async () => {
+        await landsOn(signup({ role: 'admin', managerApproval: 'on' }));
+
+        expect(metadata().role).toBe('admin');
+    });
+
+    it('refuses admin without the approval box, BEFORE creating the account', async () => {
+        // Order matters: refusing after signUp would leave an account behind
+        // that the member was told was never created.
+        expect(await landsOn(signup({ role: 'admin' }))).toBe(
+            '/register?error=manager_approval_required',
+        );
+
+        expect(signUp).not.toHaveBeenCalled();
+    });
+
+    it('treats anything that is not the string `admin` as a student', async () => {
+        // `role` is a database enum, so a crafted POST sending "owner" has to
+        // be narrowed here — the trigger would otherwise be asked to insert a
+        // value the type does not have, and an auth account with no profile row
+        // is the state getCurrentUser() reads as signed out.
+        await landsOn(signup({ role: 'owner', managerApproval: 'on' }));
+
+        expect(metadata().role).toBe('student');
     });
 });

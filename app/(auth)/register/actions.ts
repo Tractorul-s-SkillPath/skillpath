@@ -22,11 +22,25 @@
  * logged with its status and reported as `unavailable` rather than being dressed
  * up as something specific.
  *
- * ROLE IS NOT READ FROM THIS FORM. `on_auth_user_created` writes 'student',
- * full stop — an account that can read the answer key is not something a public
- * signup form hands out. The old code enforced that in TypeScript with a
- * `managerApproval` field; the trigger enforces it in the database, where a
- * crafted POST cannot argue with it.
+ * ---------------------------------------------------------------------------
+ * ROLE *IS* READ FROM THIS FORM NOW. IT USED TO BE POSTED AND DROPPED.
+ * ---------------------------------------------------------------------------
+ *
+ * ./register-form.tsx has always had an "Account type" select and, behind it,
+ * an "I received manager approval" checkbox. Neither was ever read here, and
+ * `on_auth_user_created` wrote 'student' regardless — so registering as an
+ * Administrator produced a student row, and loginAction (which reads
+ * `users.role`, not this form) sent that member to /dashboard. The page even
+ * carried a `manager_approval_required` message no code path could reach.
+ *
+ * Both halves are wired up now: the approval is checked below, and the role
+ * travels in `options.data` for the trigger to read. That is a deliberate
+ * loosening of the rule this docblock used to state, and the reasoning — plus
+ * what it costs — is recorded in
+ * supabase/migrations/20260904090000_signup_role_from_metadata.sql. The short
+ * version: the box is ticked by the person asking for the role, so it records
+ * a claim rather than verifying one, which is acceptable for a course project
+ * and not for anything real.
  */
 'use server';
 
@@ -50,15 +64,29 @@ export async function registerAction(formData: FormData): Promise<void> {
         redirect('/register?error=password_too_short');
     }
 
+    // Anything that is not the string the select emits is a student. A crafted
+    // POST can send "owner" or an empty value, and the column is an enum — the
+    // narrowing has to happen before the value reaches the trigger, not after.
+    const role = formData.get('role') === 'admin' ? 'admin' : 'student';
+
+    // Unchecked boxes are simply absent from a FormData, so presence is the
+    // whole test. Checked before signUp, or a refusal would leave behind an
+    // account nobody was told existed.
+    if (role === 'admin' && formData.get('managerApproval') === null) {
+        redirect('/register?error=manager_approval_required');
+    }
+
     const supabase = await createClient();
 
     const { data, error } = await supabase.auth.signUp({
         email,
         password,
         // Read by `on_auth_user_created`, which copies them into public.users.
-        // `role` is deliberately NOT sent: the trigger ignores it anyway, and
-        // sending it would imply it were negotiable.
-        options: { data: { first_name: firstName, last_name: lastName } },
+        // `role` rides along here rather than being written afterwards because
+        // this is the only path that works in both configurations: with email
+        // confirmation ON there is no session yet, so an UPDATE from this
+        // action would meet a null auth.uid() and be rejected by RLS.
+        options: { data: { first_name: firstName, last_name: lastName, role } },
     });
 
     if (error) {
