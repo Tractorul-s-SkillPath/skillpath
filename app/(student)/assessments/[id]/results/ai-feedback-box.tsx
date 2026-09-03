@@ -21,13 +21,11 @@ export function AIFeedbackBox({ assessmentId, score, weakAreas }: AIFeedbackBoxP
             setLoading(true);
             setLoadingStep(0);
 
-            // Pasul 1: Schimbăm textul după 1 secundă pentru un efect dinamic
             const timer1 = setTimeout(() => {
                 if (isMounted) setLoadingStep(1);
             }, 1000);
 
             try {
-                // Total o pauză de 2.2 secunde ca să ruleze animația frumos
                 const [res] = await Promise.all([
                     getAIFeedbackAction(assessmentId, score, weakAreas),
                     new Promise((resolve) => setTimeout(resolve, 2200))
@@ -58,7 +56,6 @@ export function AIFeedbackBox({ assessmentId, score, weakAreas }: AIFeedbackBoxP
         };
     }, [assessmentId, score, weakAreas]);
 
-    // Textele care se schimbă în timp ce se învârte rotița
     const loadingTexts = [
         "Analyzing assessment performance & weak areas...",
         "Crafting personalized motivational insights & tips..."

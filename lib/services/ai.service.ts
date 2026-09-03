@@ -30,10 +30,8 @@ export async function feedbackForScore(
     weakAreas: string[]
 ): Promise<string> {
     try {
-        // Obținem providerul activ (mock sau anthropic în funcție de mediu)
         const provider = getProvider();
 
-        // Apelăm metoda de feedback din interfața providerului
         const feedback = await provider.feedback({
             score,
             weakAreas,
@@ -47,7 +45,6 @@ export async function feedbackForScore(
     } catch (error) {
         console.error('AI provider failed, falling back to rule-based feedback:', error);
 
-        // Fallback-ul de siguranță cerut de arhitectură (§6)
         const result = { score };
         return buildFallbackFeedback(result, weakAreas);
     }

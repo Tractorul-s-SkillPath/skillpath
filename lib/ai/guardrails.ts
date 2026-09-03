@@ -14,7 +14,6 @@
  * Test: tests/lib/ai/guardrails.test.ts
  */
 
-// Limita documentată și enforced de tokeni per cerere AI (SP-094)
 export const MAX_TOKENS_PER_REQUEST = 400;
 
 // Simple in-memory rate limiter per user/key for demonstration & safety
@@ -22,9 +21,6 @@ const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
 const RATE_LIMIT_WINDOW_MS = 60 * 1000; // 1 minut
 const MAX_REQUESTS_PER_WINDOW = 10;
 
-/**
- * Ascunde datele sensibile din context, lăsând doar prenumele și scorurile.
- */
 export function scrubContext(input: { userName?: string; scores?: number[]; [key: string]: any }): { name?: string; scores?: number[] } {
     const firstName = input.userName ? input.userName.trim().split(' ')[0] : undefined;
 
@@ -34,9 +30,6 @@ export function scrubContext(input: { userName?: string; scores?: number[]; [key
     };
 }
 
-/**
- * Verifică și impune o limită a numărului de cereri per utilizator (Rate Limiting).
- */
 export function rateLimit(userId: string, key: string = 'default'): void {
     const trackerKey = `${userId}:${key}`;
     const now = Date.now();
@@ -54,9 +47,6 @@ export function rateLimit(userId: string, key: string = 'default'): void {
     record.count++;
 }
 
-/**
- * Apărare în profunzime: garantează că funcția rulează exclusiv pe server.
- */
 export function assertServerSide(): void {
     if (typeof window !== 'undefined') {
         throw new Error('Security violation: AI guardrails enforce server-side execution only.');

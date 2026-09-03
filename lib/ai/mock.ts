@@ -60,7 +60,6 @@ export const mockProvider: AiProvider = {
             ? input.weakAreas.join(', ')
             : 'core concepts';
 
-        // Bănci de mesaje variate pentru a asigura diversitatea la fiecare test
         const lowScoreMessages = [
             `💡 Don't get discouraged by your score of ${input.score}%. Every challenge is a stepping stone. Dedicate your next study sprints to reviewing ${primaryWeakness} and re-attempting the practice sets. You've got this!`,
             `🌱 Scoring ${input.score}% is just the starting point of your journey. Focus closely on ${primaryWeakness} during your upcoming sessions, and you'll see rapid improvement. Keep going!`,
@@ -79,7 +78,6 @@ export const mockProvider: AiProvider = {
             `🏆 Excellent results with ${input.score}%! Your dedication is clearly paying off. Keep challenging yourself beyond the standard material!`
         ];
 
-        // Alegem un mesaj random din categoria corespunzătoare scorului
         let pool = lowScoreMessages;
         if (input.score >= 40 && input.score < 75) {
             pool = midScoreMessages;

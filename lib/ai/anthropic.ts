@@ -17,12 +17,11 @@
 import { FeedbackContext, EnhancedPlan, DraftQuestion, AiProvider } from './provider';
 import { feedbackResponseSchema, enhancedPlanSchema, draftQuestionsSchema } from './schemas';
 
-// Asigură-te că rulează strict pe server
 if (typeof window !== 'undefined') {
     throw new Error('Anthropic provider can only be used on the server-side.');
 }
 
-const TIMEOUT_MS = 10000; // 10s timeout
+const TIMEOUT_MS = 10000;
 
 async function callAnthropicApi(prompt: string, maxTokens: number): Promise<string> {
     const apiKey = process.env.ANTHROPIC_API_KEY;
@@ -57,7 +56,6 @@ async function callAnthropicApi(prompt: string, maxTokens: number): Promise<stri
         }
 
         const data = await response.json();
-        // Specificăm tipul explicit pentru a evita eroarea de implicit any
         const textBlock = data.content?.find((c: { type: string; text?: string }) => c.type === 'text');
         return textBlock?.text || '';
     } catch (error) {
@@ -68,7 +66,7 @@ async function callAnthropicApi(prompt: string, maxTokens: number): Promise<stri
 
 async function callWithTimeoutAndRetry<T>(fn: () => Promise<T>): Promise<T> {
     let attempts = 0;
-    const maxAttempts = 2; // O singură reîncercare (total 2 încercări)
+    const maxAttempts = 2;
 
     while (attempts < maxAttempts) {
         attempts++;

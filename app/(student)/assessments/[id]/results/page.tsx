@@ -47,7 +47,6 @@ export default async function AssessmentResultsPage({
 
     const { categoryId, categoryName, score, level, bands, review, recommendations } = results.value;
 
-    // Extragem ariile slabe din recomandări pentru a le trimite la asistentul AI
     const weakAreas = recommendations.map((item) => item.topicTitle);
 
     // The baseline keeps its own headline: it is the one run that defines a
@@ -76,7 +75,7 @@ export default async function AssessmentResultsPage({
                 />
             </div>
 
-            {/* AI Feedback Assistant Integration with Loading State & Personalized Generation (SP-093) */}
+            {/* AI Feedback Assistant Integration with Loading State & Personalized Generation */}
             <div className="rise stagger-1.5">
                 <AIFeedbackBox assessmentId={id} score={score} weakAreas={weakAreas} />
             </div>
