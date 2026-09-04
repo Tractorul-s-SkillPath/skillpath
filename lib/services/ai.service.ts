@@ -20,3 +20,32 @@
  * Test: tests/lib/services/ai.service.test.ts  (mock provider, plus a provider
  * that throws and one that times out)
  */
+
+import { getProvider } from '../ai/provider';
+import { buildFallbackFeedback } from '../domain/feedback';
+
+export async function feedbackForScore(
+    assessmentId: string,
+    score: number,
+    weakAreas: string[]
+): Promise<string> {
+    try {
+        const provider = getProvider();
+
+        const feedback = await provider.feedback({
+            score,
+            weakAreas,
+        });
+
+        if (feedback) {
+            return feedback;
+        }
+
+        throw new Error('Empty feedback from AI provider');
+    } catch (error) {
+        console.error('AI provider failed, falling back to rule-based feedback:', error);
+
+        const result = { score };
+        return buildFallbackFeedback(result, weakAreas);
+    }
+}

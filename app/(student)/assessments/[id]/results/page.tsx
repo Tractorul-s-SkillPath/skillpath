@@ -2,7 +2,7 @@
  * Results page.
  *
  * Layer: PAGE
- * Stories: SP-053, SP-116, SP-117
+ * Stories: SP-053, SP-116, SP-117, SP-093
  *
  * Score and level, the per-band breakdown, what to study next, and the full
  * review — in that order, because that is the order of usefulness. An
@@ -20,13 +20,14 @@ import { Section } from '../../../../../components/ui/card';
 import { Chip } from '../../../../../components/ui/chip';
 import { ScoreSummary } from './score-summary';
 import { ResponseReview } from './response-review';
+import { AIFeedbackBox } from './ai-feedback-box';
 
 export const metadata = { title: 'Results · SkillPath' };
 export const dynamic = 'force-dynamic';
 
 export default async function AssessmentResultsPage({
-    params,
-}: {
+                                                        params,
+                                                    }: {
     params: Promise<{ id: string }>;
 }) {
     const user = await assertAuth();
@@ -45,6 +46,8 @@ export default async function AssessmentResultsPage({
     }
 
     const { categoryId, categoryName, score, level, bands, review, recommendations } = results.value;
+
+    const weakAreas = recommendations.map((item) => item.topicTitle);
 
     // The baseline keeps its own headline: it is the one run that defines a
     // starting point rather than updating one.
@@ -70,6 +73,11 @@ export default async function AssessmentResultsPage({
                     levelCaption={isBaseline ? 'Starting level' : 'Your level'}
                     bands={bands}
                 />
+            </div>
+
+            {/* AI Feedback Assistant Integration with Loading State & Personalized Generation */}
+            <div className="rise stagger-1.5">
+                <AIFeedbackBox assessmentId={id} score={score} weakAreas={weakAreas} />
             </div>
 
             {recommendations.length > 0 && (
