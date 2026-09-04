@@ -56,6 +56,11 @@ const q = (text, difficulty, correct, wrong, topic = null, advice = null) => ({
     study_advice: advice,
 });
 
+// This is a table, not code: one q(...) call per line so a question and its
+// three wrong answers read as a single row you can scan and edit. Prettier
+// would break each call across ten lines and turn 65 lines into 350, which is
+// why this one declaration opts out. Keep new questions on one line each.
+// prettier-ignore
 const CATEGORIES = [
     {
         name: 'SQL & Databases',
@@ -128,9 +133,15 @@ const CATEGORIES = [
  * advanced. See the header — the order is the product behaviour.
  */
 const BASELINE_QUESTIONS = [
-    ...CATEGORIES.flatMap((c) => c.questions.filter((x) => x.difficulty === 'beginner').slice(0, 2)),
-    ...CATEGORIES.flatMap((c) => c.questions.filter((x) => x.difficulty === 'intermediate').slice(0, 2)),
-    ...CATEGORIES.flatMap((c) => c.questions.filter((x) => x.difficulty === 'advanced').slice(0, 1)),
+    ...CATEGORIES.flatMap((c) =>
+        c.questions.filter((x) => x.difficulty === 'beginner').slice(0, 2),
+    ),
+    ...CATEGORIES.flatMap((c) =>
+        c.questions.filter((x) => x.difficulty === 'intermediate').slice(0, 2),
+    ),
+    ...CATEGORIES.flatMap((c) =>
+        c.questions.filter((x) => x.difficulty === 'advanced').slice(0, 1),
+    ),
 ].slice(0, 20);
 
 // -----------------------------------------------------------------------------
@@ -344,7 +355,8 @@ const { count: activeBaseline, error: countError } = await db
     .eq('category_id', BASELINE_CATEGORY_ID)
     .eq('status', 'active');
 
-if (countError) fail(`Counting the baseline bank failed: ${countError.message}`, 'Nothing was written.');
+if (countError)
+    fail(`Counting the baseline bank failed: ${countError.message}`, 'Nothing was written.');
 
 if ((activeBaseline ?? 0) >= BASELINE_QUESTION_COUNT) {
     log(

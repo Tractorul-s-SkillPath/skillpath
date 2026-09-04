@@ -93,7 +93,9 @@ describe('createQuestion', () => {
     });
 
     it('records whichever admin is signed in, not a fixed id', async () => {
-        vi.mocked(assertAdmin).mockResolvedValue(anAdmin({ userId: '00000000-0000-4000-8000-000000004242' }));
+        vi.mocked(assertAdmin).mockResolvedValue(
+            anAdmin({ userId: '00000000-0000-4000-8000-000000004242' }),
+        );
 
         await createQuestion(validInput);
 
@@ -121,11 +123,14 @@ describe('createQuestion', () => {
 });
 
 describe('setQuestionStatus', () => {
-    it.each(['active', 'inactive'] as const)('sends %s straight to the repository', async (status) => {
-        vi.mocked(questionRepo.setStatus).mockResolvedValue({ ok: true, value: undefined });
+    it.each(['active', 'inactive'] as const)(
+        'sends %s straight to the repository',
+        async (status) => {
+            vi.mocked(questionRepo.setStatus).mockResolvedValue({ ok: true, value: undefined });
 
-        await setQuestionStatus(900, status);
+            await setQuestionStatus(900, status);
 
-        expect(questionRepo.setStatus).toHaveBeenCalledWith(FAKE_CLIENT, 900, status);
-    });
+            expect(questionRepo.setStatus).toHaveBeenCalledWith(FAKE_CLIENT, 900, status);
+        },
+    );
 });

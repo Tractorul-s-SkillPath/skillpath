@@ -148,7 +148,10 @@ export async function setQuestionStatusAction(
 
     if (!parsed.success) return formError('That change could not be applied.');
 
-    const result = await questionService.setQuestionStatus(parsed.data.questionId, parsed.data.status);
+    const result = await questionService.setQuestionStatus(
+        parsed.data.questionId,
+        parsed.data.status,
+    );
 
     if (!result.ok) return formError(result.error.message, result.error.fields);
 

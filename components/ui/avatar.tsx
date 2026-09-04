@@ -27,9 +27,7 @@ interface AvatarProps {
 }
 
 export function Avatar({ src, initials, seed = '', size = 72, className }: AvatarProps) {
-    const tint = TINTS[
-        [...seed].reduce((sum, char) => sum + char.charCodeAt(0), 0) % TINTS.length
-    ];
+    const tint = TINTS[[...seed].reduce((sum, char) => sum + char.charCodeAt(0), 0) % TINTS.length];
 
     return (
         <span

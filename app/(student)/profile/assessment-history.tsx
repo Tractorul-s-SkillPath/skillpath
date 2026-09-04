@@ -86,7 +86,9 @@ export function AssessmentHistory({ assessments }: { assessments: AssessmentSumm
 
                                     <div className="flex items-center gap-3">
                                         {item.resultLevel ? (
-                                            <Chip tone="muted">{LEVEL_LABELS[item.resultLevel]}</Chip>
+                                            <Chip tone="muted">
+                                                {LEVEL_LABELS[item.resultLevel]}
+                                            </Chip>
                                         ) : null}
                                         <span className="w-14 text-right text-sm font-semibold tabular">
                                             {formatScore(item.score)}

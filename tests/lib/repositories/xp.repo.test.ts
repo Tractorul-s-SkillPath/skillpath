@@ -33,9 +33,12 @@ let sandbox: Sandbox;
 // rules out inlining a business constant regardless. BADGE_RULES itself is not
 // exported; deriveBadges over an empty input is the public way to ask for the
 // full catalogue, earned flags and all.
-const ALL_BADGE_CODES = deriveBadges({ assessments: [], plan: [], levels: [], today: '2026-01-01' }).map(
-    (badge) => badge.code,
-);
+const ALL_BADGE_CODES = deriveBadges({
+    assessments: [],
+    plan: [],
+    levels: [],
+    today: '2026-01-01',
+}).map((badge) => badge.code);
 const [BADGE_A, BADGE_B, BADGE_C] = ALL_BADGE_CODES;
 const STREAK_BADGE = ALL_BADGE_CODES[ALL_BADGE_CODES.length - 1];
 

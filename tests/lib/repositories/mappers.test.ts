@@ -403,8 +403,12 @@ describe('toPlanItem', () => {
         // `?.trim() || null`: a whitespace-only string is falsy after trimming,
         // so the page falls back to the rule description instead of rendering
         // an empty paragraph where the advice should be.
-        expect(toPlanItem(aPlanRow({ ai_description: '   ' }), 'Databases').aiDescription).toBeNull();
-        expect(toPlanItem(aPlanRow({ ai_description: null }), 'Databases').aiDescription).toBeNull();
+        expect(
+            toPlanItem(aPlanRow({ ai_description: '   ' }), 'Databases').aiDescription,
+        ).toBeNull();
+        expect(
+            toPlanItem(aPlanRow({ ai_description: null }), 'Databases').aiDescription,
+        ).toBeNull();
     });
 
     it('keeps a real AI description, trimmed', () => {
@@ -415,7 +419,12 @@ describe('toPlanItem', () => {
     });
 
     it('maps the whole item', () => {
-        expect(toPlanItem(aPlanRow({ progress_status: 'completed', completed_at: '2026-02-01T00:00:00Z' }), 'Databases')).toEqual({
+        expect(
+            toPlanItem(
+                aPlanRow({ progress_status: 'completed', completed_at: '2026-02-01T00:00:00Z' }),
+                'Databases',
+            ),
+        ).toEqual({
             recommendationId: 100,
             categoryId: 3,
             categoryName: 'Databases',

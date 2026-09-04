@@ -60,11 +60,7 @@ export function StatusToggle({ action, fields, target, label, describedAs }: Sta
             */}
             <FormStatus
                 state={state}
-                className={
-                    state.status === 'error'
-                        ? 'max-w-56 text-center'
-                        : 'sr-only'
-                }
+                className={state.status === 'error' ? 'max-w-56 text-center' : 'sr-only'}
             />
         </form>
     );

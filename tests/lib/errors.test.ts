@@ -51,8 +51,9 @@ describe('appError', () => {
 
 describe('fromPostgrestError', () => {
     it.each(MAPPED)('maps %s to "%s"', (code, expected) => {
-        expect(fromPostgrestError({ code, message: 'raw database detail' }, 'test').code)
-            .toBe(expected);
+        expect(fromPostgrestError({ code, message: 'raw database detail' }, 'test').code).toBe(
+            expected,
+        );
     });
 
     it('falls back to "unknown" for a code it has never seen', () => {
@@ -66,10 +67,12 @@ describe('fromPostgrestError', () => {
         // Answering "does not exist" to a row the member may not read tells
         // them whether it exists. 42501 and PGRST301 must not collapse into
         // the not_found branch.
-        expect(fromPostgrestError({ code: '42501', message: 'permission denied' }, 'test').code)
-            .toBe('forbidden');
-        expect(fromPostgrestError({ code: 'PGRST301', message: 'jwt missing' }, 'test').code)
-            .toBe('forbidden');
+        expect(
+            fromPostgrestError({ code: '42501', message: 'permission denied' }, 'test').code,
+        ).toBe('forbidden');
+        expect(fromPostgrestError({ code: 'PGRST301', message: 'jwt missing' }, 'test').code).toBe(
+            'forbidden',
+        );
     });
 
     it('never passes the database message through to the member', () => {
@@ -85,7 +88,8 @@ describe('fromPostgrestError', () => {
     });
 
     it('never leaks SQL vocabulary in any message the taxonomy can produce', () => {
-        const forbidden = /constraint|relation|column|violates|pg_|select |insert |update |delete /i;
+        const forbidden =
+            /constraint|relation|column|violates|pg_|select |insert |update |delete /i;
 
         for (const [code] of [...MAPPED, ['99999']] as ReadonlyArray<[string]>) {
             const error = fromPostgrestError(

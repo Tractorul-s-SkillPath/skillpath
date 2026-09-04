@@ -48,8 +48,7 @@ vi.mock('../../../lib/supabase/server', () => ({
  * failure message instead of being sixteen random bytes.
  */
 let nextUserId = 1000;
-const anUnseenUser = () =>
-    `00000000-0000-4000-8000-${String((nextUserId += 1)).padStart(12, '0')}`;
+const anUnseenUser = () => `00000000-0000-4000-8000-${String((nextUserId += 1)).padStart(12, '0')}`;
 
 const aProfile = {
     userId: MEMBER_ID,
@@ -77,7 +76,10 @@ beforeEach(() => {
 
     vi.mocked(profileRepo.findByUserId).mockResolvedValue({ ok: true, value: aProfile });
     vi.mocked(profileRepo.listInterests).mockResolvedValue({ ok: true, value: [] });
-    vi.mocked(profileRepo.listActiveCategories).mockResolvedValue({ ok: true, value: [aCategory()] });
+    vi.mocked(profileRepo.listActiveCategories).mockResolvedValue({
+        ok: true,
+        value: [aCategory()],
+    });
     vi.mocked(profileRepo.updateName).mockResolvedValue({ ok: true, value: undefined });
     vi.mocked(profileRepo.syncInterests).mockResolvedValue({ ok: true, value: undefined });
     vi.mocked(profileRepo.setCategoryLevel).mockResolvedValue({ ok: true, value: undefined });
@@ -136,7 +138,9 @@ describe('updateName', () => {
     it('propagates a write failure', async () => {
         vi.mocked(profileRepo.updateName).mockResolvedValue({ ok: false, error: aRepoFailure() });
 
-        await expect(updateName(MEMBER_ID, 'Maria', 'Ionescu')).resolves.toMatchObject({ ok: false });
+        await expect(updateName(MEMBER_ID, 'Maria', 'Ionescu')).resolves.toMatchObject({
+            ok: false,
+        });
     });
 });
 
@@ -166,7 +170,12 @@ describe('setCategoryLevel', () => {
     it('passes the level through to the repository', async () => {
         await setCategoryLevel(MEMBER_ID, 3, 'advanced');
 
-        expect(profileRepo.setCategoryLevel).toHaveBeenCalledWith(FAKE_CLIENT, MEMBER_ID, 3, 'advanced');
+        expect(profileRepo.setCategoryLevel).toHaveBeenCalledWith(
+            FAKE_CLIENT,
+            MEMBER_ID,
+            3,
+            'advanced',
+        );
     });
 });
 
@@ -174,7 +183,10 @@ describe('getProfileDashboard', () => {
     it('assembles the dashboard from every section', async () => {
         const userId = anUnseenUser();
         vi.mocked(profileRepo.listInterests).mockResolvedValue({ ok: true, value: [anInterest()] });
-        vi.mocked(assessmentRepo.listByUser).mockResolvedValue({ ok: true, value: [anAssessment()] });
+        vi.mocked(assessmentRepo.listByUser).mockResolvedValue({
+            ok: true,
+            value: [anAssessment()],
+        });
         vi.mocked(planRepo.listByUser).mockResolvedValue({ ok: true, value: [aPlanItem()] });
 
         const result = await getProfileDashboard(userId);

@@ -29,22 +29,22 @@ talks to a database, it belongs to the second one.
 much higher on the first three, which are pure or fake-substitutable and cost
 almost nothing to cover.
 
-| Folder | In the gate | Needs a database | Style |
-|---|---|---|---|
-| `tests/lib/domain` | yes | no | table-driven, no mocks. Target ~95% |
-| `tests/lib/services` | yes | no | repository fakes from `helpers/` |
-| `tests/lib/validation` | yes | no | valid / invalid / boundary per schema |
-| `tests/lib/auth` | yes | no | fake session, fake cookie jar, mocked `next/navigation` |
-| `tests/lib/ai` | no | no | mock provider + failure injection |
-| `tests/lib/repositories/paging` | yes | no | pure — one of two exceptions in that folder |
-| `tests/lib/repositories/mappers` | no | no | pure — the other. Row in, object out |
-| `tests/lib/repositories/*.repo` | no | **yes** | integration |
-| `tests/lib/auth/current-user` | no | **yes** | integration — SP-120, see below |
-| `tests/db` | no | **yes** | SQL: triggers and constraints |
-| `tests/app/**/*.test.ts` | no | no | Server Action contract — service substituted, like a service test substitutes a repository |
-| `tests/app/**/*.test.tsx` | no | no | RTL — **not runnable yet**, see below |
-| `tests/components` | no | no | RTL, logic-bearing components only — **not runnable yet** |
-| `tests/middleware` | no | no | pure: a NextRequest in, a NextResponse out |
+| Folder                           | In the gate | Needs a database | Style                                                                                      |
+| -------------------------------- | ----------- | ---------------- | ------------------------------------------------------------------------------------------ |
+| `tests/lib/domain`               | yes         | no               | table-driven, no mocks. Target ~95%                                                        |
+| `tests/lib/services`             | yes         | no               | repository fakes from `helpers/`                                                           |
+| `tests/lib/validation`           | yes         | no               | valid / invalid / boundary per schema                                                      |
+| `tests/lib/auth`                 | yes         | no               | fake session, fake cookie jar, mocked `next/navigation`                                    |
+| `tests/lib/ai`                   | no          | no               | mock provider + failure injection                                                          |
+| `tests/lib/repositories/paging`  | yes         | no               | pure — one of two exceptions in that folder                                                |
+| `tests/lib/repositories/mappers` | no          | no               | pure — the other. Row in, object out                                                       |
+| `tests/lib/repositories/*.repo`  | no          | **yes**          | integration                                                                                |
+| `tests/lib/auth/current-user`    | no          | **yes**          | integration — SP-120, see below                                                            |
+| `tests/db`                       | no          | **yes**          | SQL: triggers and constraints                                                              |
+| `tests/app/**/*.test.ts`         | no          | no               | Server Action contract — service substituted, like a service test substitutes a repository |
+| `tests/app/**/*.test.tsx`        | no          | no               | RTL — **not runnable yet**, see below                                                      |
+| `tests/components`               | no          | no               | RTL, logic-bearing components only — **not runnable yet**                                  |
+| `tests/middleware`               | no          | no               | pure: a NextRequest in, a NextResponse out                                                 |
 
 The database-backed files run in their own script (`npm run test:db`) and their
 own CI job (`.github/workflows/db.yml`), so a teammate without a test project
@@ -66,7 +66,7 @@ into. The substitution happens at the module boundary:
 ```ts
 vi.mock('../../../lib/repositories/plan.repo');
 vi.mock('../../../lib/supabase/server', () => ({
-    createClient: vi.fn(async () => FAKE_CLIENT),
+  createClient: vi.fn(async () => FAKE_CLIENT),
 }));
 ```
 
@@ -81,19 +81,19 @@ the refactor that would let these become real injected fakes.
 Four source files have no mirror. Each one is a decision, not an oversight — if
 you add a fifth, add it here with a reason:
 
-| File | Why |
-|---|---|
-| `lib/domain/types.ts` | type declarations, no runtime |
-| `lib/repositories/types.ts` | interfaces only — `tests/helpers/in-memory-repos.ts` is what proves they are implementable |
-| `lib/supabase/database.types.ts` | hand-written row types; a migration and that file change in the same commit |
-| `lib/supabase/server.ts` | a ~5-line factory around `@supabase/ssr`; testing it tests the library |
+| File                             | Why                                                                                        |
+| -------------------------------- | ------------------------------------------------------------------------------------------ |
+| `lib/domain/types.ts`            | type declarations, no runtime                                                              |
+| `lib/repositories/types.ts`      | interfaces only — `tests/helpers/in-memory-repos.ts` is what proves they are implementable |
+| `lib/supabase/database.types.ts` | hand-written row types; a migration and that file change in the same commit                |
+| `lib/supabase/server.ts`         | a ~5-line factory around `@supabase/ssr`; testing it tests the library                     |
 
 **Orphaned mirrors are invisible — check for them.** This table used to list
 `lib/supabase/client.ts` and `lib/supabase/middleware.ts`, neither of which
 exists any more, and `tests/lib/supabase/admin.test.ts` sat here for a source
 file that had been deleted. A docblock-only spec is not in `include`, so it
 never fails; deleting a source file leaves its test behind in silence. The
-folder shape catches a *missing* mirror at a glance and an *orphaned* one not at
+folder shape catches a _missing_ mirror at a glance and an _orphaned_ one not at
 all:
 
 ```bash
@@ -105,7 +105,7 @@ find tests -name '*.test.ts*' -not -path 'tests/db/*' | while read t; do
 done
 ```
 
-Two files used to sit in a table here of mirrors that were *owed* rather than
+Two files used to sit in a table here of mirrors that were _owed_ rather than
 waived. **Both are now closed.**
 
 `lib/auth/session.ts` — **SP-121**, see `session.test.ts`. Weighted towards
@@ -123,13 +123,14 @@ passwords, verifies them, and decides who is an administrator.
 
 One mirror is still owed:
 
-| File | Why | Blocked on |
-|---|---|---|
+| File                                | Why                                                                                                       | Blocked on         |
+| ----------------------------------- | --------------------------------------------------------------------------------------------------------- | ------------------ |
 | `lib/repositories/progress.repo.ts` | the source is comment-only — a sketch of `upsert` / `listForUser` / `scoreTrend` with no function to call | the source landing |
 
-And seven are blocked on the product rather than on effort: the `tests/db/rls-*`
-specs describe Row Level Security, which is not enabled on any table. See
-`tests/db/README.md`.
+And seven are owed rather than blocked: the `tests/db/rls-*` specs describe Row
+Level Security, which **is** now enabled with policies, and Supabase Auth gives
+them the per-user token they always needed. They are still excluded in
+`vitest.config.db.ts`. See `tests/db/README.md`.
 
 ## Rules
 
@@ -151,7 +152,7 @@ specs describe Row Level Security, which is not enabled on any table. See
   in each file header are how we check that during the SP-104 audit.
 - **Behaviour, not implementation:** assert what the caller observes, so a
   refactor that keeps behaviour keeps the tests green. In particular, key a mock
-  on its *arguments*, not on call order — `mockResolvedValueOnce` chains encode
+  on its _arguments_, not on call order — `mockResolvedValueOnce` chains encode
   the order a service happens to call something in, and break on a refactor that
   changes nothing.
 - **English.** Test names, comments, docblocks.

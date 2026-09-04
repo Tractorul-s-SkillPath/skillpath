@@ -159,7 +159,6 @@ export async function insertWithAnswers(
     return ok(questionId);
 }
 
-
 /**
  * `client` is typed, like every other function here. It was `any` for one
  * commit, and in that commit this read `.from('question')` — a table that does
@@ -169,7 +168,7 @@ export async function insertWithAnswers(
 export async function setStatus(
     client: Client,
     questionId: number,
-    status: ContentStatus
+    status: ContentStatus,
 ): Promise<Result<void, AppError>> {
     const { error } = await client
         .from('questions')

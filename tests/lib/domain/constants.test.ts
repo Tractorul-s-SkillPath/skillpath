@@ -131,7 +131,9 @@ describe('constants.ts — invariants the rest of the code relies on', () => {
             // If someone retunes the clock and not the rate, category runs
             // silently become more or less rushed than the paper everyone
             // starts with.
-            expect(BASELINE_TIME_LIMIT_SECONDS).toBe(BASELINE_QUESTION_COUNT * SECONDS_PER_QUESTION);
+            expect(BASELINE_TIME_LIMIT_SECONDS).toBe(
+                BASELINE_QUESTION_COUNT * SECONDS_PER_QUESTION,
+            );
         });
 
         it('allows a grace window that is forgiving but not a second attempt', () => {

@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { completionRate, overallCompletion, type Completable, type CategoryCompletion } from '../../../lib/domain/progress';
+import {
+    completionRate,
+    overallCompletion,
+    type Completable,
+    type CategoryCompletion,
+} from '../../../lib/domain/progress';
 import type { PlanStatus } from '../../../lib/domain/types';
 
 describe('progress.ts domain logic', () => {
@@ -20,10 +25,7 @@ describe('progress.ts domain logic', () => {
         });
 
         it('should handle 100% completion correctly', () => {
-            const items: Completable[] = [
-                { status: 'completed' },
-                { status: 'completed' },
-            ];
+            const items: Completable[] = [{ status: 'completed' }, { status: 'completed' }];
             expect(completionRate(items)).toBe(100);
         });
 

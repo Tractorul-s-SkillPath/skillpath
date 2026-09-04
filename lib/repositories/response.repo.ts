@@ -54,8 +54,10 @@ export async function listForRun(
                 options: [...(row.questions?.answers ?? [])]
                     .sort((a, b) => {
                         // Deterministic pseudo-random shuffle per assessment and question
-                        const hashA = Math.sin(assessmentId * 997 + qId * 397 + a.answer_id) * 10000;
-                        const hashB = Math.sin(assessmentId * 997 + qId * 397 + b.answer_id) * 10000;
+                        const hashA =
+                            Math.sin(assessmentId * 997 + qId * 397 + a.answer_id) * 10000;
+                        const hashB =
+                            Math.sin(assessmentId * 997 + qId * 397 + b.answer_id) * 10000;
                         return hashA - hashB;
                     })
                     .map((a) => ({ answerId: a.answer_id, text: a.answer_text })),

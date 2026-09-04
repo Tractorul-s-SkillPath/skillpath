@@ -31,7 +31,9 @@ export function Hero() {
                             className="mt-5 text-3xl font-semibold leading-[1.12] tracking-tight text-foreground sm:text-4xl lg:text-[2.65rem]"
                         >
                             Find out what you actually know in software engineering.{' '}
-                            <span className="block text-muted-foreground">Then close the gaps.</span>
+                            <span className="block text-muted-foreground">
+                                Then close the gaps.
+                            </span>
                         </h1>
 
                         <p className="mt-5 max-w-xl text-base leading-relaxed text-muted-foreground sm:text-lg">
@@ -44,22 +46,30 @@ export function Hero() {
                         <div className="mt-8 flex flex-wrap items-center gap-3">
                             <Link
                                 href="/register"
-                                className={buttonClass('primary', 'md', 'h-11 px-6 text-[0.9375rem]')}
+                                className={buttonClass(
+                                    'primary',
+                                    'md',
+                                    'h-11 px-6 text-[0.9375rem]',
+                                )}
                             >
                                 Create your account
                             </Link>
                             <Link
                                 href="/login"
-                                className={buttonClass('secondary', 'md', 'h-11 px-6 text-[0.9375rem]')}
+                                className={buttonClass(
+                                    'secondary',
+                                    'md',
+                                    'h-11 px-6 text-[0.9375rem]',
+                                )}
                             >
                                 Sign in
                             </Link>
                         </div>
 
                         {/* muted-foreground, not subtle-foreground: at 13px the subtle
-                          * token measures ~3:1 against the page background, under the
-                          * 4.5:1 AA minimum. Subtle is for de-emphasis inside a card that
-                          * already has context, not for a line someone has to read. */}
+                         * token measures ~3:1 against the page background, under the
+                         * 4.5:1 AA minimum. Subtle is for de-emphasis inside a card that
+                         * already has context, not for a line someone has to read. */}
                         <p className="mt-5 text-[0.8125rem] text-muted-foreground">
                             Free to use · Starting with React, SQL and Testing
                         </p>

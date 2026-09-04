@@ -49,7 +49,10 @@ beforeEach(() => {
 
 describe('createCategoryAction', () => {
     it('creates and reports the name back', async () => {
-        const result = await createCategoryAction(IDLE, form({ name: 'Databases', description: 'Relational modelling.' }));
+        const result = await createCategoryAction(
+            IDLE,
+            form({ name: 'Databases', description: 'Relational modelling.' }),
+        );
 
         expect(categoryService.createCategory).toHaveBeenCalledWith({
             name: 'Databases',
@@ -65,7 +68,10 @@ describe('createCategoryAction', () => {
             err(appError('unknown', 'Something went wrong. Try again.')),
         );
 
-        const result = await createCategoryAction(IDLE, form({ name: 'Databases', description: 'x' }));
+        const result = await createCategoryAction(
+            IDLE,
+            form({ name: 'Databases', description: 'x' }),
+        );
 
         expect(result.status).toBe('error');
         expect(revalidatePath).not.toHaveBeenCalled();
@@ -83,7 +89,10 @@ describe('createCategoryAction', () => {
             ),
         );
 
-        const result = await createCategoryAction(IDLE, form({ name: 'Databases', description: 'x' }));
+        const result = await createCategoryAction(
+            IDLE,
+            form({ name: 'Databases', description: 'x' }),
+        );
 
         expect(result.message).toBe('Check the fields below.');
         expect(result.fields).toEqual({ name: 'A category with that name already exists.' });
@@ -94,7 +103,10 @@ describe('createCategoryAction', () => {
             err(appError('forbidden', "You don't have access to that.")),
         );
 
-        const result = await createCategoryAction(IDLE, form({ name: 'Databases', description: 'x' }));
+        const result = await createCategoryAction(
+            IDLE,
+            form({ name: 'Databases', description: 'x' }),
+        );
 
         expect(result.message).toBe("You don't have access to that.");
         expect(result.fields).toBeUndefined();
@@ -119,14 +131,20 @@ describe('setCategoryStatusAction', () => {
     it('deactivates and says the assessments are untouched', async () => {
         // SP-032: this is a status change, never a delete. The message is the
         // only place an admin is told that.
-        const result = await setCategoryStatusAction(IDLE, form({ categoryId: '3', status: 'inactive' }));
+        const result = await setCategoryStatusAction(
+            IDLE,
+            form({ categoryId: '3', status: 'inactive' }),
+        );
 
         expect(categoryService.setCategoryStatus).toHaveBeenCalledWith(3, 'inactive');
         expect(result.message).toBe('Category deactivated — existing assessments are untouched.');
     });
 
     it('activates', async () => {
-        const result = await setCategoryStatusAction(IDLE, form({ categoryId: '3', status: 'active' }));
+        const result = await setCategoryStatusAction(
+            IDLE,
+            form({ categoryId: '3', status: 'active' }),
+        );
 
         expect(result).toEqual({ status: 'success', message: 'Category activated.' });
     });
@@ -138,7 +156,10 @@ describe('setCategoryStatusAction', () => {
             err(appError('not_found', 'That category no longer exists.')),
         );
 
-        const result = await setCategoryStatusAction(IDLE, form({ categoryId: '3', status: 'inactive' }));
+        const result = await setCategoryStatusAction(
+            IDLE,
+            form({ categoryId: '3', status: 'inactive' }),
+        );
 
         expect(result.status).toBe('error');
         expect(result.message).toBe('That category no longer exists.');
@@ -146,8 +167,14 @@ describe('setCategoryStatusAction', () => {
     });
 
     it('rejects a bad id or status without calling the service', async () => {
-        expect((await setCategoryStatusAction(IDLE, form({ categoryId: 'abc', status: 'active' }))).status).toBe('error');
-        expect((await setCategoryStatusAction(IDLE, form({ categoryId: '3', status: 'hidden' }))).status).toBe('error');
+        expect(
+            (await setCategoryStatusAction(IDLE, form({ categoryId: 'abc', status: 'active' })))
+                .status,
+        ).toBe('error');
+        expect(
+            (await setCategoryStatusAction(IDLE, form({ categoryId: '3', status: 'hidden' })))
+                .status,
+        ).toBe('error');
         expect(categoryService.setCategoryStatus).not.toHaveBeenCalled();
     });
 });

@@ -137,7 +137,7 @@ test.afterAll(async () => {
         } catch (error) {
             console.warn(
                 `[e2e] category ${categoryId} is still in the project and will show up on every ` +
-                    'student\'s /assessments page — delete it by hand:',
+                    "student's /assessments page — delete it by hand:",
                 error,
             );
         }
@@ -335,9 +335,9 @@ test('an admin writes a question, a student is served it, and the key stays behi
         expect(
             bank.map((question) => question.status),
             'an admin-created question came back inactive. insertWithAnswers does not set ' +
-                '`status`, so questions.status must default to \'active\' — check the column in ' +
+                "`status`, so questions.status must default to 'active' — check the column in " +
                 'the E2E project.',
-            ).toEqual(Array(MIN_CATEGORY_QUESTIONS).fill('active'));
+        ).toEqual(Array(MIN_CATEGORY_QUESTIONS).fill('active'));
 
         const written = bank.find((question) => question.text === subject.text);
         expect(written, 'the question under test is not in the bank').toBeDefined();
@@ -357,8 +357,10 @@ test('an admin writes a question, a student is served it, and the key stays behi
         await signIn(studentPage, who, /\/dashboard$/);
 
         const user = await findUserByEmail(db, who.email);
-        expect(user, `${who.email} registered through the browser but is not in the E2E database`)
-            .not.toBeNull();
+        expect(
+            user,
+            `${who.email} registered through the browser but is not in the E2E database`,
+        ).not.toBeNull();
 
         studentId = user!.user_id;
         expect(user!.role).toBe('student');
@@ -471,10 +473,7 @@ test('an admin writes a question, a student is served it, and the key stays behi
                     'document or the RSC payload for their run',
             ).not.toContain(spelling);
 
-            expect(
-                html,
-                `"${spelling}" is in the student's rendered page`,
-            ).not.toContain(spelling);
+            expect(html, `"${spelling}" is in the student's rendered page`).not.toContain(spelling);
         }
     });
 

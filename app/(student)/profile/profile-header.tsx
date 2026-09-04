@@ -59,7 +59,11 @@ export function ProfileHeader({ profile, xp, streak, overallLevel }: ProfileHead
                     {editing ? (
                         <form action={formAction} className="max-w-md flex-1 space-y-3" noValidate>
                             <div className="grid gap-3 sm:grid-cols-2">
-                                <Field label="First name" htmlFor="firstName" error={state.fields?.firstName}>
+                                <Field
+                                    label="First name"
+                                    htmlFor="firstName"
+                                    error={state.fields?.firstName}
+                                >
                                     <Input
                                         id="firstName"
                                         name="firstName"
@@ -68,8 +72,16 @@ export function ProfileHeader({ profile, xp, streak, overallLevel }: ProfileHead
                                         autoFocus
                                     />
                                 </Field>
-                                <Field label="Last name" htmlFor="lastName" error={state.fields?.lastName}>
-                                    <Input id="lastName" name="lastName" defaultValue={profile.lastName} />
+                                <Field
+                                    label="Last name"
+                                    htmlFor="lastName"
+                                    error={state.fields?.lastName}
+                                >
+                                    <Input
+                                        id="lastName"
+                                        name="lastName"
+                                        defaultValue={profile.lastName}
+                                    />
                                 </Field>
                             </div>
                             <div className="flex gap-2">

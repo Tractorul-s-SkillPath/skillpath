@@ -49,7 +49,13 @@ export const dynamic = 'force-dynamic';
 /** Open runs first, then recommended, then the rest; alphabetical within each. */
 function byUrgency(a: AssessmentOption, b: AssessmentOption): number {
     const rank = (option: AssessmentOption) =>
-        option.inProgressAssessmentId !== null ? 0 : option.recommended ? 1 : option.available ? 2 : 3;
+        option.inProgressAssessmentId !== null
+            ? 0
+            : option.recommended
+              ? 1
+              : option.available
+                ? 2
+                : 3;
 
     return rank(a) - rank(b) || a.name.localeCompare(b.name);
 }

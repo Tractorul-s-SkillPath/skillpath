@@ -10,8 +10,9 @@ import { planStatusSchema } from '../../../lib/validation/plan.schema';
 
 describe('planStatusSchema', () => {
     it('accepts a status change', () => {
-        expect(planStatusSchema.safeParse({ recommendationId: 10, status: 'completed' }).success)
-            .toBe(true);
+        expect(
+            planStatusSchema.safeParse({ recommendationId: 10, status: 'completed' }).success,
+        ).toBe(true);
     });
 
     it.each(['not_started', 'in_progress', 'completed'])('accepts the "%s" status', (status) => {

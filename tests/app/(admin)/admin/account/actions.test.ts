@@ -46,7 +46,10 @@ describe('updateAdminNameAction', () => {
     });
 
     it('renames the session admin, never the id in the form', async () => {
-        await updateAdminNameAction(IDLE, form({ firstName: 'Root', lastName: 'Admin', userId: '999' }));
+        await updateAdminNameAction(
+            IDLE,
+            form({ firstName: 'Root', lastName: 'Admin', userId: '999' }),
+        );
 
         expect(profileService.updateName).toHaveBeenCalledWith(ADMIN_ID, 'Root', 'Admin');
     });
@@ -73,7 +76,10 @@ describe('updateAdminNameAction', () => {
             err(appError('unknown', 'Something went wrong. Try again.')),
         );
 
-        expect((await updateAdminNameAction(IDLE, form({ firstName: 'Root', lastName: 'Admin' }))).status).toBe('error');
+        expect(
+            (await updateAdminNameAction(IDLE, form({ firstName: 'Root', lastName: 'Admin' })))
+                .status,
+        ).toBe('error');
         expect(revalidatePath).not.toHaveBeenCalled();
     });
 });

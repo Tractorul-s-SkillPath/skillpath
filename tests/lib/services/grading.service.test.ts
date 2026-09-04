@@ -76,7 +76,10 @@ describe('submit', () => {
     it('grades an in-progress run and returns the score the database produced', async () => {
         vi.mocked(assessmentRepo.findOwn).mockResolvedValue({ ok: true, value: aRow() });
 
-        await expect(submit(MEMBER_ID, RUN_ID)).resolves.toEqual({ ok: true, value: { score: 72 } });
+        await expect(submit(MEMBER_ID, RUN_ID)).resolves.toEqual({
+            ok: true,
+            value: { score: 72 },
+        });
         expect(assessmentRepo.grade).toHaveBeenCalledWith(FAKE_CLIENT, RUN_ID);
     });
 
@@ -226,11 +229,18 @@ describe('submit', () => {
 });
 
 describe('getResults', () => {
-    const submittedRow = aRow({ status: 'submitted', total_score: 84, submitted_at: '2026-06-01T10:20:00.000Z' });
+    const submittedRow = aRow({
+        status: 'submitted',
+        total_score: 84,
+        submitted_at: '2026-06-01T10:20:00.000Z',
+    });
 
     beforeEach(() => {
         vi.mocked(assessmentRepo.findOwn).mockResolvedValue({ ok: true, value: submittedRow });
-        vi.mocked(responseRepo.listForReview).mockResolvedValue({ ok: true, value: [aReviewItem()] });
+        vi.mocked(responseRepo.listForReview).mockResolvedValue({
+            ok: true,
+            value: [aReviewItem()],
+        });
     });
 
     it('returns the score and the level it implies', async () => {
@@ -278,7 +288,10 @@ describe('getResults', () => {
     });
 
     it('propagates a failed review read — there is no results page without it', async () => {
-        vi.mocked(responseRepo.listForReview).mockResolvedValue({ ok: false, error: aRepoFailure() });
+        vi.mocked(responseRepo.listForReview).mockResolvedValue({
+            ok: false,
+            error: aRepoFailure(),
+        });
 
         await expect(getResults(MEMBER_ID, RUN_ID)).resolves.toMatchObject({ ok: false });
     });

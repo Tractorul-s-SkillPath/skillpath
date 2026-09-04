@@ -122,8 +122,10 @@ export function QuestsSection({ quests }: { quests: Quest[] }) {
                                     <div className="flex flex-wrap items-baseline justify-between gap-2">
                                         <p className="text-[0.8125rem] font-medium">{quest.name}</p>
                                         <span className="text-xs text-subtle-foreground tabular">
-                                            {done ? 'Complete' : `${progress} / ${quest.targetCount}`} ·{' '}
-                                            {quest.xpReward} XP
+                                            {done
+                                                ? 'Complete'
+                                                : `${progress} / ${quest.targetCount}`}{' '}
+                                            · {quest.xpReward} XP
                                         </span>
                                     </div>
                                     <p className="mt-0.5 text-xs text-muted-foreground">
@@ -193,7 +195,9 @@ export function LeaderboardSection({
                             <span className="min-w-0 flex-1 truncate text-sm">
                                 {entry.displayName}
                                 {entry.isYou ? (
-                                    <span className="ml-2 text-xs text-[color:var(--accent)]">you</span>
+                                    <span className="ml-2 text-xs text-[color:var(--accent)]">
+                                        you
+                                    </span>
                                 ) : null}
                             </span>
                             <span className="text-sm tabular">{entry.xp}</span>
@@ -206,9 +210,7 @@ export function LeaderboardSection({
                             <span className="w-7 text-right text-xs text-subtle-foreground tabular">
                                 {myRank.rank}
                             </span>
-                            <span className="min-w-0 flex-1 truncate text-sm">
-                                You
-                            </span>
+                            <span className="min-w-0 flex-1 truncate text-sm">You</span>
                             <span className="text-sm tabular">{myRank.xp}</span>
                         </li>
                     ) : null}

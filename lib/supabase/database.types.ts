@@ -270,7 +270,12 @@ type BelongsTo<
     referencedColumns: [Referenced];
 };
 
-type ToCategory<Name extends string> = BelongsTo<Name, 'category_id', 'skill_categories', 'category_id'>;
+type ToCategory<Name extends string> = BelongsTo<
+    Name,
+    'category_id',
+    'skill_categories',
+    'category_id'
+>;
 type ToUser<Name extends string> = BelongsTo<Name, 'user_id', 'users', 'user_id'>;
 
 export type Database = {
@@ -374,7 +379,10 @@ export type Database = {
                     last_score?: number | null;
                     last_assessed_at?: string | null;
                 },
-                [ToCategory<'category_progress_category_id_fkey'>, ToUser<'category_progress_user_id_fkey'>]
+                [
+                    ToCategory<'category_progress_category_id_fkey'>,
+                    ToUser<'category_progress_user_id_fkey'>,
+                ]
             >;
             recommendation_plans: Table<
                 RecommendationPlanRow,

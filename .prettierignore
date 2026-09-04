@@ -1,0 +1,12 @@
+# Prettier reads .gitignore on its own, so build output (.next/, coverage/,
+# test-results/, playwright-report/) is already excluded. This file is only for
+# things that ARE tracked but should not be reformatted.
+
+# Generated, and rewritten by tooling that does not read this config.
+package-lock.json
+supabase/.temp/
+
+# SQL is not a language Prettier supports; running it here would be a no-op at
+# best. Migrations are also append-only history — reformatting an applied
+# migration changes a file the database has already run.
+supabase/migrations/

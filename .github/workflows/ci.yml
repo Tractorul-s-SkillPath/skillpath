@@ -7,15 +7,14 @@
 #
 # Gate order is cheapest-first, so a type error does not wait on a build.
 #
-# NOT here, and each one is a decision rather than an oversight:
+# Format and Lint are two gates, not one. Prettier decides where lines break;
+# ESLint is the only step here that reads what the code does. Neither covers for
+# the other, and `eslint-config-prettier` is what stops them arguing — see the
+# order note in eslint.config.mjs. Next 16 removed `next lint`, so Lint runs
+# eslint directly against a flat config (SP-122); the old `npm run lint`
+# resolved to `next <dir>` and failed with "Invalid project directory".
 #
-#   lint      — Next 16 removed `next lint`; the old `npm run lint` resolved to
-#               `next <dir>` and failed with "Invalid project directory". ESLint
-#               is not configured in this project, so there is nothing to run.
-#               Adding eslint + eslint-config-next is its own story (SP-122):
-#               it needs a config and a first pass over existing code, and
-#               landing it inside this change would turn the first green
-#               pipeline red for reasons unrelated to the pipeline.
+# NOT here, and each one is a decision rather than an oversight:
 #
 #   tests/db and tests/lib/repositories — need a live Supabase test project,
 #               so they run in .github/workflows/db.yml with the E2E secrets.
@@ -65,8 +64,21 @@ jobs:
       - name: Install
         run: npm ci
 
+      # First because it is the cheapest gate in the file — no compile, no
+      # bundle, a couple of seconds. `--check` never writes; a failure prints
+      # the offending paths and `npm run format` fixes all of them locally.
+      - name: Format
+        run: npm run format:check
+
       - name: Typecheck
         run: npm run typecheck
+
+      # Errors fail this step; warnings do not, and there are seven of them on
+      # purpose — see the react-hooks/set-state-in-effect note in
+      # eslint.config.mjs. No --max-warnings, because pinning a count turns
+      # every unrelated change into a merge conflict with this file.
+      - name: Lint
+        run: npm run lint
 
       - name: Test + coverage gate
         run: npm run test:coverage

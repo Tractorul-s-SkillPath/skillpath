@@ -48,7 +48,9 @@ import { redirect } from 'next/navigation';
 import { createClient } from '../../../lib/supabase/server';
 
 export async function registerAction(formData: FormData): Promise<void> {
-    const email = String(formData.get('email') ?? '').trim().toLowerCase();
+    const email = String(formData.get('email') ?? '')
+        .trim()
+        .toLowerCase();
     const password = String(formData.get('password') ?? '');
     const firstName = String(formData.get('firstName') ?? '').trim();
     const lastName = String(formData.get('lastName') ?? '').trim();

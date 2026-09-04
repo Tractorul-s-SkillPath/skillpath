@@ -88,7 +88,8 @@ export default async function DashboardPage() {
                 <h1 className="text-xl font-semibold tracking-tight text-foreground">
                     {/* First name only. "Welcome back, Ana Maria Popescu" reads
                         like a letter from a bank. */}
-                    Welcome back, {profile.firstName || fullName(profile.firstName, profile.lastName)}
+                    Welcome back,{' '}
+                    {profile.firstName || fullName(profile.firstName, profile.lastName)}
                 </h1>
                 <p className="mt-1 text-sm text-muted-foreground">
                     Where you stand in every category you follow, in one screen.

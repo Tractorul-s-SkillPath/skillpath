@@ -56,10 +56,7 @@ export function WeakCategoriesChart({ ranking }: { ranking: CategoryRanking[] })
             <ul className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-muted-foreground">
                 {LEGEND.map((band) => (
                     <li key={band.label} className="flex items-center gap-1.5">
-                        <span
-                            aria-hidden="true"
-                            className={`size-2 rounded-full ${band.tone}`}
-                        />
+                        <span aria-hidden="true" className={`size-2 rounded-full ${band.tone}`} />
                         {band.label}
                         <span className="text-subtle-foreground tabular">{band.range}</span>
                     </li>

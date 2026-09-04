@@ -51,9 +51,9 @@ describe('timer.ts domain logic', () => {
     describe('formatClock', () => {
         it('should format total seconds into MM:SS correctly', () => {
             expect(formatClock(1500)).toBe('25:00'); // 25 minutes
-            expect(formatClock(65)).toBe('1:05');   // 1 minute and 5 seconds
-            expect(formatClock(9)).toBe('0:09');    // Single digit seconds padded
-            expect(formatClock(0)).toBe('0:00');    // Zero seconds
+            expect(formatClock(65)).toBe('1:05'); // 1 minute and 5 seconds
+            expect(formatClock(9)).toBe('0:09'); // Single digit seconds padded
+            expect(formatClock(0)).toBe('0:00'); // Zero seconds
         });
 
         it('should clamp negative values to 0:00', () => {

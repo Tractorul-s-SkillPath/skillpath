@@ -32,11 +32,7 @@ export function SectionHeading({
 }: SectionHeadingProps) {
     return (
         <div
-            className={cn(
-                'max-w-2xl',
-                align === 'center' ? 'mx-auto text-center' : '',
-                className,
-            )}
+            className={cn('max-w-2xl', align === 'center' ? 'mx-auto text-center' : '', className)}
         >
             <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[color:var(--accent-hover)]">
                 {eyebrow}

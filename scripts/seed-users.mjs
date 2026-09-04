@@ -37,10 +37,10 @@ import { loadEnv, client, must, log } from './lib.mjs';
 const PASSWORD = 'skillpath123';
 
 const ACCOUNTS = [
-    { first_name: 'Ana',   last_name: 'Ionescu',  email: 'admin@skillpath.test',  role: 'admin'   },
-    { first_name: 'Bogdan', last_name: 'Marin',   email: 'bogdan@skillpath.test', role: 'student' },
+    { first_name: 'Ana', last_name: 'Ionescu', email: 'admin@skillpath.test', role: 'admin' },
+    { first_name: 'Bogdan', last_name: 'Marin', email: 'bogdan@skillpath.test', role: 'student' },
     { first_name: 'Carmen', last_name: 'Dumitru', email: 'carmen@skillpath.test', role: 'student' },
-    { first_name: 'Dan',    last_name: 'Petrescu', email: 'dan@skillpath.test',   role: 'student' },
+    { first_name: 'Dan', last_name: 'Petrescu', email: 'dan@skillpath.test', role: 'student' },
 ];
 
 export async function seedUsers(db) {
@@ -80,10 +80,7 @@ export async function seedUsers(db) {
         if (account.role !== 'student') {
             must(
                 `Promoting ${account.email} to ${account.role}`,
-                await db
-                    .from('users')
-                    .update({ role: account.role })
-                    .eq('user_id', data.user.id),
+                await db.from('users').update({ role: account.role }).eq('user_id', data.user.id),
             );
         }
     }

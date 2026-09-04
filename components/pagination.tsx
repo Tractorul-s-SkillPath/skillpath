@@ -33,7 +33,13 @@ interface PaginationProps {
     className?: string;
 }
 
-export function Pagination({ page, totalPages, buildHref, label = 'results', className }: PaginationProps) {
+export function Pagination({
+    page,
+    totalPages,
+    buildHref,
+    label = 'results',
+    className,
+}: PaginationProps) {
     // One page is not a pagination control, it is noise.
     if (totalPages <= 1) return null;
 
@@ -52,21 +58,35 @@ export function Pagination({ page, totalPages, buildHref, label = 'results', cla
 
             <div className="flex gap-2">
                 {previous ? (
-                    <Link href={buildHref(page - 1)} rel="prev" className={buttonClass('secondary', 'sm')}>
+                    <Link
+                        href={buildHref(page - 1)}
+                        rel="prev"
+                        className={buttonClass('secondary', 'sm')}
+                    >
                         ← Previous
                     </Link>
                 ) : (
-                    <span aria-hidden="true" className={buttonClass('secondary', 'sm', 'opacity-45')}>
+                    <span
+                        aria-hidden="true"
+                        className={buttonClass('secondary', 'sm', 'opacity-45')}
+                    >
                         ← Previous
                     </span>
                 )}
 
                 {next ? (
-                    <Link href={buildHref(page + 1)} rel="next" className={buttonClass('secondary', 'sm')}>
+                    <Link
+                        href={buildHref(page + 1)}
+                        rel="next"
+                        className={buttonClass('secondary', 'sm')}
+                    >
                         Next →
                     </Link>
                 ) : (
-                    <span aria-hidden="true" className={buttonClass('secondary', 'sm', 'opacity-45')}>
+                    <span
+                        aria-hidden="true"
+                        className={buttonClass('secondary', 'sm', 'opacity-45')}
+                    >
                         Next →
                     </span>
                 )}

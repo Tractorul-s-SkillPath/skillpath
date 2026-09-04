@@ -30,7 +30,10 @@ export default async function PasswordSuccessPage() {
             </p>
 
             <div className="mt-6 w-full">
-                <Link href={dashboardLink} className={buttonClass('primary') + ' w-full justify-center'}>
+                <Link
+                    href={dashboardLink}
+                    className={buttonClass('primary') + ' w-full justify-center'}
+                >
                     OK
                 </Link>
             </div>

@@ -65,8 +65,17 @@ export function QuestionForm({ categoryId }: { categoryId: number }) {
                 />
             </Field>
 
-            <Field label="Difficulty" htmlFor="question-difficulty" error={state.fields?.difficulty}>
-                <select id="question-difficulty" name="difficulty" required className={SELECT_CLASS}>
+            <Field
+                label="Difficulty"
+                htmlFor="question-difficulty"
+                error={state.fields?.difficulty}
+            >
+                <select
+                    id="question-difficulty"
+                    name="difficulty"
+                    required
+                    className={SELECT_CLASS}
+                >
                     <option value="beginner">Beginner</option>
                     <option value="intermediate">Intermediate</option>
                     <option value="advanced">Advanced</option>

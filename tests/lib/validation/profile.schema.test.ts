@@ -13,8 +13,9 @@ import { nameSchema, interestsSchema } from '../../../lib/validation/profile.sch
 
 describe('nameSchema', () => {
     it('accepts a valid name change', () => {
-        expect(nameSchema.safeParse({ firstName: 'Maria', lastName: 'Ionescu' }).success)
-            .toBe(true);
+        expect(nameSchema.safeParse({ firstName: 'Maria', lastName: 'Ionescu' }).success).toBe(
+            true,
+        );
     });
 
     it('strips unknown keys, so a role cannot ride along (SP-013 / SP-021)', () => {

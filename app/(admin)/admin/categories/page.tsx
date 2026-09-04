@@ -23,7 +23,6 @@ import { Chip } from '../../../../components/ui/chip';
 import { buttonClass } from '../../../../components/ui/button';
 import { EmptyState } from '../../../../components/empty-state';
 
-
 export const metadata = { title: 'Categories · SkillPath admin' };
 
 export const dynamic = 'force-dynamic';
@@ -35,7 +34,9 @@ export default async function AdminCategoriesPage() {
         <div className="mx-auto max-w-4xl space-y-5 px-4 py-8 sm:px-6 lg:py-10">
             <header className="flex flex-wrap items-end justify-between gap-4">
                 <div>
-                    <h1 className="text-xl font-semibold tracking-tight text-foreground">Categories</h1>
+                    <h1 className="text-xl font-semibold tracking-tight text-foreground">
+                        Categories
+                    </h1>
                     <p className="mt-1 text-sm text-muted-foreground">
                         The skills members can be assessed in.
                     </p>
@@ -69,13 +70,23 @@ export default async function AdminCategoriesPage() {
                                 >
                                     <div className="min-w-0 flex-1">
                                         <div className="flex flex-wrap items-center gap-2">
-                                            <p className="font-medium text-foreground">{category.name}</p>
-                                            <Chip tone={category.status === 'active' ? 'success' : 'danger'}>
+                                            <p className="font-medium text-foreground">
+                                                {category.name}
+                                            </p>
+                                            <Chip
+                                                tone={
+                                                    category.status === 'active'
+                                                        ? 'success'
+                                                        : 'danger'
+                                                }
+                                            >
                                                 {category.status}
                                             </Chip>
                                             <Chip>
                                                 {category.questionCount}
-                                                {category.questionCount === 1 ? ' question' : ' questions'}
+                                                {category.questionCount === 1
+                                                    ? ' question'
+                                                    : ' questions'}
                                             </Chip>
                                         </div>
 
@@ -97,8 +108,14 @@ export default async function AdminCategoriesPage() {
                                         <StatusToggle
                                             action={setCategoryStatusAction}
                                             fields={{ categoryId: category.categoryId }}
-                                            target={category.status === 'active' ? 'inactive' : 'active'}
-                                            label={category.status === 'active' ? 'Deactivate' : 'Activate'}
+                                            target={
+                                                category.status === 'active' ? 'inactive' : 'active'
+                                            }
+                                            label={
+                                                category.status === 'active'
+                                                    ? 'Deactivate'
+                                                    : 'Activate'
+                                            }
                                             describedAs={category.name}
                                         />
                                     </div>

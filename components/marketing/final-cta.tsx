@@ -24,8 +24,8 @@ export function FinalCta() {
                     </h2>
 
                     {/* The accent-soft panel is lighter than the page, so
-                      * muted-foreground drops to 4.39:1 here — just under AA.
-                      * A translucent foreground keeps the softer look and clears it. */}
+                     * muted-foreground drops to 4.39:1 here — just under AA.
+                     * A translucent foreground keeps the softer look and clears it. */}
                     <p className="mx-auto mt-3 max-w-lg text-[0.9375rem] leading-relaxed text-foreground/70">
                         Ten minutes is enough to find out where you actually stand in a skill you
                         thought you knew.

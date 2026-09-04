@@ -66,7 +66,10 @@ export default async function RegisterPage({ searchParams }: PageProps) {
 
             <p className="mt-5 text-center text-[0.8125rem] text-muted-foreground">
                 Already have an account?{' '}
-                <Link href="/login" className="font-medium text-[color:var(--accent)] hover:underline">
+                <Link
+                    href="/login"
+                    className="font-medium text-[color:var(--accent)] hover:underline"
+                >
                     Sign in
                 </Link>
             </p>

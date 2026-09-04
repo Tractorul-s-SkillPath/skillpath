@@ -44,11 +44,11 @@ const DIFFICULTY_TONE = {
 } as const;
 
 export default async function AdminCategoryQuestionsPage({
-                                                             params,
-                                                             searchParams
-                                                         }: {
-    params: Params,
-    searchParams: SearchParams
+    params,
+    searchParams,
+}: {
+    params: Params;
+    searchParams: SearchParams;
 }) {
     const { id } = await params;
     const categoryId = Number(id);
@@ -75,8 +75,8 @@ export default async function AdminCategoryQuestionsPage({
                         {category.name}
                     </h1>
                     <p className="mt-1 text-sm text-muted-foreground">
-                        {questions.length} {questions.length === 1 ? 'question' : 'questions'} in this
-                        category.
+                        {questions.length} {questions.length === 1 ? 'question' : 'questions'} in
+                        this category.
                     </p>
                 </div>
 
@@ -93,7 +93,10 @@ export default async function AdminCategoryQuestionsPage({
                     <QuestionForm categoryId={categoryId} />
                 </Section>
 
-                <Section title="Question bank" description="Newest first. Correct options are marked.">
+                <Section
+                    title="Question bank"
+                    description="Newest first. Correct options are marked."
+                >
                     {questions.length === 0 ? (
                         <EmptyState
                             title="No questions yet"
@@ -104,8 +107,14 @@ export default async function AdminCategoryQuestionsPage({
                             {questions.map((question) => {
                                 if (editingId === question.questionId) {
                                     return (
-                                        <li key={`edit-${question.questionId}`} className="border-b border-border pb-5 last:border-0 last:pb-0">
-                                            <EditQuestionForm question={question} categoryId={categoryId} />
+                                        <li
+                                            key={`edit-${question.questionId}`}
+                                            className="border-b border-border pb-5 last:border-0 last:pb-0"
+                                        >
+                                            <EditQuestionForm
+                                                question={question}
+                                                categoryId={categoryId}
+                                            />
                                         </li>
                                     );
                                 }
@@ -122,7 +131,9 @@ export default async function AdminCategoryQuestionsPage({
 
                                             <div className="flex shrink-0 items-center gap-4">
                                                 <div className="flex gap-2">
-                                                    <Chip tone={DIFFICULTY_TONE[question.difficulty]}>
+                                                    <Chip
+                                                        tone={DIFFICULTY_TONE[question.difficulty]}
+                                                    >
                                                         {question.difficulty}
                                                     </Chip>
                                                     {question.status === 'inactive' ? (
@@ -174,7 +185,8 @@ export default async function AdminCategoryQuestionsPage({
                                                     >
                                                         {answer.isCorrect ? (
                                                             <span className="mr-1.5 font-medium">
-                                                                <span aria-hidden="true">✓ </span>Correct:
+                                                                <span aria-hidden="true">✓ </span>
+                                                                Correct:
                                                             </span>
                                                         ) : null}
                                                         {answer.text}

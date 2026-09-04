@@ -31,7 +31,10 @@ export function LandingHeader() {
                     SkillPath
                 </Link>
 
-                <nav className="hidden flex-1 items-center gap-1 md:flex" aria-label="Page sections">
+                <nav
+                    className="hidden flex-1 items-center gap-1 md:flex"
+                    aria-label="Page sections"
+                >
                     {SECTIONS.map((section) => (
                         <a
                             key={section.href}

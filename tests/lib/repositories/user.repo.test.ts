@@ -110,7 +110,10 @@ describe('listPaged', () => {
         const admin = await sandbox.createUser({ role: 'admin' });
         const inactive = await sandbox.createUser({ status: 'inactive' });
 
-        const admins = await userRepo.listPaged(db, filters({ role: 'admin', search: sandbox.name }));
+        const admins = await userRepo.listPaged(
+            db,
+            filters({ role: 'admin', search: sandbox.name }),
+        );
         expect(admins.ok).toBe(true);
         if (!admins.ok) return;
 
@@ -248,6 +251,8 @@ describe('setStatus', () => {
         // Same gap as category.repo.setStatus, recorded for the same reason:
         // PostgREST does not call a zero-row UPDATE an error, and this function
         // does not ask for a count, so the caller cannot tell.
-        expect((await userRepo.setStatus(db, '00000000-0000-4000-8000-0000000000ff', 'inactive')).ok).toBe(true);
+        expect(
+            (await userRepo.setStatus(db, '00000000-0000-4000-8000-0000000000ff', 'inactive')).ok,
+        ).toBe(true);
     });
 });

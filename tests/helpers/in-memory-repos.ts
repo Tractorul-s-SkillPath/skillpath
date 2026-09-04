@@ -74,7 +74,8 @@ export function createPlanRepo(seed: ReadonlyArray<{ userId: string; item: PlanI
                 recommendationId: number,
             ): Promise<Result<PlanItem | null, AppError>> => {
                 const found = rows.find(
-                    (row) => row.userId === userId && row.item.recommendationId === recommendationId,
+                    (row) =>
+                        row.userId === userId && row.item.recommendationId === recommendationId,
                 );
 
                 return ok(found ? found.item : null);
@@ -89,7 +90,8 @@ export function createPlanRepo(seed: ReadonlyArray<{ userId: string; item: PlanI
                 status: PlanStatus,
             ): Promise<Result<void, AppError>> => {
                 const found = rows.find(
-                    (row) => row.userId === userId && row.item.recommendationId === recommendationId,
+                    (row) =>
+                        row.userId === userId && row.item.recommendationId === recommendationId,
                 );
 
                 if (!found) return err(aRepoFailure('No row matched the update.'));

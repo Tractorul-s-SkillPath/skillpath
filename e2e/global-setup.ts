@@ -14,10 +14,7 @@
  * npm run seed:e2e" here.
  */
 
-import {
-    BASELINE_QUESTION_COUNT,
-    GENERAL_KNOWLEDGE_CATEGORY_ID,
-} from '../lib/domain/constants';
+import { BASELINE_QUESTION_COUNT, GENERAL_KNOWLEDGE_CATEGORY_ID } from '../lib/domain/constants';
 import { e2eEnv } from './helpers/env';
 import { readBaselineAnswerKey, testDb, type TestDb } from './helpers/db';
 import { SEEDED_ADMIN } from './helpers/member';

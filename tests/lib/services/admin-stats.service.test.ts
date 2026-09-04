@@ -83,7 +83,10 @@ describe('getWeakCategoryRanking', () => {
     it('asks for the documented number of categories', async () => {
         await getWeakCategoryRanking();
 
-        expect(statsRepo.weakCategoryRanking).toHaveBeenCalledWith(FAKE_CLIENT, WEAK_CATEGORY_LIMIT);
+        expect(statsRepo.weakCategoryRanking).toHaveBeenCalledWith(
+            FAKE_CLIENT,
+            WEAK_CATEGORY_LIMIT,
+        );
     });
 });
 

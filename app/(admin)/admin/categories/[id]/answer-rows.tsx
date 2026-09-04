@@ -106,7 +106,11 @@ export function AnswerRows({ defaults = [], fields }: AnswerRowsProps) {
                         </div>
 
                         {rowError ? (
-                            <p id={`${rowId}-error`} className="pl-7.5 text-xs text-danger" role="alert">
+                            <p
+                                id={`${rowId}-error`}
+                                className="pl-7.5 text-xs text-danger"
+                                role="alert"
+                            >
                                 {rowError}
                             </p>
                         ) : null}

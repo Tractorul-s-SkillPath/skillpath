@@ -48,7 +48,10 @@ beforeEach(() => {
 
 describe('updateNameAction', () => {
     it('renames the SESSION user, whatever the form claims', async () => {
-        await updateNameAction(IDLE, form({ firstName: 'Ada', lastName: 'Lovelace', userId: '999' }));
+        await updateNameAction(
+            IDLE,
+            form({ firstName: 'Ada', lastName: 'Lovelace', userId: '999' }),
+        );
 
         expect(profileService.updateName).toHaveBeenCalledWith(MEMBER_ID, 'Ada', 'Lovelace');
     });
@@ -83,7 +86,10 @@ describe('updateNameAction', () => {
             err(appError('unknown', 'Something went wrong. Try again.')),
         );
 
-        const result = await updateNameAction(IDLE, form({ firstName: 'Ada', lastName: 'Lovelace' }));
+        const result = await updateNameAction(
+            IDLE,
+            form({ firstName: 'Ada', lastName: 'Lovelace' }),
+        );
 
         expect(result.status).toBe('error');
         expect(revalidatePath).not.toHaveBeenCalled();
@@ -118,18 +124,32 @@ describe('setCategoryLevelAction', () => {
     });
 
     it('rejects a level outside the three', async () => {
-        const result = await setCategoryLevelAction(IDLE, form({ categoryId: '4', level: 'wizard' }));
+        const result = await setCategoryLevelAction(
+            IDLE,
+            form({ categoryId: '4', level: 'wizard' }),
+        );
 
-        expect(result).toEqual({ status: 'error', message: 'Pick one of the three levels.', fields: undefined });
+        expect(result).toEqual({
+            status: 'error',
+            message: 'Pick one of the three levels.',
+            fields: undefined,
+        });
         expect(profileService.setCategoryLevel).not.toHaveBeenCalled();
     });
 
     it('carries a service field error back to the form', async () => {
         vi.mocked(profileService.setCategoryLevel).mockResolvedValue(
-            err(appError('validation', 'Pick a category you follow.', { categoryId: 'Not one of yours.' })),
+            err(
+                appError('validation', 'Pick a category you follow.', {
+                    categoryId: 'Not one of yours.',
+                }),
+            ),
         );
 
-        const result = await setCategoryLevelAction(IDLE, form({ categoryId: '4', level: 'advanced' }));
+        const result = await setCategoryLevelAction(
+            IDLE,
+            form({ categoryId: '4', level: 'advanced' }),
+        );
 
         expect(result.fields).toEqual({ categoryId: 'Not one of yours.' });
     });

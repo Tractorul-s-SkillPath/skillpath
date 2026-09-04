@@ -29,11 +29,7 @@ import { AssessmentRunner } from './assessment-runner';
 export const metadata = { title: 'Assessment · SkillPath' };
 export const dynamic = 'force-dynamic';
 
-export default async function AssessmentRunPage({
-    params,
-}: {
-    params: Promise<{ id: string }>;
-}) {
+export default async function AssessmentRunPage({ params }: { params: Promise<{ id: string }> }) {
     const user = await assertAuth();
 
     const { id } = await params;

@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { buildBaselineRecommendations, bandBreakdown, MissedQuestion } from '../../../lib/domain/baseline';
+import {
+    buildBaselineRecommendations,
+    bandBreakdown,
+    MissedQuestion,
+} from '../../../lib/domain/baseline';
 
 describe('baseline.ts domain logic', () => {
     describe('buildBaselineRecommendations', () => {
@@ -69,12 +73,14 @@ describe('baseline.ts domain logic', () => {
             expect(result).toHaveLength(2);
             expect(result[0]).toEqual({
                 topicTitle: 'React',
-                description: 'You missed the beginner question on this in your baseline assessment. Learn components.',
+                description:
+                    'You missed the beginner question on this in your baseline assessment. Learn components.',
                 priority: 1,
             });
             expect(result[1]).toEqual({
                 topicTitle: 'Docker',
-                description: 'You missed the advanced question on this in your baseline assessment. Learn containers.',
+                description:
+                    'You missed the advanced question on this in your baseline assessment. Learn containers.',
                 priority: 3,
             });
         });
@@ -90,7 +96,8 @@ describe('baseline.ts domain logic', () => {
             expect(result).toHaveLength(1);
             expect(result[0]).toEqual({
                 topicTitle: 'Git',
-                description: 'You missed the beginner question on this in your baseline assessment. Beginner git advice.',
+                description:
+                    'You missed the beginner question on this in your baseline assessment. Beginner git advice.',
                 priority: 1,
             });
         });

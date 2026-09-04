@@ -60,8 +60,7 @@ async function anOpenRun(bankSize = 5) {
 /** Answers the paper: the first `correct` questions right, the rest wrong. */
 async function answer(assessmentId: number, questions: SandboxQuestion[], correct: number) {
     for (const [index, question] of questions.entries()) {
-        const answerId =
-            index < correct ? question.correctAnswerId : question.wrongAnswerIds[0];
+        const answerId = index < correct ? question.correctAnswerId : question.wrongAnswerIds[0];
 
         const saved = await responseRepo.saveSelection(
             db,

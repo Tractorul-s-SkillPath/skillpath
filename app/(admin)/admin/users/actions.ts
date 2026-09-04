@@ -58,5 +58,7 @@ export async function setUserStatusAction(
 
     revalidatePath('/admin/users');
 
-    return formSuccess(parsed.data.status === 'active' ? 'Account activated.' : 'Account deactivated.');
+    return formSuccess(
+        parsed.data.status === 'active' ? 'Account activated.' : 'Account deactivated.',
+    );
 }

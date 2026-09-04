@@ -10,7 +10,7 @@ const ERRORS: Record<string, string> = {
     password_too_short: 'New password must be at least 8 characters long.',
     passwords_dont_match: 'The new passwords do not match.',
     invalid_current: 'Current password is incorrect.',
-    unavailable: 'Could not update password. Please try again later.'
+    unavailable: 'Could not update password. Please try again later.',
 };
 
 interface PageProps {
@@ -30,7 +30,10 @@ export default async function ChangePasswordPage({ searchParams }: PageProps) {
             </p>
 
             {error ? (
-                <p role="alert" className="mt-4 rounded-lg bg-danger-soft px-3 py-2 text-[0.8125rem] text-danger">
+                <p
+                    role="alert"
+                    className="mt-4 rounded-lg bg-danger-soft px-3 py-2 text-[0.8125rem] text-danger"
+                >
                     {error}
                 </p>
             ) : null}
@@ -75,13 +78,20 @@ export default async function ChangePasswordPage({ searchParams }: PageProps) {
                     />
                 </Field>
 
-                <SubmitButton variant="primary" pendingLabel="Updating…" className="w-full justify-center">
+                <SubmitButton
+                    variant="primary"
+                    pendingLabel="Updating…"
+                    className="w-full justify-center"
+                >
                     Update password
                 </SubmitButton>
             </form>
 
             <div className="mt-5 text-center">
-                <Link href="/dashboard" className="text-[0.8125rem] font-medium text-[color:var(--accent)] hover:underline">
+                <Link
+                    href="/dashboard"
+                    className="text-[0.8125rem] font-medium text-[color:var(--accent)] hover:underline"
+                >
                     Back to dashboard
                 </Link>
             </div>

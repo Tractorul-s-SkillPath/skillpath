@@ -79,7 +79,10 @@ export async function weakCategoryRanking(
     return ok(data.map(toCategoryRanking));
 }
 
-const SORT_COLUMN: Record<ResultSort, { column: 'submitted_at' | 'total_score'; ascending: boolean }> = {
+const SORT_COLUMN: Record<
+    ResultSort,
+    { column: 'submitted_at' | 'total_score'; ascending: boolean }
+> = {
     date_desc: { column: 'submitted_at', ascending: false },
     date_asc: { column: 'submitted_at', ascending: true },
     score_desc: { column: 'total_score', ascending: false },
@@ -124,10 +127,9 @@ export async function resultsPaged(
     if (filters.search) {
         const term = likeTerm(filters.search);
 
-        query = query.or(
-            `first_name.ilike.${term},last_name.ilike.${term},email.ilike.${term}`,
-            { referencedTable: 'users' },
-        );
+        query = query.or(`first_name.ilike.${term},last_name.ilike.${term},email.ilike.${term}`, {
+            referencedTable: 'users',
+        });
     }
 
     const { data, count, error } = await query

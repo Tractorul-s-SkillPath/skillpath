@@ -8,7 +8,7 @@ import { buttonClass } from '../../components/ui/button';
 
 const ERRORS: Record<string, string> = {
     missing_email: 'Email address is missing. Please restart the process.',
-    unavailable: 'We could not reach the account service. Try again in a moment.'
+    unavailable: 'We could not reach the account service. Try again in a moment.',
 };
 
 export default function ResetPasswordPage() {
@@ -23,7 +23,9 @@ export default function ResetPasswordPage() {
         return (
             <div className="flex min-h-screen items-center justify-center p-6 bg-background text-foreground">
                 <div className="w-full max-w-sm rounded-[var(--radius-card)] border border-border bg-surface px-8 py-12 text-center shadow-sm flex flex-col justify-center">
-                    <h1 className="text-lg font-semibold tracking-tight text-danger">Invalid Request</h1>
+                    <h1 className="text-lg font-semibold tracking-tight text-danger">
+                        Invalid Request
+                    </h1>
                     <p className="mt-2 text-sm leading-relaxed text-muted-foreground mb-4">
                         No email session was provided for resetting the password.
                     </p>
@@ -54,7 +56,6 @@ export default function ResetPasswordPage() {
     return (
         <div className="flex min-h-screen items-center justify-center p-6 bg-background text-foreground">
             <div className="w-full max-w-sm rounded-[var(--radius-card)] border border-border bg-surface px-8 py-12 shadow-sm flex flex-col items-center text-center">
-
                 {isSuccess ? (
                     <div className="flex flex-col items-center w-full">
                         <div className="rounded-full bg-green-500/10 p-4 text-green-600 mb-4 border border-green-500/20">
@@ -66,7 +67,11 @@ export default function ResetPasswordPage() {
                                 stroke="currentColor"
                                 strokeWidth={2}
                             >
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    d="M5 13l4 4L19 7"
+                                />
                             </svg>
                         </div>
 
@@ -93,20 +98,22 @@ export default function ResetPasswordPage() {
                 ) : (
                     <div className="w-full text-left">
                         {/*
-                          * THE NEW PASSWORD IS NOT CHOSEN HERE ANY MORE, AND THAT IS A FIX.
-                          *
-                          * This form used to collect an address and a new password and post
-                          * both to an unauthenticated action that ran, in effect,
-                          *
-                          *     update users set password = <hash> where email = <posted>
-                          *
-                          * with no token and no proof of ownership. Anyone who knew an
-                          * address could take the account — and admin@skillpath.dev is in
-                          * the seed. Supabase Auth sends a signed, expiring link instead,
-                          * and the password is chosen on the page that link opens, so
-                          * possession of the mailbox is what authorises the change.
-                          */}
-                        <h1 className="text-lg font-semibold tracking-tight text-center">Reset your password</h1>
+                         * THE NEW PASSWORD IS NOT CHOSEN HERE ANY MORE, AND THAT IS A FIX.
+                         *
+                         * This form used to collect an address and a new password and post
+                         * both to an unauthenticated action that ran, in effect,
+                         *
+                         *     update users set password = <hash> where email = <posted>
+                         *
+                         * with no token and no proof of ownership. Anyone who knew an
+                         * address could take the account — and admin@skillpath.dev is in
+                         * the seed. Supabase Auth sends a signed, expiring link instead,
+                         * and the password is chosen on the page that link opens, so
+                         * possession of the mailbox is what authorises the change.
+                         */}
+                        <h1 className="text-lg font-semibold tracking-tight text-center">
+                            Reset your password
+                        </h1>
                         <p className="mt-2 text-sm leading-relaxed text-muted-foreground text-center">
                             We&rsquo;ll email a reset link to{' '}
                             <span className="font-medium text-foreground">{email}</span>. The link

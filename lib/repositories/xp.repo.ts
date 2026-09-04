@@ -189,11 +189,7 @@ export async function leaderboard(
     size: number,
 ): Promise<Result<{ entries: LeaderboardEntry[]; myRank: MyRank | null }, AppError>> {
     const [top, mine, total] = await Promise.all([
-        supabase
-            .from('leaderboard')
-            .select('*')
-            .order('rank', { ascending: true })
-            .limit(size),
+        supabase.from('leaderboard').select('*').order('rank', { ascending: true }).limit(size),
         supabase.from('leaderboard').select('*').eq('user_id', currentUserId).maybeSingle(),
         supabase.from('leaderboard').select('*', { count: 'exact', head: true }),
     ]);

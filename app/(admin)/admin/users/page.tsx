@@ -69,9 +69,12 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: S
         <div className="mx-auto max-w-4xl space-y-5 px-4 py-8 sm:px-6 lg:py-10">
             <header className="flex flex-wrap items-end justify-between gap-4">
                 <div>
-                    <h1 className="text-xl font-semibold tracking-tight text-foreground">Members</h1>
+                    <h1 className="text-xl font-semibold tracking-tight text-foreground">
+                        Members
+                    </h1>
                     <p className="mt-1 text-sm text-muted-foreground">
-                        {total === 1 ? '1 account matches' : `${total} accounts match`} these filters.
+                        {total === 1 ? '1 account matches' : `${total} accounts match`} these
+                        filters.
                     </p>
                 </div>
 
@@ -80,7 +83,10 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: S
                 </Link>
             </header>
 
-            <Section title="Filters" description="Filter state lives in the URL, so it survives a refresh.">
+            <Section
+                title="Filters"
+                description="Filter state lives in the URL, so it survives a refresh."
+            >
                 <UserFilters
                     search={filters.search}
                     role={filters.role ?? ''}
@@ -88,7 +94,10 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: S
                 />
             </Section>
 
-            <Section title="Accounts" description="Deactivating a member signs them out of every page.">
+            <Section
+                title="Accounts"
+                description="Deactivating a member signs them out of every page."
+            >
                 {items.length === 0 ? (
                     <EmptyState
                         title="No members match"
@@ -105,11 +114,21 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: S
                         <table className="w-full min-w-[38rem] text-sm">
                             <thead>
                                 <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-subtle-foreground">
-                                    <th scope="col" className="pb-2 pr-4 font-medium">Name</th>
-                                    <th scope="col" className="pb-2 pr-4 font-medium">Email</th>
-                                    <th scope="col" className="pb-2 pr-4 font-medium">Role</th>
-                                    <th scope="col" className="pb-2 pr-4 font-medium">Status</th>
-                                    <th scope="col" className="pb-2 text-center font-medium">Action</th>
+                                    <th scope="col" className="pb-2 pr-4 font-medium">
+                                        Name
+                                    </th>
+                                    <th scope="col" className="pb-2 pr-4 font-medium">
+                                        Email
+                                    </th>
+                                    <th scope="col" className="pb-2 pr-4 font-medium">
+                                        Role
+                                    </th>
+                                    <th scope="col" className="pb-2 pr-4 font-medium">
+                                        Status
+                                    </th>
+                                    <th scope="col" className="pb-2 text-center font-medium">
+                                        Action
+                                    </th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -121,12 +140,18 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: S
                                         <td className="py-3 pr-4 font-medium text-foreground">
                                             {fullName(user.firstName, user.lastName)}
                                         </td>
-                                        <td className="py-3 pr-4 text-muted-foreground">{user.email}</td>
+                                        <td className="py-3 pr-4 text-muted-foreground">
+                                            {user.email}
+                                        </td>
                                         <td className="py-3 pr-4 capitalize text-muted-foreground">
                                             {user.role}
                                         </td>
                                         <td className="py-3 pr-4">
-                                            <Chip tone={user.status === 'active' ? 'success' : 'danger'}>
+                                            <Chip
+                                                tone={
+                                                    user.status === 'active' ? 'success' : 'danger'
+                                                }
+                                            >
                                                 {user.status}
                                             </Chip>
                                         </td>
@@ -134,9 +159,18 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: S
                                             <StatusToggle
                                                 action={setUserStatusAction}
                                                 fields={{ userId: user.userId }}
-                                                target={user.status === 'active' ? 'inactive' : 'active'}
-                                                label={user.status === 'active' ? 'Deactivate' : 'Activate'}
-                                                describedAs={fullName(user.firstName, user.lastName)}
+                                                target={
+                                                    user.status === 'active' ? 'inactive' : 'active'
+                                                }
+                                                label={
+                                                    user.status === 'active'
+                                                        ? 'Deactivate'
+                                                        : 'Activate'
+                                                }
+                                                describedAs={fullName(
+                                                    user.firstName,
+                                                    user.lastName,
+                                                )}
                                             />
                                         </td>
                                     </tr>

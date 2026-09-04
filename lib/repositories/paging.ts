@@ -15,7 +15,12 @@ export function pageRange(page: number, pageSize: number): { from: number; to: n
     return { from, to: from + pageSize - 1 };
 }
 
-export function toPage<T>(items: T[], total: number | null, page: number, pageSize: number): Page<T> {
+export function toPage<T>(
+    items: T[],
+    total: number | null,
+    page: number,
+    pageSize: number,
+): Page<T> {
     const count = total ?? items.length;
 
     return {

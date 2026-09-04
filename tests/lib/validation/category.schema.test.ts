@@ -10,8 +10,9 @@ import { categorySchema } from '../../../lib/validation/category.schema';
 
 describe('categorySchema', () => {
     it('accepts a well-formed category', () => {
-        expect(categorySchema.safeParse({ name: 'Databases', description: 'Valid' }).success)
-            .toBe(true);
+        expect(categorySchema.safeParse({ name: 'Databases', description: 'Valid' }).success).toBe(
+            true,
+        );
     });
 
     it('rejects a name shorter than two characters', () => {

@@ -11,17 +11,17 @@ npm run test:e2e          # build + start + run
 npm run test:e2e:dev      # dev server instead, ~40s faster per iteration
 ```
 
-## Why these exist when there are 365 unit tests
+## Why these exist when there are 481 unit tests
 
 Five things in the product are load-bearing and cannot be reached from
 `npm test`. These two files are the only thing that touches them.
 
-| Risk | Why nothing else catches it |
-|---|---|
-| `grade_assessment()` returns the wrong score | It is `SECURITY DEFINER` SQL holding the answer key. `grading.service.test.ts` asserts the RPC is *called*, never that it is *right* — the fake returns whatever it is told to. |
-| The session cookie is not really verified | `middleware.ts` checks only that a cookie is present. A build where the HMAC is never compared passes every page load; only a forged cookie shows it. |
-| The plan silently stops being written | `grading.service` catches a failed plan write and logs it on purpose, so the run stays graded. The caller sees HTTP 200 and a correct score. Only rendered rows can tell. |
-| An admin writes a question no student can be served | `insertWithAnswers` never sets `status`; `listActiveIds` filters on it. Every unit test fakes one side of that pair, so only a real write followed by a real draw can see the two disagree. |
+| Risk                                                 | Why nothing else catches it                                                                                                                                                                                      |
+| ---------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `grade_assessment()` returns the wrong score         | It is `SECURITY DEFINER` SQL holding the answer key. `grading.service.test.ts` asserts the RPC is _called_, never that it is _right_ — the fake returns whatever it is told to.                                  |
+| The session cookie is not really verified            | `middleware.ts` checks only that a cookie is present. A build where the HMAC is never compared passes every page load; only a forged cookie shows it.                                                            |
+| The plan silently stops being written                | `grading.service` catches a failed plan write and logs it on purpose, so the run stays graded. The caller sees HTTP 200 and a correct score. Only rendered rows can tell.                                        |
+| An admin writes a question no student can be served  | `insertWithAnswers` never sets `status`; `listActiveIds` filters on it. Every unit test fakes one side of that pair, so only a real write followed by a real draw can see the two disagree.                      |
 | The answer key leaves in a spelling nobody greps for | The repository boundary renames `is_correct` to `isCorrect`, and the results page derives a third name again (`correctAnswerId`). Unit tests pin each layer alone; neither runs both roles against one database. |
 
 ## Setup, once
@@ -29,22 +29,40 @@ Five things in the product are load-bearing and cannot be reached from
 1. **A second Supabase project.** Not the one `.env.local` names —
    `e2e/helpers/env.ts` compares the two and refuses to run if they match.
 2. **The schema in it.** Same tables, views, triggers and functions;
-   `grade_assessment()` in particular, or the journey grades nothing. With no
-   migrations in the repository (ARCHITECTURE §0) the two databases drift, so
-   **run `e2e/schema-patch.sql` in the test project's SQL editor** — it carries
-   the two differences a column-by-column diff of the two projects found, and
-   explains each. `global-setup.ts` re-checks the important one before every run.
+   `grade_assessment()` in particular, or the journey grades nothing. Apply
+   `supabase/migrations/` in filename order — with the CLI (`supabase db push`)
+   or by pasting each file into the test project's SQL editor. `global-setup.ts`
+   re-checks the one that matters most before every run.
+
+   > This step used to say **run `e2e/schema-patch.sql`**, a hand-written patch
+   > carrying the two differences a column-by-column diff of the two projects
+   > had found. That file is not in the repository — it was written when the
+   > schema was not either, and there is no reason to reconstruct it now that
+   > the migrations are the schema. Apply them and the two projects agree by
+   > construction rather than by diff.
+
 3. **`.env.e2e`** at the repository root — `NEXT_PUBLIC_SUPABASE_URL`,
-   `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SESSION_SECRET`. Gitignored. The block at
-   the bottom of `.env.example` is the template.
+   `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`,
+   `SESSION_SECRET`. Gitignored. The block at the bottom of `.env.example` is
+   the template. The service-role key is not optional: RLS is on in the test
+   project, and `e2e/helpers/db.ts` reads rows scoped to `auth.uid()` while
+   holding no session, so the anon key matches no policy and every check comes
+   back empty. `e2eEnv()` refuses to start without it, and separately refuses if
+   it is the same key as the demo project's.
 4. **Seed it:** `npm run seed:e2e`. The baseline paper is twenty questions and
    `startBaseline()` refuses a shorter one, so an unseeded project cannot open
    a run at all. `global-setup.ts` checks this before the browser starts and
    says so. The seed is also where `admin@skillpath.test` comes from, and the
-   admin journey has no way around it: `loginAction` refuses to register an
-   administrator through the form (`?error=manager_approval_required`), which
-   is the point — a signup form does not hand out accounts that can read the
-   answer key.
+   admin journey uses it rather than registering its own administrator.
+
+   > That used to be a hard constraint — `registerAction` rejected the
+   > administrator role outright. It no longer does.
+   > `20260904090000_signup_role_from_metadata.sql` wired the form's role
+   > through on purpose, so `/register` with the approval box ticked now creates
+   > an admin; `?error=manager_approval_required` fires only when the box is
+   > _not_ ticked, and the box is ticked by the person asking for the role. The
+   > seeded account stays the journey's route in because a fixed identity is
+   > better for a test, not because the form refuses.
 
 ## How it runs
 
@@ -55,7 +73,7 @@ Five things in the product are load-bearing and cannot be reached from
   environment beats every file Next loads, which ends the question of
   precedence rather than answering it.
 - **One worker.** One database, and the baseline is one attempt per member.
-- **A fresh identity per run** — unique email *and* unique name, because
+- **A fresh identity per run** — unique email _and_ unique name, because
   `loginAction` rejects a duplicate of either.
 - **Rows are kept — by the baseline journey.** It leaves its member and
   everything it wrote in place, so you can read a graded baseline in the table
@@ -63,7 +81,7 @@ Five things in the product are load-bearing and cannot be reached from
   removes them instead, which is what CI passes so a shared project does not
   gain a member per push.
 - **The admin journey is the other way round: it removes what it made, unless
-  it FAILED.** A kept member is a row nobody sees. A kept *category* is active,
+  it FAILED.** A kept member is a row nobody sees. A kept _category_ is active,
   has a full bank, and shows up on every student's `/assessments` page — one
   more per run. So a green run cleans up and a red one does not, because
   deleting the rows a failure happened on deletes the evidence. `E2E_CLEAN=1`
@@ -73,14 +91,14 @@ Five things in the product are load-bearing and cannot be reached from
 
 ## What one journey writes
 
-| Table | |
-|---|---|
-| `users` | 1 — the member |
-| `assessments` | 1 — category 0, `submitted`, `total_score 60.00` |
-| `student_responses` | 20, each with an `is_correct` snapshot: 12 true, 8 false |
-| `recommendation_plans` | 8 — `not_started`, priorities 1–3 |
-| `category_progress` | 1 — written by a **trigger** |
-| `xp_events` | the submission award — also a **trigger** |
+| Table                  |                                                          |
+| ---------------------- | -------------------------------------------------------- |
+| `users`                | 1 — the member                                           |
+| `assessments`          | 1 — category 0, `submitted`, `total_score 60.00`         |
+| `student_responses`    | 20, each with an `is_correct` snapshot: 12 true, 8 false |
+| `recommendation_plans` | 8 — `not_started`, priorities 1–3                        |
+| `category_progress`    | 1 — written by a **trigger**                             |
+| `xp_events`            | the submission award — also a **trigger**                |
 
 The spec asserts the first four. The last two are worth an eye the first time:
 they are the only trigger-written rows in the journey, and a hand-built database
@@ -98,7 +116,7 @@ Two rules the admin journey had to learn the hard way, both worth reusing:
 - **Pair every negative with a positive on the same bytes.** "The payload does
   not contain the answer key" is equally true of an error page, a login
   redirect and an empty string. It means something only next to an assertion
-  that the payload *does* contain the question and its options.
+  that the payload _does_ contain the question and its options.
 - **Do not draw at random.** A category run picks `CATEGORY_PAPER_SIZE`
   questions out of the bank, so a question added to a seeded category of ten is
   on the paper ten times out of eleven. The admin journey builds its own
