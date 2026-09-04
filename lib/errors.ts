@@ -24,7 +24,11 @@ export interface AppError {
     fields?: Record<string, string>;
 }
 
-export function appError(code: AppErrorCode, message: string, fields?: Record<string, string>): AppError {
+export function appError(
+    code: AppErrorCode,
+    message: string,
+    fields?: Record<string, string>,
+): AppError {
     return { code, message, fields };
 }
 
@@ -35,7 +39,10 @@ export function appError(code: AppErrorCode, message: string, fields?: Record<st
  * 42501 or as an empty result — both mean "not yours", never "does not exist",
  * because saying which one leaks whether the row is real.
  */
-export function fromPostgrestError(error: { code?: string; message: string }, context: string): AppError {
+export function fromPostgrestError(
+    error: { code?: string; message: string },
+    context: string,
+): AppError {
     console.error(`[db] ${context}:`, error.code, error.message);
 
     switch (error.code) {

@@ -16,7 +16,10 @@
  */
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { saveAnswerAction, submitAssessmentAction } from '../../../../../app/(student)/assessments/[id]/actions';
+import {
+    saveAnswerAction,
+    submitAssessmentAction,
+} from '../../../../../app/(student)/assessments/[id]/actions';
 import { assertAuth } from '../../../../../lib/auth/assertAuth';
 import { saveAnswer } from '../../../../../lib/services/assessment.service';
 import { submit } from '../../../../../lib/services/grading.service';
@@ -72,7 +75,9 @@ describe('saveAnswerAction', () => {
     });
 
     it('passes the service message through so the runner can show it', async () => {
-        vi.mocked(saveAnswer).mockResolvedValue(err(appError('not_found', 'That run is not yours.')));
+        vi.mocked(saveAnswer).mockResolvedValue(
+            err(appError('not_found', 'That run is not yours.')),
+        );
 
         expect(await saveAnswerAction(10, 20, 30)).toEqual({
             ok: false,

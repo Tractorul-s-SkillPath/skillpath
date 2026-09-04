@@ -60,15 +60,24 @@ describe('the admin guard', () => {
 
 describe('listCategories', () => {
     it('returns the catalog with question counts attached', async () => {
-        const catalog = [aCatalogCategory(), aCatalogCategory({ categoryId: 4, status: 'inactive' })];
-        vi.mocked(categoryRepo.listWithQuestionCounts).mockResolvedValue({ ok: true, value: catalog });
+        const catalog = [
+            aCatalogCategory(),
+            aCatalogCategory({ categoryId: 4, status: 'inactive' }),
+        ];
+        vi.mocked(categoryRepo.listWithQuestionCounts).mockResolvedValue({
+            ok: true,
+            value: catalog,
+        });
 
         await expect(listCategories()).resolves.toEqual({ ok: true, value: catalog });
     });
 
     it('includes inactive categories — this is the admin view, not the picker', async () => {
         const catalog = [aCatalogCategory({ status: 'inactive' })];
-        vi.mocked(categoryRepo.listWithQuestionCounts).mockResolvedValue({ ok: true, value: catalog });
+        vi.mocked(categoryRepo.listWithQuestionCounts).mockResolvedValue({
+            ok: true,
+            value: catalog,
+        });
 
         const result = await listCategories();
 
@@ -134,11 +143,14 @@ describe('createCategory', () => {
 });
 
 describe('setCategoryStatus', () => {
-    it.each(['active', 'inactive'] as const)('sends %s straight to the repository', async (status) => {
-        vi.mocked(categoryRepo.setStatus).mockResolvedValue({ ok: true, value: undefined });
+    it.each(['active', 'inactive'] as const)(
+        'sends %s straight to the repository',
+        async (status) => {
+            vi.mocked(categoryRepo.setStatus).mockResolvedValue({ ok: true, value: undefined });
 
-        await setCategoryStatus(3, status);
+            await setCategoryStatus(3, status);
 
-        expect(categoryRepo.setStatus).toHaveBeenCalledWith(FAKE_CLIENT, 3, status);
-    });
+            expect(categoryRepo.setStatus).toHaveBeenCalledWith(FAKE_CLIENT, 3, status);
+        },
+    );
 });

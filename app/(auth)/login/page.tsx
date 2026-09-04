@@ -41,7 +41,8 @@ const ERRORS: Record<string, string> = {
     invalid: 'Invalid email or password. Please try again.',
     unavailable: 'We could not reach the account service. Try again in a moment.',
     disabled: 'This account has been deactivated. Ask an administrator to re-enable it.',
-    not_found: 'Account does not exist or incorrect details provided. Please check or create an account.'
+    not_found:
+        'Account does not exist or incorrect details provided. Please check or create an account.',
 };
 
 interface LoginPageProps {
@@ -123,7 +124,10 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
 
             <p className="mt-5 text-center text-[0.8125rem] text-muted-foreground">
                 No account yet?{' '}
-                <Link href="/register" className="font-medium text-[color:var(--accent)] hover:underline">
+                <Link
+                    href="/register"
+                    className="font-medium text-[color:var(--accent)] hover:underline"
+                >
                     Create one
                 </Link>
             </p>

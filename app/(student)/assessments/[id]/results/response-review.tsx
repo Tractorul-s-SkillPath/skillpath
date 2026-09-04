@@ -25,7 +25,11 @@ export function ResponseReview({ review }: { review: ReviewItem[] }) {
                             Question {item.position}
                         </p>
                         <Chip tone={item.isCorrect ? 'success' : 'muted'}>
-                            {item.isCorrect ? 'Correct' : item.selectedAnswerId === null ? 'Unanswered' : 'Incorrect'}
+                            {item.isCorrect
+                                ? 'Correct'
+                                : item.selectedAnswerId === null
+                                  ? 'Unanswered'
+                                  : 'Incorrect'}
                         </Chip>
                     </div>
 

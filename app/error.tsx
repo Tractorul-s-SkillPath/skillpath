@@ -43,7 +43,18 @@ export default function GlobalError({
                 <Button variant="primary" onClick={reset}>
                     Try again
                 </Button>
-                <a href="/" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground">
+                {/*
+                 * A plain <a>, not <Link>, and deliberately so: this renders
+                 * only when the React tree below has already thrown. A client
+                 * navigation would try to recover inside that same broken
+                 * tree; a full document load is the thing that actually gets
+                 * the user out. The rule cannot see that distinction.
+                 */}
+                {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
+                <a
+                    href="/"
+                    className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground"
+                >
                     Go home
                 </a>
             </div>

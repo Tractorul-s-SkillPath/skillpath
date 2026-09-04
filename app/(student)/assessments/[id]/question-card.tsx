@@ -21,7 +21,12 @@ interface QuestionCardProps {
     disabled: boolean;
 }
 
-export function QuestionCard({ question, selectedAnswerId, onSelect, disabled }: QuestionCardProps) {
+export function QuestionCard({
+    question,
+    selectedAnswerId,
+    onSelect,
+    disabled,
+}: QuestionCardProps) {
     const groupName = `question-${question.questionId}`;
 
     return (

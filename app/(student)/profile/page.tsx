@@ -21,7 +21,7 @@ import { InterestsSection } from './interests-section';
 import { AssessmentHistory } from './assessment-history';
 import { BadgesSection, LeaderboardSection, QuestsSection } from './game-sections';
 import { Section } from '../../../components/ui/card';
-import Link from "next/link";
+import Link from 'next/link';
 
 export const metadata = { title: 'Your profile · SkillPath' };
 
@@ -61,12 +61,7 @@ export default async function ProfilePage() {
 
     return (
         <div className="mx-auto max-w-4xl space-y-5 px-4 py-8 sm:px-6 lg:py-10">
-            <ProfileHeader
-                profile={profile}
-                xp={xp}
-                streak={streak}
-                overallLevel={overallLevel}
-            />
+            <ProfileHeader profile={profile} xp={xp} streak={streak} overallLevel={overallLevel} />
 
             <InterestsSection interests={interests} catalog={catalog} />
 

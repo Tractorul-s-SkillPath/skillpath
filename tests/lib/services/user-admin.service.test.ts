@@ -105,7 +105,9 @@ describe('setUserStatus', () => {
     });
 
     it('compares against the session identity, not a hardcoded admin id', async () => {
-        vi.mocked(assertAdmin).mockResolvedValue(anAdmin({ userId: '00000000-0000-4000-8000-000000004242' }));
+        vi.mocked(assertAdmin).mockResolvedValue(
+            anAdmin({ userId: '00000000-0000-4000-8000-000000004242' }),
+        );
 
         const self = await setUserStatus('00000000-0000-4000-8000-000000004242', 'inactive');
         const other = await setUserStatus(ADMIN_ID, 'inactive');

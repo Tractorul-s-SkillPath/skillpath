@@ -16,12 +16,12 @@ npm run test:e2e:dev      # dev server instead, ~40s faster per iteration
 Five things in the product are load-bearing and cannot be reached from
 `npm test`. These two files are the only thing that touches them.
 
-| Risk | Why nothing else catches it |
-|---|---|
-| `grade_assessment()` returns the wrong score | It is `SECURITY DEFINER` SQL holding the answer key. `grading.service.test.ts` asserts the RPC is *called*, never that it is *right* — the fake returns whatever it is told to. |
-| The session cookie is not really verified | `middleware.ts` checks only that a cookie is present. A build where the HMAC is never compared passes every page load; only a forged cookie shows it. |
-| The plan silently stops being written | `grading.service` catches a failed plan write and logs it on purpose, so the run stays graded. The caller sees HTTP 200 and a correct score. Only rendered rows can tell. |
-| An admin writes a question no student can be served | `insertWithAnswers` never sets `status`; `listActiveIds` filters on it. Every unit test fakes one side of that pair, so only a real write followed by a real draw can see the two disagree. |
+| Risk                                                 | Why nothing else catches it                                                                                                                                                                                      |
+| ---------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `grade_assessment()` returns the wrong score         | It is `SECURITY DEFINER` SQL holding the answer key. `grading.service.test.ts` asserts the RPC is _called_, never that it is _right_ — the fake returns whatever it is told to.                                  |
+| The session cookie is not really verified            | `middleware.ts` checks only that a cookie is present. A build where the HMAC is never compared passes every page load; only a forged cookie shows it.                                                            |
+| The plan silently stops being written                | `grading.service` catches a failed plan write and logs it on purpose, so the run stays graded. The caller sees HTTP 200 and a correct score. Only rendered rows can tell.                                        |
+| An admin writes a question no student can be served  | `insertWithAnswers` never sets `status`; `listActiveIds` filters on it. Every unit test fakes one side of that pair, so only a real write followed by a real draw can see the two disagree.                      |
 | The answer key leaves in a spelling nobody greps for | The repository boundary renames `is_correct` to `isCorrect`, and the results page derives a third name again (`correctAnswerId`). Unit tests pin each layer alone; neither runs both roles against one database. |
 
 ## Setup, once
@@ -55,7 +55,7 @@ Five things in the product are load-bearing and cannot be reached from
   environment beats every file Next loads, which ends the question of
   precedence rather than answering it.
 - **One worker.** One database, and the baseline is one attempt per member.
-- **A fresh identity per run** — unique email *and* unique name, because
+- **A fresh identity per run** — unique email _and_ unique name, because
   `loginAction` rejects a duplicate of either.
 - **Rows are kept — by the baseline journey.** It leaves its member and
   everything it wrote in place, so you can read a graded baseline in the table
@@ -63,7 +63,7 @@ Five things in the product are load-bearing and cannot be reached from
   removes them instead, which is what CI passes so a shared project does not
   gain a member per push.
 - **The admin journey is the other way round: it removes what it made, unless
-  it FAILED.** A kept member is a row nobody sees. A kept *category* is active,
+  it FAILED.** A kept member is a row nobody sees. A kept _category_ is active,
   has a full bank, and shows up on every student's `/assessments` page — one
   more per run. So a green run cleans up and a red one does not, because
   deleting the rows a failure happened on deletes the evidence. `E2E_CLEAN=1`
@@ -73,14 +73,14 @@ Five things in the product are load-bearing and cannot be reached from
 
 ## What one journey writes
 
-| Table | |
-|---|---|
-| `users` | 1 — the member |
-| `assessments` | 1 — category 0, `submitted`, `total_score 60.00` |
-| `student_responses` | 20, each with an `is_correct` snapshot: 12 true, 8 false |
-| `recommendation_plans` | 8 — `not_started`, priorities 1–3 |
-| `category_progress` | 1 — written by a **trigger** |
-| `xp_events` | the submission award — also a **trigger** |
+| Table                  |                                                          |
+| ---------------------- | -------------------------------------------------------- |
+| `users`                | 1 — the member                                           |
+| `assessments`          | 1 — category 0, `submitted`, `total_score 60.00`         |
+| `student_responses`    | 20, each with an `is_correct` snapshot: 12 true, 8 false |
+| `recommendation_plans` | 8 — `not_started`, priorities 1–3                        |
+| `category_progress`    | 1 — written by a **trigger**                             |
+| `xp_events`            | the submission award — also a **trigger**                |
 
 The spec asserts the first four. The last two are worth an eye the first time:
 they are the only trigger-written rows in the journey, and a hand-built database
@@ -98,7 +98,7 @@ Two rules the admin journey had to learn the hard way, both worth reusing:
 - **Pair every negative with a positive on the same bytes.** "The payload does
   not contain the answer key" is equally true of an error page, a login
   redirect and an empty string. It means something only next to an assertion
-  that the payload *does* contain the question and its options.
+  that the payload _does_ contain the question and its options.
 - **Do not draw at random.** A category run picks `CATEGORY_PAPER_SIZE`
   questions out of the bank, so a question added to a seeded category of ten is
   on the paper ten times out of eleven. The admin journey builds its own

@@ -35,7 +35,12 @@
  * Test: tests/lib/domain/derived.test.ts
  */
 
-import { APP_TIMEZONE, WEAK_AREA_THRESHOLD, XP_PER_ASSESSMENT, XP_PER_SCORE_POINT } from './constants';
+import {
+    APP_TIMEZONE,
+    WEAK_AREA_THRESHOLD,
+    XP_PER_ASSESSMENT,
+    XP_PER_SCORE_POINT,
+} from './constants';
 import type { AssessmentSummary, Badge, PlanItem, Quest, SkillLevel } from './types';
 
 export interface DerivationInput {
@@ -163,9 +168,27 @@ const BADGE_RULES: readonly BadgeRule[] = [
  * from current_streak() in SQL, so the two streak badges are evaluated by the
  * service, which is the layer that has the number.
  */
-export const STREAK_BADGES: readonly { code: string; name: string; description: string; icon: string; days: number }[] = [
-    { code: 'streak_7', name: 'Consistent', description: 'Stay active seven days running.', icon: 'flame', days: 7 },
-    { code: 'streak_30', name: 'Relentless', description: 'Stay active thirty days running.', icon: 'zap', days: 30 },
+export const STREAK_BADGES: readonly {
+    code: string;
+    name: string;
+    description: string;
+    icon: string;
+    days: number;
+}[] = [
+    {
+        code: 'streak_7',
+        name: 'Consistent',
+        description: 'Stay active seven days running.',
+        icon: 'flame',
+        days: 7,
+    },
+    {
+        code: 'streak_30',
+        name: 'Relentless',
+        description: 'Stay active thirty days running.',
+        icon: 'zap',
+        days: 30,
+    },
 ];
 
 function submitted(assessments: AssessmentSummary[]): AssessmentSummary[] {
@@ -199,8 +222,18 @@ export function deriveBadges(input: DerivationInput, streak = 0): Badge[] {
     const awards = input.badgeAwards ?? {};
 
     const all = [
-        ...BADGE_RULES.map(({ code, name, description, icon }) => ({ code, name, description, icon })),
-        ...STREAK_BADGES.map(({ code, name, description, icon }) => ({ code, name, description, icon })),
+        ...BADGE_RULES.map(({ code, name, description, icon }) => ({
+            code,
+            name,
+            description,
+            icon,
+        })),
+        ...STREAK_BADGES.map(({ code, name, description, icon }) => ({
+            code,
+            name,
+            description,
+            icon,
+        })),
     ];
 
     return all.map((badge, index) => ({

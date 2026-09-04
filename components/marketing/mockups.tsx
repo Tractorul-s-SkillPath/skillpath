@@ -80,7 +80,13 @@ function MockChip({
 }
 
 /** A track + fill, styled like <Progress> but without the ARIA role. */
-function MockBar({ pct, tone = 'accent' }: { pct: number; tone?: 'accent' | 'warm' | 'success' | 'danger' }) {
+function MockBar({
+    pct,
+    tone = 'accent',
+}: {
+    pct: number;
+    tone?: 'accent' | 'warm' | 'success' | 'danger';
+}) {
     const TONES = {
         accent: 'bg-accent',
         warm: 'bg-streak',
@@ -191,7 +197,9 @@ export function ScoreMock({ className }: { className?: string }) {
                                     {category.name}
                                 </span>
                                 <div className="flex items-center gap-2">
-                                    <MockChip tone={category.tone === 'danger' ? 'danger' : 'muted'}>
+                                    <MockChip
+                                        tone={category.tone === 'danger' ? 'danger' : 'muted'}
+                                    >
                                         {category.level}
                                     </MockChip>
                                     <span className="w-9 text-right text-[0.8125rem] text-muted-foreground tabular">
@@ -221,7 +229,9 @@ export function PlanMock({ className }: { className?: string }) {
     return (
         <MockCard className={className}>
             <MockHeader>
-                <span className="text-[0.8125rem] font-semibold text-foreground">Learning plan</span>
+                <span className="text-[0.8125rem] font-semibold text-foreground">
+                    Learning plan
+                </span>
                 <MockChip tone="accent">SQL</MockChip>
             </MockHeader>
 
@@ -250,7 +260,9 @@ export function PlanMock({ className }: { className?: string }) {
                             {item.text}
                         </span>
 
-                        <span className="shrink-0 text-xs text-muted-foreground">{item.priority}</span>
+                        <span className="shrink-0 text-xs text-muted-foreground">
+                            {item.priority}
+                        </span>
                     </li>
                 ))}
             </ul>
@@ -273,7 +285,8 @@ export function XpMock({ className }: { className?: string }) {
                         </p>
                     </div>
                     <MockChip tone="warm">
-                        <Flame size={12} strokeWidth={2} />6-day streak
+                        <Flame size={12} strokeWidth={2} />
+                        6-day streak
                     </MockChip>
                 </div>
 

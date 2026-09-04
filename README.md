@@ -66,7 +66,7 @@ npm run dev
 
 Sign in at `/login` with the email address of any row in `users`. Any password
 — see the note below. To reach the admin side, register a new account, pick
-*Administrator* and tick the manager-approval box, or flip `role` to `'admin'`
+_Administrator_ and tick the manager-approval box, or flip `role` to `'admin'`
 on an existing row in the Supabase table editor.
 
 ---
@@ -142,13 +142,13 @@ current status.
 
 ## Scripts
 
-| Command | Does |
-|---|---|
-| `npm run dev` | Development server |
-| `npm run build` | Production build |
-| `npm run start` | Serve the production build |
-| `npx tsc --noEmit` | Typecheck. Passes; run it before you push |
-| `npm run lint` | `next lint` — with no ESLint config, enforces nothing |
+| Command                               | Does                                                                |
+| ------------------------------------- | ------------------------------------------------------------------- |
+| `npm run dev`                         | Development server                                                  |
+| `npm run build`                       | Production build                                                    |
+| `npm run start`                       | Serve the production build                                          |
+| `npx tsc --noEmit`                    | Typecheck. Passes; run it before you push                           |
+| `npm run lint`                        | `next lint` — with no ESLint config, enforces nothing               |
 | `npm run seed` · `npm run seed:users` | **Broken.** Both point at files in `scripts/`, which does not exist |
 
 There is no `test` script, because there is no test suite.

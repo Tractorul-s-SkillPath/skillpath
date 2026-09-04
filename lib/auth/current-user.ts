@@ -195,7 +195,9 @@ export async function logoutAction(): Promise<void> {
 export async function resetPasswordAction(
     formData: FormData,
 ): Promise<{ success?: boolean; error?: string }> {
-    const email = String(formData.get('email') ?? '').trim().toLowerCase();
+    const email = String(formData.get('email') ?? '')
+        .trim()
+        .toLowerCase();
 
     if (!email) {
         return { error: 'missing_email' };

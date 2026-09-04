@@ -44,7 +44,8 @@ export default async function AssessmentResultsPage({
         notFound();
     }
 
-    const { categoryId, categoryName, score, level, bands, review, recommendations } = results.value;
+    const { categoryId, categoryName, score, level, bands, review, recommendations } =
+        results.value;
 
     // The baseline keeps its own headline: it is the one run that defines a
     // starting point rather than updating one.

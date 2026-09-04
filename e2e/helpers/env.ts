@@ -129,10 +129,10 @@ export function e2eEnv(): E2eEnv {
     if (demo.SUPABASE_SERVICE_ROLE_KEY && demo.SUPABASE_SERVICE_ROLE_KEY === serviceRoleKey) {
         throw new Error(
             'REFUSING TO RUN: SUPABASE_SERVICE_ROLE_KEY in .env.e2e is the same key as the one\n' +
-                'in .env.local — the demo project\'s.\n\n' +
+                "in .env.local — the demo project's.\n\n" +
                 'A service-role key bypasses RLS entirely, so this would let the journey write\n' +
                 'into the demo database no matter what the url says.\n\n' +
-                'Use the TEST project\'s service_role key (its own dashboard -> Project Settings\n' +
+                "Use the TEST project's service_role key (its own dashboard -> Project Settings\n" +
                 '-> API Keys).',
         );
     }

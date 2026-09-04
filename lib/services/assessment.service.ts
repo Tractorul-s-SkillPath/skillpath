@@ -39,8 +39,7 @@ import type { AssessmentRun, SkillLevel } from '../domain/types';
 
 /** Where startBaseline wants the member sent. The action just follows it. */
 export type BaselineStart =
-    | { kind: 'run'; assessmentId: number }
-    | { kind: 'results'; assessmentId: number };
+    { kind: 'run'; assessmentId: number } | { kind: 'results'; assessmentId: number };
 
 /**
  * Find or create the member's baseline run (SP-112).
@@ -84,7 +83,10 @@ export async function startBaseline(userId: string): Promise<Result<BaselineStar
     // (SP-111 AC3). The dashboard card checks this too; this is the backstop.
     if (questions.value.length < BASELINE_QUESTION_COUNT) {
         return err(
-            appError('unavailable', 'The baseline assessment is not fully set up yet. Try again later.'),
+            appError(
+                'unavailable',
+                'The baseline assessment is not fully set up yet. Try again later.',
+            ),
         );
     }
 
@@ -126,7 +128,12 @@ export async function startCategory(
         return err(appError('not_found', 'That assessment is not available.'));
     }
 
-    const inProgress = await assessmentRepo.findByStatus(supabase, userId, categoryId, 'in_progress');
+    const inProgress = await assessmentRepo.findByStatus(
+        supabase,
+        userId,
+        categoryId,
+        'in_progress',
+    );
     if (!inProgress.ok) return err(inProgress.error);
     if (inProgress.value) return ok(inProgress.value.assessment_id);
 
@@ -135,7 +142,10 @@ export async function startCategory(
 
     if (bank.value.length < MIN_CATEGORY_QUESTIONS) {
         return err(
-            appError('unavailable', 'This category does not have enough questions yet. Try another.'),
+            appError(
+                'unavailable',
+                'This category does not have enough questions yet. Try another.',
+            ),
         );
     }
 
@@ -240,7 +250,8 @@ export async function getAssessmentsOverview(
             available,
             level: interest?.level ?? null,
             lastScore: interest?.lastScore ?? null,
-            recommended: available && interest !== undefined && retakeRecommended(interest.lastScore),
+            recommended:
+                available && interest !== undefined && retakeRecommended(interest.lastScore),
             inProgressAssessmentId: runByCategory.get(category.categoryId) ?? null,
         };
     });

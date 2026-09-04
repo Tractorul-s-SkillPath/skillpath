@@ -91,9 +91,7 @@ describe('listStartable', () => {
         expect(result.ok).toBe(true);
         if (!result.ok) return;
 
-        expect(result.value.map((c) => c.categoryId)).not.toContain(
-            GENERAL_KNOWLEDGE_CATEGORY_ID,
-        );
+        expect(result.value.map((c) => c.categoryId)).not.toContain(GENERAL_KNOWLEDGE_CATEGORY_ID);
     });
 
     it('excludes a deactivated category', async () => {

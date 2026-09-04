@@ -40,8 +40,9 @@ describe('loginSchema', () => {
         // A member whose password predates the 8-character rule must still be
         // able to log in and change it. Enforcing the policy here would lock
         // them out of the form that fixes it.
-        expect(loginSchema.safeParse({ email: 'student@test.com', password: 'short' }).success)
-            .toBe(true);
+        expect(
+            loginSchema.safeParse({ email: 'student@test.com', password: 'short' }).success,
+        ).toBe(true);
     });
 });
 
@@ -97,15 +98,18 @@ describe('registerSchema', () => {
     });
 
     it('enforces the 60-character name limit at the boundary, matching the SQL check', () => {
-        expect(registerSchema.safeParse({ ...validRegistration, name: 'A'.repeat(60) }).success)
-            .toBe(true);
-        expect(registerSchema.safeParse({ ...validRegistration, name: 'A'.repeat(61) }).success)
-            .toBe(false);
+        expect(
+            registerSchema.safeParse({ ...validRegistration, name: 'A'.repeat(60) }).success,
+        ).toBe(true);
+        expect(
+            registerSchema.safeParse({ ...validRegistration, name: 'A'.repeat(61) }).success,
+        ).toBe(false);
     });
 
     it('rejects a malformed email', () => {
-        expect(registerSchema.safeParse({ ...validRegistration, email: 'student@' }).success)
-            .toBe(false);
+        expect(registerSchema.safeParse({ ...validRegistration, email: 'student@' }).success).toBe(
+            false,
+        );
     });
 
     it('accepts an empty name today — SEE SP-119', () => {

@@ -5,7 +5,7 @@ Zod schemas, **shared by the client form and the Server Action**.
 One schema, two consumers: the client copy is UX (instant feedback), the server
 copy is the rule. If they can drift, they will — so they are the same import.
 
-Definition of Done: *every input validated with Zod in the Server Action.*
+Definition of Done: _every input validated with Zod in the Server Action._
 A Server Action is a public HTTP endpoint (§5).
 
 This folder is inside the coverage gate. Each schema gets valid / invalid /

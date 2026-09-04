@@ -158,9 +158,7 @@ describe('weakCategoryRanking', () => {
         expect(first.ok && second.ok).toBe(true);
         if (!first.ok || !second.ok) return;
 
-        expect(first.value.map((r) => r.categoryId)).toEqual(
-            second.value.map((r) => r.categoryId),
-        );
+        expect(first.value.map((r) => r.categoryId)).toEqual(second.value.map((r) => r.categoryId));
     });
 
     it('includes a category as soon as it has one graded run', async () => {

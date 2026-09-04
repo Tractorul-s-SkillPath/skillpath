@@ -37,7 +37,7 @@
  * satisfies the `SupabaseClient<Database>` annotation every repository
  * declares, the whole repository layer type-checks against nothing.
  */
-import 'server-only'
+import 'server-only';
 import { createServerClient } from '@supabase/ssr';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';

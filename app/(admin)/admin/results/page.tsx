@@ -74,7 +74,9 @@ export default async function AdminResultsPage({ searchParams }: { searchParams:
         <div className="mx-auto max-w-4xl space-y-5 px-4 py-8 sm:px-6 lg:py-10">
             <header className="flex flex-wrap items-end justify-between gap-4">
                 <div>
-                    <h1 className="text-xl font-semibold tracking-tight text-foreground">Results</h1>
+                    <h1 className="text-xl font-semibold tracking-tight text-foreground">
+                        Results
+                    </h1>
                     <p className="mt-1 text-sm text-muted-foreground">
                         {total === 1
                             ? '1 submitted assessment matches'
@@ -88,7 +90,10 @@ export default async function AdminResultsPage({ searchParams }: { searchParams:
                 </Link>
             </header>
 
-            <Section title="Filters" description="Filter state lives in the URL, so it survives a refresh.">
+            <Section
+                title="Filters"
+                description="Filter state lives in the URL, so it survives a refresh."
+            >
                 <ResultFilters
                     search={filters.search}
                     categoryId={filters.categoryId === null ? '' : String(filters.categoryId)}
@@ -97,7 +102,10 @@ export default async function AdminResultsPage({ searchParams }: { searchParams:
                 />
             </Section>
 
-            <Section title="Submitted assessments" description="In-progress and abandoned runs are not results.">
+            <Section
+                title="Submitted assessments"
+                description="In-progress and abandoned runs are not results."
+            >
                 {items.length === 0 ? (
                     <EmptyState
                         title="No results match"
@@ -112,11 +120,21 @@ export default async function AdminResultsPage({ searchParams }: { searchParams:
                         <table className="w-full min-w-[40rem] text-sm">
                             <thead>
                                 <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-subtle-foreground">
-                                    <th scope="col" className="pb-2 pr-4 font-medium">Member</th>
-                                    <th scope="col" className="pb-2 pr-4 font-medium">Category</th>
-                                    <th scope="col" className="pb-2 pr-4 font-medium">Score</th>
-                                    <th scope="col" className="pb-2 pr-4 font-medium">Level</th>
-                                    <th scope="col" className="pb-2 font-medium">Submitted</th>
+                                    <th scope="col" className="pb-2 pr-4 font-medium">
+                                        Member
+                                    </th>
+                                    <th scope="col" className="pb-2 pr-4 font-medium">
+                                        Category
+                                    </th>
+                                    <th scope="col" className="pb-2 pr-4 font-medium">
+                                        Score
+                                    </th>
+                                    <th scope="col" className="pb-2 pr-4 font-medium">
+                                        Level
+                                    </th>
+                                    <th scope="col" className="pb-2 font-medium">
+                                        Submitted
+                                    </th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -129,7 +147,9 @@ export default async function AdminResultsPage({ searchParams }: { searchParams:
                                             <p className="font-medium text-foreground">
                                                 {result.studentName}
                                             </p>
-                                            <p className="text-xs text-muted-foreground">{result.email}</p>
+                                            <p className="text-xs text-muted-foreground">
+                                                {result.email}
+                                            </p>
                                         </td>
                                         <td className="py-3 pr-4 text-muted-foreground">
                                             {result.categoryName}

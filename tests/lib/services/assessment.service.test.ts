@@ -167,7 +167,8 @@ describe('startBaseline', () => {
         // beginner through advanced. Drawing here would break both.
         await startBaseline(MEMBER_ID);
 
-        const questionIds = vi.mocked(assessmentRepo.createWithResponses).mock.calls[0][1].questionIds;
+        const questionIds = vi.mocked(assessmentRepo.createWithResponses).mock.calls[0][1]
+            .questionIds;
 
         expect(questionIds).toEqual([...questionIds].sort((a, b) => a - b));
     });
@@ -193,7 +194,9 @@ describe('startBaseline', () => {
             // Treating a failed read as "no attempt exists" is how a member
             // ends up with two baselines.
             attemptsBy((status) =>
-                status === failing ? { ok: false, error: aRepoFailure() } : { ok: true, value: null },
+                status === failing
+                    ? { ok: false, error: aRepoFailure() }
+                    : { ok: true, value: null },
             );
 
             await expect(startBaseline(MEMBER_ID)).resolves.toMatchObject({ ok: false });
@@ -204,7 +207,10 @@ describe('startBaseline', () => {
     it('propagates a failed question-bank read rather than refusing as unavailable', async () => {
         // 'unavailable' tells the member the baseline is not set up yet, which
         // is a different thing from the database being unreachable.
-        vi.mocked(questionRepo.listActiveIds).mockResolvedValue({ ok: false, error: aRepoFailure() });
+        vi.mocked(questionRepo.listActiveIds).mockResolvedValue({
+            ok: false,
+            error: aRepoFailure(),
+        });
 
         const result = await startBaseline(MEMBER_ID);
 
@@ -291,8 +297,9 @@ describe('startCategory', () => {
 
         await startCategory(MEMBER_ID, CATEGORY_ID);
 
-        expect(vi.mocked(assessmentRepo.createWithResponses).mock.calls[0][1].requestedLevel)
-            .toBe('advanced');
+        expect(vi.mocked(assessmentRepo.createWithResponses).mock.calls[0][1].requestedLevel).toBe(
+            'advanced',
+        );
     });
 
     it('falls back to beginner for a category the member does not follow', async () => {
@@ -303,21 +310,28 @@ describe('startCategory', () => {
 
         await startCategory(MEMBER_ID, CATEGORY_ID);
 
-        expect(vi.mocked(assessmentRepo.createWithResponses).mock.calls[0][1].requestedLevel)
-            .toBe('beginner');
+        expect(vi.mocked(assessmentRepo.createWithResponses).mock.calls[0][1].requestedLevel).toBe(
+            'beginner',
+        );
     });
 
     it('still starts the run when interests cannot be read', async () => {
         // The level is a label on the row, not a gate. Losing it must not cost
         // the member the assessment.
-        vi.mocked(profileRepo.listInterests).mockResolvedValue({ ok: false, error: aRepoFailure() });
+        vi.mocked(profileRepo.listInterests).mockResolvedValue({
+            ok: false,
+            error: aRepoFailure(),
+        });
 
         await expect(startCategory(MEMBER_ID, CATEGORY_ID)).resolves.toMatchObject({ ok: true });
     });
 
     it('propagates a failed category lookup rather than reporting it unavailable', async () => {
         // 'not_found' would tell the member this category does not exist.
-        vi.mocked(categoryRepo.findStartable).mockResolvedValue({ ok: false, error: aRepoFailure() });
+        vi.mocked(categoryRepo.findStartable).mockResolvedValue({
+            ok: false,
+            error: aRepoFailure(),
+        });
 
         const result = await startCategory(MEMBER_ID, CATEGORY_ID);
 
@@ -329,14 +343,20 @@ describe('startCategory', () => {
     });
 
     it('propagates a failed open-run lookup rather than starting a second run', async () => {
-        vi.mocked(assessmentRepo.findByStatus).mockResolvedValue({ ok: false, error: aRepoFailure() });
+        vi.mocked(assessmentRepo.findByStatus).mockResolvedValue({
+            ok: false,
+            error: aRepoFailure(),
+        });
 
         await expect(startCategory(MEMBER_ID, CATEGORY_ID)).resolves.toMatchObject({ ok: false });
         expect(assessmentRepo.createWithResponses).not.toHaveBeenCalled();
     });
 
     it('propagates a failed bank read rather than reporting too few questions', async () => {
-        vi.mocked(questionRepo.listActiveIds).mockResolvedValue({ ok: false, error: aRepoFailure() });
+        vi.mocked(questionRepo.listActiveIds).mockResolvedValue({
+            ok: false,
+            error: aRepoFailure(),
+        });
 
         const result = await startCategory(MEMBER_ID, CATEGORY_ID);
 
@@ -402,7 +422,10 @@ describe('getAssessmentsOverview', () => {
     });
 
     it('fails when the category list fails — without it there is no page', async () => {
-        vi.mocked(categoryRepo.listStartable).mockResolvedValue({ ok: false, error: aRepoFailure() });
+        vi.mocked(categoryRepo.listStartable).mockResolvedValue({
+            ok: false,
+            error: aRepoFailure(),
+        });
 
         await expect(getAssessmentsOverview(MEMBER_ID)).resolves.toMatchObject({ ok: false });
     });
@@ -477,7 +500,10 @@ describe('getAssessmentsOverview', () => {
             ok: true,
             value: [aCatalogCategory()],
         });
-        vi.mocked(profileRepo.listInterests).mockResolvedValue({ ok: false, error: aRepoFailure() });
+        vi.mocked(profileRepo.listInterests).mockResolvedValue({
+            ok: false,
+            error: aRepoFailure(),
+        });
 
         const result = await getAssessmentsOverview(MEMBER_ID);
 
@@ -690,7 +716,9 @@ describe('saveAnswer', () => {
         const elapsedSeconds = 10 * 60;
         vi.mocked(assessmentRepo.findOwn).mockResolvedValue({
             ok: true,
-            value: aRow({ time_limit_seconds: elapsedSeconds - Math.floor(TIMER_GRACE_SECONDS / 2) }),
+            value: aRow({
+                time_limit_seconds: elapsedSeconds - Math.floor(TIMER_GRACE_SECONDS / 2),
+            }),
         });
 
         await expect(saveAnswer(MEMBER_ID, RUN_ID, 10, 20)).resolves.toMatchObject({ ok: true });

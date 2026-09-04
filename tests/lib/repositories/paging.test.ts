@@ -31,7 +31,12 @@ describe('pageRange', () => {
     it('spans exactly pageSize rows, whatever the page', () => {
         // The off-by-one this guards against returns 21 rows for a 20-row page,
         // which shows up as a duplicated row at the top of the next page.
-        for (const [page, size] of [[1, 20], [3, 20], [7, 5], [2, 1]] as const) {
+        for (const [page, size] of [
+            [1, 20],
+            [3, 20],
+            [7, 5],
+            [2, 1],
+        ] as const) {
             const { from, to } = pageRange(page, size);
             expect(to - from + 1).toBe(size);
         }

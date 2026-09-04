@@ -137,7 +137,10 @@ async function bandTotals(page: Page): Promise<{ correct: number; total: number 
         const text = (await row.getByRole('definition').innerText()).trim();
         const match = text.match(/(\d+)\s+of\s+(\d+)/);
 
-        expect(match, `the "${label}" band does not read "N of M correct": "${text}"`).not.toBeNull();
+        expect(
+            match,
+            `the "${label}" band does not read "N of M correct": "${text}"`,
+        ).not.toBeNull();
 
         totals.correct += Number(match![1]);
         totals.total += Number(match![2]);
@@ -206,8 +209,9 @@ test('a new member registers, sits the baseline, and gets a plan', async ({ page
         // is a helper rather than an inline name match.
         const session = sessionCookies(await context.cookies());
 
-        expect(session.length, 'signing in did not set a Supabase session cookie')
-            .toBeGreaterThan(0);
+        expect(session.length, 'signing in did not set a Supabase session cookie').toBeGreaterThan(
+            0,
+        );
 
         for (const cookie of session) {
             // KEPT FROM THE OLD SCHEME ON PURPOSE. @supabase/ssr defaults this
@@ -244,8 +248,10 @@ test('a new member registers, sits the baseline, and gets a plan', async ({ page
             const questionText = await questionTextOf(card);
             const entry = answerKey.get(questionText);
 
-            expect(entry, `the paper asked a question that is not in the bank: "${questionText}"`)
-                .toBeDefined();
+            expect(
+                entry,
+                `the paper asked a question that is not in the bank: "${questionText}"`,
+            ).toBeDefined();
 
             const answerCorrectly = index < CORRECT_ANSWERS;
             const option = answerCorrectly ? entry!.correct : entry!.wrong[0];

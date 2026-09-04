@@ -120,11 +120,11 @@ export function testClient(): TestClient {
     // says.
     if (demo.SUPABASE_SERVICE_ROLE_KEY && demo.SUPABASE_SERVICE_ROLE_KEY === key) {
         throw new Error(
-            'REFUSING TO RUN: SUPABASE_SERVICE_ROLE_KEY in .env.e2e is the demo project\'s key,\n' +
+            "REFUSING TO RUN: SUPABASE_SERVICE_ROLE_KEY in .env.e2e is the demo project's key,\n" +
                 'the one in .env.local.\n\n' +
                 'These tests insert and delete rows in every table, and a service-role key goes\n' +
                 'straight through RLS to do it.\n\n' +
-                'Use the TEST project\'s service_role key.',
+                "Use the TEST project's service_role key.",
         );
     }
 
@@ -198,7 +198,9 @@ export async function memberClient(member: SandboxUser): Promise<TestClient> {
     });
 
     if (error) {
-        throw new Error(`Could not sign in as the fixture member ${member.email}: ${error.message}`);
+        throw new Error(
+            `Could not sign in as the fixture member ${member.email}: ${error.message}`,
+        );
     }
 
     return client;
@@ -357,7 +359,11 @@ export class Sandbox {
     }
 
     async createCategory(
-        overrides: { name?: string; description?: string | null; status?: 'active' | 'inactive' } = {},
+        overrides: {
+            name?: string;
+            description?: string | null;
+            status?: 'active' | 'inactive';
+        } = {},
     ): Promise<{ categoryId: number; name: string }> {
         // The name is capped at 60 characters by skill_categories_name_check, and
         // the tag is most of the budget — so the label goes first and is trimmed,
@@ -420,14 +426,35 @@ export class Sandbox {
         const { data: answers, error: answerError } = await this.db
             .from('answers')
             .insert([
-                { question_id: question.question_id, answer_text: 'Correct', is_correct: true, position: 1 },
-                { question_id: question.question_id, answer_text: 'Wrong A', is_correct: false, position: 2 },
-                { question_id: question.question_id, answer_text: 'Wrong B', is_correct: false, position: 3 },
-                { question_id: question.question_id, answer_text: 'Wrong C', is_correct: false, position: 4 },
+                {
+                    question_id: question.question_id,
+                    answer_text: 'Correct',
+                    is_correct: true,
+                    position: 1,
+                },
+                {
+                    question_id: question.question_id,
+                    answer_text: 'Wrong A',
+                    is_correct: false,
+                    position: 2,
+                },
+                {
+                    question_id: question.question_id,
+                    answer_text: 'Wrong B',
+                    is_correct: false,
+                    position: 3,
+                },
+                {
+                    question_id: question.question_id,
+                    answer_text: 'Wrong C',
+                    is_correct: false,
+                    position: 4,
+                },
             ])
             .select('answer_id, is_correct');
 
-        if (answerError) throw new Error(`Sandbox could not create answers: ${answerError.message}`);
+        if (answerError)
+            throw new Error(`Sandbox could not create answers: ${answerError.message}`);
 
         return {
             questionId: question.question_id,
@@ -568,7 +595,10 @@ export class Sandbox {
 
         const problems: string[] = [];
 
-        const run = async (what: string, op: PromiseLike<{ error: { message: string } | null }>) => {
+        const run = async (
+            what: string,
+            op: PromiseLike<{ error: { message: string } | null }>,
+        ) => {
             const { error } = await op;
             if (error) problems.push(`${what}: ${error.message}`);
         };
@@ -611,8 +641,14 @@ export class Sandbox {
         }
 
         if (this.questionIds.length > 0) {
-            await run('answers', this.db.from('answers').delete().in('question_id', this.questionIds));
-            await run('questions', this.db.from('questions').delete().in('question_id', this.questionIds));
+            await run(
+                'answers',
+                this.db.from('answers').delete().in('question_id', this.questionIds),
+            );
+            await run(
+                'questions',
+                this.db.from('questions').delete().in('question_id', this.questionIds),
+            );
         }
 
         // The AUTH user, not the profile row. `public.users.user_id` is

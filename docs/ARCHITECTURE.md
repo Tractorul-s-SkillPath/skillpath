@@ -17,48 +17,48 @@ this section and the rest of the document conflict, this section is right.**
 
 ### Built and accurate
 
-| Area | Where |
-|---|---|
-| The five-layer rule (§3) | Followed end to end by profile, dashboard and the whole admin console |
-| `Result<T, AppError>` across layers (§8) | `lib/result.ts`, `lib/errors.ts` |
-| Repositories as the only supabase-js importers (§3) | `lib/repositories/` |
-| Zod at every Server Action boundary (§5) | `lib/validation/` — every action except the two auth ones, which are the exception noted below |
-| URL-state filters and server-side paging (§8) | `lib/validation/filters.schema.ts`, `lib/repositories/paging.ts`, admin users / categories / results |
-| `assertAdmin()` inside the service, before the read (§5) | `question.service`, `category.service`, `user-admin.service`, `admin-stats.service` |
-| Grading never happens in the browser (§5) | `assessments.grade()` is an RPC to `grade_assessment()`. Nothing calls it yet — the assessment slice is unbuilt |
+| Area                                                     | Where                                                                                                           |
+| -------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| The five-layer rule (§3)                                 | Followed end to end by profile, dashboard and the whole admin console                                           |
+| `Result<T, AppError>` across layers (§8)                 | `lib/result.ts`, `lib/errors.ts`                                                                                |
+| Repositories as the only supabase-js importers (§3)      | `lib/repositories/`                                                                                             |
+| Zod at every Server Action boundary (§5)                 | `lib/validation/` — every action except the two auth ones, which are the exception noted below                  |
+| URL-state filters and server-side paging (§8)            | `lib/validation/filters.schema.ts`, `lib/repositories/paging.ts`, admin users / categories / results            |
+| `assertAdmin()` inside the service, before the read (§5) | `question.service`, `category.service`, `user-admin.service`, `admin-stats.service`                             |
+| Grading never happens in the browser (§5)                | `assessments.grade()` is an RPC to `grade_assessment()`. Nothing calls it yet — the assessment slice is unbuilt |
 
 ### Not true, and why
 
-| §  | The document says | Actually |
-|---|---|---|
-| 3, 4.4, 8 | `supabase/migrations/NNNN_name.sql` is the schema | **Not in the repository.** There is no `supabase/` directory on `main`, and no `.sql` file anywhere in the tree. The live schema was applied by hand in the Supabase SQL editor; `lib/supabase/database.types.ts` — 398 hand-written lines — is the only in-repo description of it, and it is the file to read when you want to know what a table looks like. The only branches that ever held migrations — `refactor/architecture-creating` and `feature/admin-dashboard-setup` — are both unmerged, and their `0001_init.sql` / `0002_rls.sql` are comment-only sketches containing zero SQL statements. So there is nothing to merge either. **This is the largest single gap in the project**: nobody can recreate the database from a clone. |
-| 2, 4, 5 | Supabase Auth (GoTrue) owns credentials; `profiles.user_id uuid` references `auth.users(id)` | **Not built.** There is a plain `users` table with a `password` column, integer primary keys, and a signed session cookie of our own (`lib/auth/session.ts`). Sign-in verifies **no password at all** — it takes an email and signs you in. This is a deliberate, recorded team decision, not an oversight; see the header of `lib/auth/current-user.ts`. Deviation **D1** was therefore never applied. |
-| 5 | Row Level Security is the real authorization boundary; every table has policies | **Not built.** RLS is off on every table and the anon key — which is public by design — can read and write all of them. Ownership is enforced only by the `.eq('user_id', …)` clause in each repository. The policy set in §5 is the design to apply when this is revisited; it would land as `0003_rls.sql`. |
-| 3 | Three Supabase clients: `server.ts`, `client.ts`, `admin.ts` | Only `server.ts` exists. There is no service-role client, because with RLS off there is nothing for it to bypass. |
-| 4.4 | Table names `profiles`, `skill_categories`, `questions`, `answers`, `assessments`, `student_responses`, `recommendation_plans` | All correct **except** `profiles`, which is `users`. |
-| 5 | `answers` is revoked from the API and read through an `answer_options` view | **Not built.** `answers.is_correct` is reachable over PostgREST with the anon key, so the answer key is currently obtainable. The application layer is careful — student-facing reads go through `question.service` and never select the column — but that care is defeated by a direct request. Blocked on the same RLS decision. |
-| 5 | Server Actions validate **every** input with Zod | True of nine of the eleven actions. The two exceptions are `app/(auth)/login/actions.ts` and `app/(auth)/register/actions.ts`, which both delegate to `loginAction` in `lib/auth/current-user.ts` — that function reads `FormData` by hand and validates by `String(...).trim()`. `lib/validation/auth.schema.ts` exists and is unused. |
-| 6 | Three AI features behind an `AiProvider` interface | **Not built.** `lib/ai/` is six comment-only files, 92 lines in total, no implementations. |
-| 7 | Vitest, RTL, Playwright, 75% coverage gate | **Not built.** There is no test runner installed and no test in the repository. `tests/` holds 78 files (69 `.test.ts`, 9 `.test.tsx`) describing intended cases in comments; none of them execute. `e2e/` does not exist. |
-| 8, 9 | CI runs typecheck → lint → coverage → build | **Not built.** `.github/workflows/ci.yml` is a commented-out sketch with no `on:` and no `jobs:`, so it runs nothing. There is no ESLint config either, so `npm run lint` (which is `next lint`) has nothing to enforce and the ban on `any` in §8 is a convention, not a check. `tsc --noEmit` does pass, run by hand. |
-| 8 | Types generated with `supabase gen types` | Hand-written in `lib/supabase/database.types.ts`. The project is not linked to the CLI. With the migrations missing too, this file is not a mirror of anything — it is the schema of record. |
-| 3 | `scripts/` holds a seed script | **Not in the repository.** `package.json` declares `npm run seed` → `scripts/seed.mjs` and `npm run seed:users` → `scripts/seed-users.mjs`; neither file exists, so both commands fail. Demo data is entered by hand through the admin console. |
+| §         | The document says                                                                                                              | Actually                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| --------- | ------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 3, 4.4, 8 | `supabase/migrations/NNNN_name.sql` is the schema                                                                              | **Not in the repository.** There is no `supabase/` directory on `main`, and no `.sql` file anywhere in the tree. The live schema was applied by hand in the Supabase SQL editor; `lib/supabase/database.types.ts` — 398 hand-written lines — is the only in-repo description of it, and it is the file to read when you want to know what a table looks like. The only branches that ever held migrations — `refactor/architecture-creating` and `feature/admin-dashboard-setup` — are both unmerged, and their `0001_init.sql` / `0002_rls.sql` are comment-only sketches containing zero SQL statements. So there is nothing to merge either. **This is the largest single gap in the project**: nobody can recreate the database from a clone. |
+| 2, 4, 5   | Supabase Auth (GoTrue) owns credentials; `profiles.user_id uuid` references `auth.users(id)`                                   | **Not built.** There is a plain `users` table with a `password` column, integer primary keys, and a signed session cookie of our own (`lib/auth/session.ts`). Sign-in verifies **no password at all** — it takes an email and signs you in. This is a deliberate, recorded team decision, not an oversight; see the header of `lib/auth/current-user.ts`. Deviation **D1** was therefore never applied.                                                                                                                                                                                                                                                                                                                                           |
+| 5         | Row Level Security is the real authorization boundary; every table has policies                                                | **Not built.** RLS is off on every table and the anon key — which is public by design — can read and write all of them. Ownership is enforced only by the `.eq('user_id', …)` clause in each repository. The policy set in §5 is the design to apply when this is revisited; it would land as `0003_rls.sql`.                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| 3         | Three Supabase clients: `server.ts`, `client.ts`, `admin.ts`                                                                   | Only `server.ts` exists. There is no service-role client, because with RLS off there is nothing for it to bypass.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| 4.4       | Table names `profiles`, `skill_categories`, `questions`, `answers`, `assessments`, `student_responses`, `recommendation_plans` | All correct **except** `profiles`, which is `users`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| 5         | `answers` is revoked from the API and read through an `answer_options` view                                                    | **Not built.** `answers.is_correct` is reachable over PostgREST with the anon key, so the answer key is currently obtainable. The application layer is careful — student-facing reads go through `question.service` and never select the column — but that care is defeated by a direct request. Blocked on the same RLS decision.                                                                                                                                                                                                                                                                                                                                                                                                                |
+| 5         | Server Actions validate **every** input with Zod                                                                               | True of nine of the eleven actions. The two exceptions are `app/(auth)/login/actions.ts` and `app/(auth)/register/actions.ts`, which both delegate to `loginAction` in `lib/auth/current-user.ts` — that function reads `FormData` by hand and validates by `String(...).trim()`. `lib/validation/auth.schema.ts` exists and is unused.                                                                                                                                                                                                                                                                                                                                                                                                           |
+| 6         | Three AI features behind an `AiProvider` interface                                                                             | **Not built.** `lib/ai/` is six comment-only files, 92 lines in total, no implementations.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| 7         | Vitest, RTL, Playwright, 75% coverage gate                                                                                     | **Not built.** There is no test runner installed and no test in the repository. `tests/` holds 78 files (69 `.test.ts`, 9 `.test.tsx`) describing intended cases in comments; none of them execute. `e2e/` does not exist.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| 8, 9      | CI runs typecheck → lint → coverage → build                                                                                    | **Not built.** `.github/workflows/ci.yml` is a commented-out sketch with no `on:` and no `jobs:`, so it runs nothing. There is no ESLint config either, so `npm run lint` (which is `next lint`) has nothing to enforce and the ban on `any` in §8 is a convention, not a check. `tsc --noEmit` does pass, run by hand.                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| 8         | Types generated with `supabase gen types`                                                                                      | Hand-written in `lib/supabase/database.types.ts`. The project is not linked to the CLI. With the migrations missing too, this file is not a mirror of anything — it is the schema of record.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| 3         | `scripts/` holds a seed script                                                                                                 | **Not in the repository.** `package.json` declares `npm run seed` → `scripts/seed.mjs` and `npm run seed:users` → `scripts/seed-users.mjs`; neither file exists, so both commands fail. Demo data is entered by hand through the admin console.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 
 ### What is built
 
 The five-layer rule has four finished slices behind it now, not one — auth,
 profile, dashboard and the admin console.
 
-| Route | State |
-|---|---|
-| `/` landing, `/login`, `/register`, `/success`, `/logout` | Built |
-| `/profile` | Built — identity, interests with per-category level, assessment history, plan items with a status control, XP, badges, quests, leaderboard |
-| `/dashboard` | Built — per-category level and latest score, plan completion, XP and streak, first-run empty states. No score-trend chart (SP-071) |
-| `/admin`, `/admin/users`, `/admin/categories`, `/admin/categories/[id]`, `/admin/results`, `/admin/account` | Built — overview tiles, the weak-categories chart, the question bank, and filtered, paged tables throughout |
-| `/plan` | Built — the plan on its own page: grouped by category, priority first, with the working status control. Moved off the profile page, which no longer renders it |
-| `/assessments` | Built — the questionnaires the database actually offers: the baseline in its three states, and every active category with its active-question bank counted live. Recommended runs (untaken baseline; followed categories unassessed or under 60) carry the primary button. Every start asks first (`start-dialog.tsx`) and every run opens in a **new tab**, so the timed paper never navigates this list away. `/assessments/new` is gone; the picker became this list |
-| `/assessments/baseline`, `/assessments/start/[categoryId]` | Built — the two front doors. Each renders nothing: find-or-create in the service, then redirect into the run. They are GETs that write, which the layer rule normally forbids — the reason is that only a link can open a new tab (a Server Action resolves in the tab that posted it, and `window.open` after an await is outside the gesture and gets blocked). Safe because both are idempotent by design: an open run resumes rather than duplicating. Linked with plain `<a target="_blank">`, never `next/link`, whose prefetch would start runs nobody asked for |
-| `/assessments/[id]`, `/assessments/[id]/results` | Built — the timed run, grading via `grade_assessment()`, results with band breakdown and review. Category runs draw a shuffled paper (≤10) from the category's bank, need 5+ active questions, and may be retaken; the baseline stays one-attempt, fixed 20 |
+| Route                                                                                                       | State                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| ----------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/` landing, `/login`, `/register`, `/success`, `/logout`                                                   | Built                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| `/profile`                                                                                                  | Built — identity, interests with per-category level, assessment history, plan items with a status control, XP, badges, quests, leaderboard                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| `/dashboard`                                                                                                | Built — per-category level and latest score, plan completion, XP and streak, first-run empty states. No score-trend chart (SP-071)                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| `/admin`, `/admin/users`, `/admin/categories`, `/admin/categories/[id]`, `/admin/results`, `/admin/account` | Built — overview tiles, the weak-categories chart, the question bank, and filtered, paged tables throughout                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| `/plan`                                                                                                     | Built — the plan on its own page: grouped by category, priority first, with the working status control. Moved off the profile page, which no longer renders it                                                                                                                                                                                                                                                                                                                                                                                                          |
+| `/assessments`                                                                                              | Built — the questionnaires the database actually offers: the baseline in its three states, and every active category with its active-question bank counted live. Recommended runs (untaken baseline; followed categories unassessed or under 60) carry the primary button. Every start asks first (`start-dialog.tsx`) and every run opens in a **new tab**, so the timed paper never navigates this list away. `/assessments/new` is gone; the picker became this list                                                                                                 |
+| `/assessments/baseline`, `/assessments/start/[categoryId]`                                                  | Built — the two front doors. Each renders nothing: find-or-create in the service, then redirect into the run. They are GETs that write, which the layer rule normally forbids — the reason is that only a link can open a new tab (a Server Action resolves in the tab that posted it, and `window.open` after an await is outside the gesture and gets blocked). Safe because both are idempotent by design: an open run resumes rather than duplicating. Linked with plain `<a target="_blank">`, never `next/link`, whose prefetch would start runs nobody asked for |
+| `/assessments/[id]`, `/assessments/[id]/results`                                                            | Built — the timed run, grading via `grade_assessment()`, results with band breakdown and review. Category runs draw a shuffled paper (≤10) from the category's bank, need 5+ active questions, and may be retaken; the baseline stays one-attempt, fixed 20                                                                                                                                                                                                                                                                                                             |
 
 So the shape of what is missing has narrowed again: a student can now take the
 baseline AND any category with 5+ active questions, and gets scored, levelled,
@@ -90,21 +90,21 @@ unique index is gone and the replacement rule lives in `questionSchema` alone.
 A **student** picks a skill category and a target level, takes a multiple-choice assessment, gets a
 score with weak areas identified, receives a prioritised learning plan, and tracks progress on it.
 An **admin** manages the category catalog and question bank, and sees aggregate data. Three AI
-features sit *on top of* the rule-based core — never in place of it.
+features sit _on top of_ the rule-based core — never in place of it.
 
 ---
 
 ## 2. Stack
 
-| Concern | Choice | Why |
-|---|---|---|
-| Framework | Next.js (App Router), TypeScript `strict` | Mandated; Server Components query Postgres without a hand-written API layer |
-| Data + Auth | Supabase (Postgres, GoTrue, RLS) | Mandated; RLS puts authorization *in the database*, where a forgotten `if` can't defeat it. **GoTrue and RLS are both unbuilt — see §0.** |
-| Client lib | `@supabase/ssr` | Cookie sessions that work in RSC, actions and middleware |
-| UI | Tailwind + shadcn/ui | No design bikeshedding, accessible primitives, editable components |
-| Validation | Zod | One schema shared by the client form and the server action |
-| Tests | Vitest + RTL, Playwright for 3 happy paths | Mandated; 75% gate on business logic. **Not installed — see §0 and §7.** |
-| CI/CD | GitHub Actions → Vercel | Push to `main` deploys; PRs get preview URLs. **The workflow is a sketch and runs nothing — see §0.** |
+| Concern     | Choice                                     | Why                                                                                                                                       |
+| ----------- | ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| Framework   | Next.js (App Router), TypeScript `strict`  | Mandated; Server Components query Postgres without a hand-written API layer                                                               |
+| Data + Auth | Supabase (Postgres, GoTrue, RLS)           | Mandated; RLS puts authorization _in the database_, where a forgotten `if` can't defeat it. **GoTrue and RLS are both unbuilt — see §0.** |
+| Client lib  | `@supabase/ssr`                            | Cookie sessions that work in RSC, actions and middleware                                                                                  |
+| UI          | Tailwind + shadcn/ui                       | No design bikeshedding, accessible primitives, editable components                                                                        |
+| Validation  | Zod                                        | One schema shared by the client form and the server action                                                                                |
+| Tests       | Vitest + RTL, Playwright for 3 happy paths | Mandated; 75% gate on business logic. **Not installed — see §0 and §7.**                                                                  |
+| CI/CD       | GitHub Actions → Vercel                    | Push to `main` deploys; PRs get preview URLs. **The workflow is a sketch and runs nothing — see §0.**                                     |
 
 **Non-goals for 6 weeks:** real-time, file uploads, i18n, email flows beyond Supabase's built-in
 confirmation, code blocks/images in questions.
@@ -179,11 +179,11 @@ skillpath/
 
 ### The three Supabase clients
 
-| File | Key | Use for |
-|---|---|---|
-| `lib/supabase/server.ts` | anon + user cookie | **Default.** Everything a user does as themselves |
-| `lib/supabase/client.ts` | anon + user session | Only interactive work that must not round-trip |
-| `lib/supabase/admin.ts` | **service role** | Grading, aggregates, question-bank writes. Guarded by `assertAdmin()` |
+| File                     | Key                 | Use for                                                               |
+| ------------------------ | ------------------- | --------------------------------------------------------------------- |
+| `lib/supabase/server.ts` | anon + user cookie  | **Default.** Everything a user does as themselves                     |
+| `lib/supabase/client.ts` | anon + user session | Only interactive work that must not round-trip                        |
+| `lib/supabase/admin.ts`  | **service role**    | Grading, aggregates, question-bank writes. Guarded by `assertAdmin()` |
 
 `admin.ts` starts with `import 'server-only'`. If the service-role key ever reaches a client bundle,
 the build must fail — that's what the import buys.
@@ -211,19 +211,19 @@ needing `data as unknown as Array<…>` to compile.
 `Diagrama.pdf` is the contract. Six deviations, each with a reason — and, now
 that the schema is built, where each one actually stands.
 
-"Applied" below means *applied to the live Supabase project and reflected in
-`lib/supabase/database.types.ts`*. It does not mean there is a migration you can
+"Applied" below means _applied to the live Supabase project and reflected in
+`lib/supabase/database.types.ts`_. It does not mean there is a migration you can
 run: there is not (§0). Everything in this section is verifiable only against
 the running database or against that types file.
 
-| # | Diagram says | Decision | Why | Status |
-|---|---|---|---|---|
-| D1 | `USER.password string` | Drop it. `profiles.user_id uuid PK → auth.users(id)` | Supabase Auth owns credentials. Our own password column means hashing, resets and lockout are ours to get wrong. | **Not applied.** `users.password` exists and is never read; sign-in verifies nothing. Deferred by decision — §0. |
-| D2 | `selected_answer_id` implicitly required | Nullable + add `position` | Lets us **pre-create one row per question at generation time**. Refresh mid-assessment re-reads the same rows in the same order. Requirement #5 ("the session must be saved") met with **no extra table**. | Applied |
-| D3 | `ASSESSMENT` has no state | Add `status`, `requested_level`, `submitted_at`, `session_id` | An assessment exists before it's scored. The brief requires selecting *a level*. `session_id` groups a multi-category run (§4.2). | Applied, plus `started_at` and `time_limit_seconds` — see §11 |
-| D4 | responses store only the choice | Add `is_correct boolean` snapshot | If an admin fixes an answer key next week, a past result must not silently change. Grade once, store the verdict. | Applied |
-| D5 | `ai_description` only | Split `rule_description` (always set) + `ai_description` (nullable) + `priority` | The plan must render correctly with AI disabled or failing. Rules decide; AI decorates. | Applied |
-| D6 | `float total_score` | `numeric(5,2)`, 0–100 | Floats compare and print badly. Percentages are exact decimals. | Applied |
+| #   | Diagram says                             | Decision                                                                         | Why                                                                                                                                                                                                        | Status                                                                                                           |
+| --- | ---------------------------------------- | -------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| D1  | `USER.password string`                   | Drop it. `profiles.user_id uuid PK → auth.users(id)`                             | Supabase Auth owns credentials. Our own password column means hashing, resets and lockout are ours to get wrong.                                                                                           | **Not applied.** `users.password` exists and is never read; sign-in verifies nothing. Deferred by decision — §0. |
+| D2  | `selected_answer_id` implicitly required | Nullable + add `position`                                                        | Lets us **pre-create one row per question at generation time**. Refresh mid-assessment re-reads the same rows in the same order. Requirement #5 ("the session must be saved") met with **no extra table**. | Applied                                                                                                          |
+| D3  | `ASSESSMENT` has no state                | Add `status`, `requested_level`, `submitted_at`, `session_id`                    | An assessment exists before it's scored. The brief requires selecting _a level_. `session_id` groups a multi-category run (§4.2).                                                                          | Applied, plus `started_at` and `time_limit_seconds` — see §11                                                    |
+| D4  | responses store only the choice          | Add `is_correct boolean` snapshot                                                | If an admin fixes an answer key next week, a past result must not silently change. Grade once, store the verdict.                                                                                          | Applied                                                                                                          |
+| D5  | `ai_description` only                    | Split `rule_description` (always set) + `ai_description` (nullable) + `priority` | The plan must render correctly with AI disabled or failing. Rules decide; AI decorates.                                                                                                                    | Applied                                                                                                          |
+| D6  | `float total_score`                      | `numeric(5,2)`, 0–100                                                            | Floats compare and print badly. Percentages are exact decimals.                                                                                                                                            | Applied                                                                                                          |
 
 Plus two small additions: `skill_categories.status` (turns destructive deletes into deactivation)
 and `questions.source` (`manual`/`ai`, so the dashboard can show which questions the AI drafted —
@@ -260,7 +260,7 @@ because there are no tests (§7).
 
 ### 4.2 Multi-category assessments
 
-The diagram binds one assessment to one category; the brief says students select *categories*.
+The diagram binds one assessment to one category; the brief says students select _categories_.
 Rather than fight the schema:
 
 > **MVP:** one assessment = one category. The picker allows multiple and creates **N assessment rows
@@ -299,14 +299,14 @@ level comes from, and there should be exactly one answer.
 >   so a column that was renamed in the SQL editor and not here compiles fine
 >   and fails at runtime.
 > - Every constraint, trigger and function named in §4.1 and below is
->   *believed* to exist. They were written once, in a SQL editor, and the only
+>   _believed_ to exist. They were written once, in a SQL editor, and the only
 >   way to confirm one today is to query the live project.
 >
 > Writing `0001_init.sql` out of the current database — `pg_dump --schema-only`
 > against the project, then trimmed — is the single highest-value chore left in
 > the backlog. It is SP-003, and it has been reported as done since Week 3.
 
-What this section can still record honestly is the *shape* and the reasoning.
+What this section can still record honestly is the _shape_ and the reasoning.
 
 **Tables.** `users`, `skill_categories`, `questions`, `answers`, `assessments`,
 `student_responses`, `category_progress`, `recommendation_plans`, `xp_events`.
@@ -336,7 +336,7 @@ quests from raw rows on every render and stored none of it. That was honest
 about its own limits — its header admitted a badge could only know the date it
 was earned when some other row happened to carry one, which was rarely — but the
 limits were real: no streak that counted anything except assessments, no history,
-no way to tell a member *why* they had the XP they had, and a leaderboard that
+no way to tell a member _why_ they had the XP they had, and a leaderboard that
 had to read every assessment and every plan row for every student to produce a
 number.
 
@@ -375,7 +375,7 @@ editor and look.
 Authorization lives in three places, deliberately.
 
 **(a) Middleware** refreshes the session and bounces anonymous users out of `(student)` and
-`(admin)`. A redirect convenience, *not* a security boundary — never the only check.
+`(admin)`. A redirect convenience, _not_ a security boundary — never the only check.
 
 **(b) Row Level Security** is the real boundary for user-owned data. Students see their own
 assessments, responses, progress and plans; admins see everything. Because a policy that reads
@@ -414,12 +414,12 @@ create view public.answer_options as
 grant select on public.answer_options to authenticated;
 ```
 
-The view is a *security-definer* view (Postgres default), so it runs as its owner and exposes only
+The view is a _security-definer_ view (Postgres default), so it runs as its owner and exposes only
 the three safe columns. The base table is unreachable over the API by anyone.
 
 **The trade-off, stated plainly:** admins lose PostgREST access to `answers` too. Question-bank reads
 and writes therefore run server-side through `question.repo.ts` with the service-role client, gated
-by `assertAdmin()`. We are consciously moving *that one slice* of authorization from the database
+by `assertAdmin()`. We are consciously moving _that one slice_ of authorization from the database
 into code, because the alternative — a column the API will hand out — is worse.
 
 Grading follows the same path: `assessment.service.ts` fetches the key with the admin client, calls
@@ -435,26 +435,26 @@ unless `is_admin()`.
 Table names below follow the Supabase Auth design, where `users` becomes
 `profiles`. Read `profiles` as `users` against today's schema.
 
-| Table | Student | Admin |
-|---|---|---|
-| `profiles` | select/update own (trigger guards `role`, `status`) | select/update all |
-| `skill_categories` | select where `status='active'` | full |
-| `questions` | select where `status='active'` | full (via service role) |
-| `answers` | **no direct access** → `answer_options` view | via service role |
-| `assessments` | select/insert/update own | select all |
-| `student_responses` | via `exists(assessment owned by auth.uid())` | select all |
-| `category_progress` | select own; writes service-role only | select all |
-| `recommendation_plans` | select own, update `progress_status` only | select all |
+| Table                  | Student                                             | Admin                   |
+| ---------------------- | --------------------------------------------------- | ----------------------- |
+| `profiles`             | select/update own (trigger guards `role`, `status`) | select/update all       |
+| `skill_categories`     | select where `status='active'`                      | full                    |
+| `questions`            | select where `status='active'`                      | full (via service role) |
+| `answers`              | **no direct access** → `answer_options` view        | via service role        |
+| `assessments`          | select/insert/update own                            | select all              |
+| `student_responses`    | via `exists(assessment owned by auth.uid())`        | select all              |
+| `category_progress`    | select own; writes service-role only                | select all              |
+| `recommendation_plans` | select own, update `progress_status` only           | select all              |
 
 Enable RLS on **every** table. A table without RLS in Supabase is world-readable.
 
 ### Other rules
 
 - Server Actions validate **every** input with Zod. A Server Action is a public HTTP endpoint.
-  *(Nine of eleven do. `login/actions.ts` and `register/actions.ts` both hand off to `loginAction`
+  _(Nine of eleven do. `login/actions.ts` and `register/actions.ts` both hand off to `loginAction`
   in `lib/auth/current-user.ts`, which parses `FormData` by hand — and that action is the one that
   writes a `users` row. `lib/validation/auth.schema.ts` is written and unused; wiring it in is a
-  small, well-defined job.)*
+  small, well-defined job.)_
 - Never trust `user_id` / `category_id` from a form; derive ownership from the session, never from
   the request body. `loginAction` honours a posted `role` **only** when creating the account, and
   every subsequent read takes the role from the `users` row.
@@ -472,9 +472,9 @@ One interface, two implementations, chosen by env var:
 ```ts
 // lib/ai/provider.ts
 export interface AiProvider {
-  enhancePlan(input: PlanContext): Promise<EnhancedPlan>       // Dev C
-  generateQuestions(input: GenSpec): Promise<DraftQuestion[]>  // Dev B
-  feedback(input: FeedbackContext): Promise<string>            // Dev A
+  enhancePlan(input: PlanContext): Promise<EnhancedPlan>; // Dev C
+  generateQuestions(input: GenSpec): Promise<DraftQuestion[]>; // Dev B
+  feedback(input: FeedbackContext): Promise<string>; // Dev A
 }
 ```
 
@@ -525,7 +525,7 @@ Four rules that turn "we called an LLM" into a 4–5 point feature:
 >
 > - The business numbers duplicated between SQL and TypeScript (XP amounts,
 >   level thresholds) have nothing checking that the copies agree, and since
->   the SQL half is not in the repository either (§0), nothing *could* check it
+>   the SQL half is not in the repository either (§0), nothing _could_ check it
 >   without a live connection. See the note at the top of `lib/domain/constants.ts`.
 > - `tests/db/` — eight files asserting RLS, triggers and constraints — is
 >   testing a schema that exists in exactly one place, a hosted project. Those
@@ -545,15 +545,15 @@ coverage: {
 }
 ```
 
-| Layer | How |
-|---|---|
-| `lib/domain` | Table-driven unit tests, no mocks. Target ~95% |
-| `lib/services` | Repositories injected as in-memory fakes (`InMemoryQuestionRepo`) — no database needed |
-| `lib/repositories` | Integration tests against a seeded Supabase test project; **excluded from the gate** |
-| Components | RTL only where there's real logic (assessment run, question editor). Not static markup |
-| E2E | Playwright ×3: register→login→logout · take assessment→results · admin creates question→student sees it |
+| Layer              | How                                                                                                     |
+| ------------------ | ------------------------------------------------------------------------------------------------------- |
+| `lib/domain`       | Table-driven unit tests, no mocks. Target ~95%                                                          |
+| `lib/services`     | Repositories injected as in-memory fakes (`InMemoryQuestionRepo`) — no database needed                  |
+| `lib/repositories` | Integration tests against a seeded Supabase test project; **excluded from the gate**                    |
+| Components         | RTL only where there's real logic (assessment run, question editor). Not static markup                  |
+| E2E                | Playwright ×3: register→login→logout · take assessment→results · admin creates question→student sees it |
 
-Repositories are injected into services *specifically* so service tests need no Supabase mock.
+Repositories are injected into services _specifically_ so service tests need no Supabase mock.
 Design for the test at the moment you write the service.
 
 ---
@@ -562,14 +562,14 @@ Design for the test at the moment you write the service.
 
 - **Migrations are append-only.** `supabase/migrations/NNNN_description.sql`. Never edit a merged
   migration — add a new one. Claim your number in team chat first; it's the one file where conflicts
-  genuinely hurt. *(There are no migrations — §0. The convention still stands for the day the first
-  one is written, and it is written by dumping the live schema, not from memory.)*
+  genuinely hurt. _(There are no migrations — §0. The convention still stands for the day the first
+  one is written, and it is written by dumping the live schema, not from memory.)_
 - **Types are hand-written, for now:** `lib/supabase/database.types.ts` is maintained by hand,
   because the project is not linked to the Supabase CLI and `supabase gen types` has nothing to
   point at. **A migration and that file change in the same commit** — otherwise the app compiles
-  against a schema that is not there and fails at runtime. *(With no migrations, the rule today is
+  against a schema that is not there and fails at runtime. _(With no migrations, the rule today is
   weaker and more dangerous: a change made in the SQL editor and this file, in the same sitting, by
-  the same person, with nothing to review.)* Wiring up generation is the real fix.
+  the same person, with nothing to review.)_ Wiring up generation is the real fix.
 - **snake_case in SQL, camelCase in TS.** Mapping happens in the repository and nowhere else.
 - **Errors:** services return `Result<T, AppError>`, not thrown exceptions across layers. Actions map
   to form state; unexpected throws hit `error.tsx`.
@@ -577,7 +577,7 @@ Design for the test at the moment you write the service.
 - **Branches:** `feat/<slice>-<short>` → PR into `main`, one approval, CI green. Nobody approves
   their own.
 - **CI in Week 3, not Week 6:** typecheck → lint → `vitest --coverage` (fails under threshold) →
-  `next build`. *(Not built — see §7. `tsc --noEmit` passes and is currently run by hand.)*
+  `next build`. _(Not built — see §7. `tsc --noEmit` passes and is currently run by hand.)_
 
 ---
 
@@ -587,22 +587,22 @@ Slice 0 is deliberately absurd in its narrowness: **one category, one question, 
 score, on screen.** It touches every layer and every piece of infrastructure. Until it's merged,
 nobody starts a real feature.
 
-| When | Slice | Owner | Where it stands |
-|---|---|---|---|
+| When        | Slice                                                                                                                                   | Owner             | Where it stands                                                                                                  |
+| ----------- | --------------------------------------------------------------------------------------------------------------------------------------- | ----------------- | ---------------------------------------------------------------------------------------------------------------- |
 | **W3 d1–2** | **0 — Tracer bullet:** repo, CI, migrations 0001+0002, 3 Supabase clients, seed 1 category / 1 question, hardcoded run → score → screen | all three, paired | **Not merged.** The repo and one client exist; CI, the migrations, the seed and the run→score→screen path do not |
-| W3 | 1 — Auth, roles, middleware, profile page | A | Built, minus password verification |
-| W3 | 2 — Categories + question bank CRUD, answer validation | B | Built |
-| W3 | 3 — Assessment generation (pre-created response rows, refresh-safe) | C | Not started |
-| W4 | 4 — Assessment run + submit | C | Not started |
-| W4 | 5 — Scoring, level estimation, results page | C | Not started |
-| W4 | 6 — Recommendation rules + plan page + status toggle | A | Partial — the status toggle works from the profile page; the rules and `/plan` do not exist |
-| W4 | 7 — Progress dashboard (`category_progress`) | A | Built, minus the score-trend chart |
-| W4 | 8 — Admin dashboard aggregates + search/filter everywhere | B | Built, minus question search (SP-084) |
-| W5 | 9 — AI Feedback Assistant | A | Not started |
-| W5 | 10 — AI Question Generator (draft → review → activate) | B | Not started |
-| W5 | 11 — AI Recommendation Enhancer | C | Not started |
-| W5 | Hardening: coverage to 75%, Playwright ×3, seed data, README | all | README only |
-| W6 | Freeze. Bugs, tests, docs, demo rehearsal | all | — |
+| W3          | 1 — Auth, roles, middleware, profile page                                                                                               | A                 | Built, minus password verification                                                                               |
+| W3          | 2 — Categories + question bank CRUD, answer validation                                                                                  | B                 | Built                                                                                                            |
+| W3          | 3 — Assessment generation (pre-created response rows, refresh-safe)                                                                     | C                 | Not started                                                                                                      |
+| W4          | 4 — Assessment run + submit                                                                                                             | C                 | Not started                                                                                                      |
+| W4          | 5 — Scoring, level estimation, results page                                                                                             | C                 | Not started                                                                                                      |
+| W4          | 6 — Recommendation rules + plan page + status toggle                                                                                    | A                 | Partial — the status toggle works from the profile page; the rules and `/plan` do not exist                      |
+| W4          | 7 — Progress dashboard (`category_progress`)                                                                                            | A                 | Built, minus the score-trend chart                                                                               |
+| W4          | 8 — Admin dashboard aggregates + search/filter everywhere                                                                               | B                 | Built, minus question search (SP-084)                                                                            |
+| W5          | 9 — AI Feedback Assistant                                                                                                               | A                 | Not started                                                                                                      |
+| W5          | 10 — AI Question Generator (draft → review → activate)                                                                                  | B                 | Not started                                                                                                      |
+| W5          | 11 — AI Recommendation Enhancer                                                                                                         | C                 | Not started                                                                                                      |
+| W5          | Hardening: coverage to 75%, Playwright ×3, seed data, README                                                                            | all               | README only                                                                                                      |
+| W6          | Freeze. Bugs, tests, docs, demo rehearsal                                                                                               | all               | —                                                                                                                |
 
 The split keeps each person mostly in their own folders — A in `(auth)`/`plan`, B in `(admin)`,
 C in `assessments` — so merge conflicts concentrate only in `lib/domain/types.ts` and migrations,
@@ -620,13 +620,13 @@ are still one connected piece of work and are still what the demo needs.
 
 ## 10. Known risks
 
-| Risk | Mitigation | Did it hold? |
-|---|---|---|
-| RLS silently blocks a query and it just looks like an empty list | Every repository checks and logs `error` explicitly; never `data ?? []` on a failed query | The repository half held. The policy test per table did not — there is no RLS and no test |
-| Three people editing the schema in Week 3 | Numbered migrations, claimed in chat; schema PRs reviewed by all three | **No.** There are no migrations, so no schema change was ever reviewed by anyone |
-| An AI feature slips and eats Week 5 | Mock provider is the default. A merged mocked feature beats an unmerged real one | Untested — no AI feature was started, mocked or otherwise |
-| Coverage panic in Week 6 | Gate is in CI from Slice 0. It cannot suddenly be 30% | **No.** It is 0%, and the gate that was supposed to make that impossible was never installed |
-| Assessment lost on refresh (explicit brief requirement) | Solved structurally by D2 + the partial unique index — not by localStorage | Design intact, unexercised — nothing creates an assessment yet |
+| Risk                                                             | Mitigation                                                                                | Did it hold?                                                                                 |
+| ---------------------------------------------------------------- | ----------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| RLS silently blocks a query and it just looks like an empty list | Every repository checks and logs `error` explicitly; never `data ?? []` on a failed query | The repository half held. The policy test per table did not — there is no RLS and no test    |
+| Three people editing the schema in Week 3                        | Numbered migrations, claimed in chat; schema PRs reviewed by all three                    | **No.** There are no migrations, so no schema change was ever reviewed by anyone             |
+| An AI feature slips and eats Week 5                              | Mock provider is the default. A merged mocked feature beats an unmerged real one          | Untested — no AI feature was started, mocked or otherwise                                    |
+| Coverage panic in Week 6                                         | Gate is in CI from Slice 0. It cannot suddenly be 30%                                     | **No.** It is 0%, and the gate that was supposed to make that impossible was never installed |
+| Assessment lost on refresh (explicit brief requirement)          | Solved structurally by D2 + the partial unique index — not by localStorage                | Design intact, unexercised — nothing creates an assessment yet                               |
 
 The pattern is worth naming rather than filing under bad luck: every
 mitigation that lived in code held, and every one that depended on a piece of

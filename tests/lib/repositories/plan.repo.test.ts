@@ -50,11 +50,17 @@ async function aMemberWithAPlan() {
     if (!created.ok) throw new Error(`could not open a run: ${created.error.message}`);
     await assessmentRepo.grade(db, created.value);
 
-    const written = await planRepo.insertMany(db, member.userId, category.categoryId, created.value, [
-        { topicTitle: 'Indexes and query plans', description: 'Revisit them.', priority: 1 },
-        { topicTitle: 'Normal forms', description: 'Third normal form.', priority: 2 },
-        { topicTitle: 'Transactions', description: 'Isolation levels.', priority: 3 },
-    ]);
+    const written = await planRepo.insertMany(
+        db,
+        member.userId,
+        category.categoryId,
+        created.value,
+        [
+            { topicTitle: 'Indexes and query plans', description: 'Revisit them.', priority: 1 },
+            { topicTitle: 'Normal forms', description: 'Third normal form.', priority: 2 },
+            { topicTitle: 'Transactions', description: 'Isolation levels.', priority: 3 },
+        ],
+    );
 
     if (!written.ok) throw new Error(`could not write a plan: ${written.error.message}`);
 

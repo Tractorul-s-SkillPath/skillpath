@@ -17,7 +17,9 @@ export function LandingFooter() {
         <footer className="bg-surface-muted">
             <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 px-5 py-8 sm:flex-row sm:items-center sm:justify-between sm:px-8">
                 <div>
-                    <p className="text-sm font-semibold tracking-tight text-foreground">SkillPath</p>
+                    <p className="text-sm font-semibold tracking-tight text-foreground">
+                        SkillPath
+                    </p>
                     <p className="mt-1 text-[0.8125rem] text-muted-foreground">
                         Assess a skill, find the gaps, work the plan.
                     </p>
@@ -48,7 +50,7 @@ export function LandingFooter() {
             <div className="border-t border-border">
                 <div className="mx-auto w-full max-w-6xl px-5 py-5 sm:px-8">
                     {/* Same reason as the hero's trust line: subtle-foreground at 12px
-                      * does not clear 4.5:1 against this band. */}
+                     * does not clear 4.5:1 against this band. */}
                     <p className="text-xs text-muted-foreground tabular">© {YEAR} SkillPath</p>
                 </div>
             </div>

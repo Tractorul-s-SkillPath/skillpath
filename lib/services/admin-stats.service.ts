@@ -33,7 +33,11 @@ import { assertAdmin } from '../auth/assertAdmin';
 // touches this client, and that is the whole of the authorization story.
 import { createServiceClient } from '../supabase/server';
 import * as statsRepo from '../repositories/stats.repo';
-import { PAGE_SIZE, WEAK_CATEGORY_LIMIT, type ResultFilterInput } from '../validation/filters.schema';
+import {
+    PAGE_SIZE,
+    WEAK_CATEGORY_LIMIT,
+    type ResultFilterInput,
+} from '../validation/filters.schema';
 import type { AppError } from '../errors';
 import type { Result } from '../result';
 import type { AdminOverview, AdminResult, CategoryRanking, Page } from '../domain/types';

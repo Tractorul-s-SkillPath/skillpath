@@ -181,16 +181,15 @@ export interface BankQuestion {
  * drawn into a paper, and the spec would report "the student was not served it"
  * — true, and the wrong diagnosis. Reading the status back lets it say which.
  */
-export async function questionsInCategory(
-    db: TestDb,
-    categoryId: number,
-): Promise<BankQuestion[]> {
+export async function questionsInCategory(db: TestDb, categoryId: number): Promise<BankQuestion[]> {
     const { data, error } = await db
         .from('questions')
         // One string literal, not a concatenation: supabase-js infers the row
         // type from the select AS A LITERAL TYPE, and `'a' + 'b'` widens to
         // `string`, which infers to GenericStringError and fails the build.
-        .select('question_id, text, status, difficulty, created_by, answers(answer_id, answer_text, is_correct, position)')
+        .select(
+            'question_id, text, status, difficulty, created_by, answers(answer_id, answer_text, is_correct, position)',
+        )
         .eq('category_id', categoryId)
         .order('question_id', { ascending: true });
 
@@ -333,10 +332,7 @@ export async function deleteCategory(db: TestDb, categoryId: number): Promise<vo
         const { error } = await db.from('answers').delete().in('question_id', ids);
         if (error) throw new Error(`Could not remove answers: ${error.message}`);
 
-        const { error: questionError } = await db
-            .from('questions')
-            .delete()
-            .in('question_id', ids);
+        const { error: questionError } = await db.from('questions').delete().in('question_id', ids);
         if (questionError) throw new Error(`Could not remove questions: ${questionError.message}`);
     }
 

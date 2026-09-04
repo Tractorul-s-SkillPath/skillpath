@@ -61,7 +61,9 @@ export function Field({ label, htmlFor, error, hint, children, className }: Fiel
         <div className={cn('space-y-1.5', className)}>
             <div className="flex items-baseline justify-between gap-3">
                 <Label htmlFor={htmlFor}>{label}</Label>
-                {hint ? <span className="text-xs text-subtle-foreground tabular">{hint}</span> : null}
+                {hint ? (
+                    <span className="text-xs text-subtle-foreground tabular">{hint}</span>
+                ) : null}
             </div>
             {control}
             {error ? (

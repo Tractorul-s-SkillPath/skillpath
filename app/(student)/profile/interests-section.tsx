@@ -144,8 +144,8 @@ export function InterestsSection({ interests, catalog }: InterestsSectionProps) 
 
                     {removing.length > 0 ? (
                         <p className="rounded-lg bg-danger-soft px-3 py-2 text-xs text-danger">
-                            Removing {removing.map((i) => i.name).join(', ')} also discards the level
-                            recorded for {removing.length === 1 ? 'it' : 'them'}.
+                            Removing {removing.map((i) => i.name).join(', ')} also discards the
+                            level recorded for {removing.length === 1 ? 'it' : 'them'}.
                         </p>
                     ) : null}
 

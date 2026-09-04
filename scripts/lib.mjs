@@ -49,7 +49,10 @@ export function loadEnv() {
         if (eq <= 0) continue;
 
         const key = trimmed.slice(0, eq).trim();
-        const value = trimmed.slice(eq + 1).trim().replace(/^["']|["']$/g, '');
+        const value = trimmed
+            .slice(eq + 1)
+            .trim()
+            .replace(/^["']|["']$/g, '');
 
         if (!(key in process.env)) process.env[key] = value;
     }
@@ -99,7 +102,8 @@ export function fail(what, fix) {
 
 /** Throws on a PostgREST error so no step silently seeds nothing. */
 export function must(step, { data, error }) {
-    if (error) fail(`${step} failed: ${error.message}`, 'Nothing was rolled back — re-run once fixed.');
+    if (error)
+        fail(`${step} failed: ${error.message}`, 'Nothing was rolled back — re-run once fixed.');
     return data;
 }
 

@@ -106,7 +106,8 @@ describe('answers', () => {
         // this test pins the CURRENT behaviour and is the thing that fails
         // loudly if somebody recreates the index — which would start rejecting
         // writes the admin form is allowed to make.
-        const { data: q } = await raw('questions').insert({
+        const { data: q } = await raw('questions')
+            .insert({
                 category_id: category.categoryId,
                 text: `two-correct ${sandbox.name}`,
                 difficulty: 'beginner',
@@ -143,7 +144,8 @@ describe('answers', () => {
 
 describe('assessments', () => {
     it('allows one in-progress run per (user, category) and refuses a second', async () => {
-        const open = await raw('assessments').insert({
+        const open = await raw('assessments')
+            .insert({
                 user_id: member.userId,
                 category_id: category.categoryId,
                 requested_level: 'beginner',
@@ -172,7 +174,8 @@ describe('assessments', () => {
     it('allows a second in-progress run in a DIFFERENT category', async () => {
         // The index is partial and per-category, not per-user. A member may sit
         // several papers at once as long as they are different papers.
-        const first = await raw('assessments').insert({
+        const first = await raw('assessments')
+            .insert({
                 user_id: member.userId,
                 category_id: category.categoryId,
                 requested_level: 'beginner',
@@ -181,7 +184,8 @@ describe('assessments', () => {
             .select('assessment_id')
             .single();
 
-        const second = await raw('assessments').insert({
+        const second = await raw('assessments')
+            .insert({
                 user_id: member.userId,
                 category_id: GENERAL_KNOWLEDGE_CATEGORY_ID,
                 requested_level: 'beginner',
@@ -246,7 +250,8 @@ describe('assessments', () => {
     });
 
     it.each([0, 50, 100])('accepts a total_score of %i', async (score) => {
-        const { data, error } = await raw('assessments').insert(submitted({ total_score: score }))
+        const { data, error } = await raw('assessments')
+            .insert(submitted({ total_score: score }))
             .select('assessment_id')
             .single();
 
@@ -260,7 +265,8 @@ describe('student_responses', () => {
     let assessmentId: number;
 
     beforeAll(async () => {
-        const { data } = await raw('assessments').insert({
+        const { data } = await raw('assessments')
+            .insert({
                 user_id: member.userId,
                 category_id: category.categoryId,
                 requested_level: 'beginner',
@@ -271,7 +277,11 @@ describe('student_responses', () => {
 
         assessmentId = data!.assessment_id;
 
-        await raw('student_responses').insert({ assessment_id: assessmentId, question_id: question.questionId, position: 1 });
+        await raw('student_responses').insert({
+            assessment_id: assessmentId,
+            question_id: question.questionId,
+            position: 1,
+        });
     });
 
     afterAll(async () => {
@@ -280,14 +290,19 @@ describe('student_responses', () => {
     });
 
     it('rejects the same question twice on one paper', async () => {
-        const { error } = await raw('student_responses').insert({ assessment_id: assessmentId, question_id: question.questionId, position: 2 });
+        const { error } = await raw('student_responses').insert({
+            assessment_id: assessmentId,
+            question_id: question.questionId,
+            position: 2,
+        });
 
         expect(error?.code).toBe('23505');
         expect(error?.message).toContain('student_responses_question_unique');
     });
 
     it('rejects two questions in the same position on one paper', async () => {
-        const { data: other } = await raw('questions').insert({
+        const { data: other } = await raw('questions')
+            .insert({
                 category_id: category.categoryId,
                 text: `position clash ${sandbox.name}`,
                 difficulty: 'beginner',
@@ -295,7 +310,11 @@ describe('student_responses', () => {
             .select('question_id')
             .single();
 
-        const { error } = await raw('student_responses').insert({ assessment_id: assessmentId, question_id: other!.question_id, position: 1 });
+        const { error } = await raw('student_responses').insert({
+            assessment_id: assessmentId,
+            question_id: other!.question_id,
+            position: 1,
+        });
 
         // Position is how a member counts ("question 3 of 20") and how
         // lib/domain/baseline.ts keys its topic map. Two rows in slot 1 make
@@ -307,7 +326,8 @@ describe('student_responses', () => {
     });
 
     it('rejects a selected answer with no answered_at', async () => {
-        const { data: other } = await raw('questions').insert({
+        const { data: other } = await raw('questions')
+            .insert({
                 category_id: category.categoryId,
                 text: `answered_at ${sandbox.name}`,
                 difficulty: 'beginner',
@@ -315,7 +335,8 @@ describe('student_responses', () => {
             .select('question_id')
             .single();
 
-        const { data: answer } = await raw('answers').insert({
+        const { data: answer } = await raw('answers')
+            .insert({
                 question_id: other!.question_id,
                 answer_text: 'Only option',
                 is_correct: true,
@@ -380,7 +401,8 @@ describe('skill_categories', () => {
     it.each([2, 60])('accepts a name of %i characters', async (length) => {
         const name = `${'y'.repeat(length - 1)}${length}`.slice(0, length);
 
-        const { data, error } = await raw('skill_categories').insert({ name })
+        const { data, error } = await raw('skill_categories')
+            .insert({ name })
             .select('category_id')
             .single();
 
@@ -519,7 +541,8 @@ describe('recommendation_plans', () => {
         // page groups on those three, so a 4 would render in no group at all —
         // but that is the generator's contract, not the database's. Recorded
         // because the constraint name suggests a range and it is not one.
-        const { data, error } = await raw('recommendation_plans').insert(item({ priority: 4 }))
+        const { data, error } = await raw('recommendation_plans')
+            .insert(item({ priority: 4 }))
             .select('recommendation_id')
             .single();
 
@@ -532,13 +555,16 @@ describe('recommendation_plans', () => {
     });
 
     it('rejects the same topic twice for one member and category', async () => {
-        const first = await raw('recommendation_plans').insert(item({ topic_title: `Once only ${sandbox.name}` }))
+        const first = await raw('recommendation_plans')
+            .insert(item({ topic_title: `Once only ${sandbox.name}` }))
             .select('recommendation_id')
             .single();
 
         expect(first.error).toBeNull();
 
-        const { error } = await raw('recommendation_plans').insert(item({ topic_title: `Once only ${sandbox.name}`, priority: 2 }));
+        const { error } = await raw('recommendation_plans').insert(
+            item({ topic_title: `Once only ${sandbox.name}`, priority: 2 }),
+        );
 
         // Regenerating a plan cannot stack duplicate advice on the same topic.
         expect(error?.code).toBe('23505');
@@ -579,7 +605,8 @@ describe('xp_events', () => {
     });
 
     it('rejects the same badge twice for one member', async () => {
-        const first = await raw('xp_events').insert({
+        const first = await raw('xp_events')
+            .insert({
                 user_id: member.userId,
                 amount: 25,
                 reason: 'badge_earned',
@@ -626,13 +653,70 @@ describe('enums', () => {
         // zero-row UPDATE passing while asserting nothing, does not arise: a
         // failure here is 22P02, not an empty result.
         ['user_role', () => raw('users').update({ role: 'wizard' }).eq('user_id', member.userId)],
-        ['user_status', () => raw('users').update({ status: 'wizard' }).eq('user_id', member.userId)],
-        ['skill_level', () => raw('questions').insert({ category_id: category.categoryId, text: `enum skill ${sandbox.name}`, difficulty: 'wizard' })],
-        ['content_status', () => raw('questions').insert({ category_id: category.categoryId, text: `enum content ${sandbox.name}`, difficulty: 'beginner', status: 'wizard' })],
-        ['question_source', () => raw('questions').insert({ category_id: category.categoryId, text: `enum source ${sandbox.name}`, difficulty: 'beginner', source: 'wizard' })],
-        ['assessment_status', () => raw('assessments').insert({ user_id: member.userId, category_id: category.categoryId, requested_level: 'beginner', status: 'wizard' })],
-        ['plan_status', () => raw('recommendation_plans').insert({ user_id: member.userId, category_id: category.categoryId, topic_title: `enum plan ${sandbox.name}`, priority: 1, progress_status: 'wizard' })],
-        ['xp_reason', () => raw('xp_events').insert({ user_id: member.userId, amount: 1, reason: 'wizard', code: 'first_assessment' })],
+        [
+            'user_status',
+            () => raw('users').update({ status: 'wizard' }).eq('user_id', member.userId),
+        ],
+        [
+            'skill_level',
+            () =>
+                raw('questions').insert({
+                    category_id: category.categoryId,
+                    text: `enum skill ${sandbox.name}`,
+                    difficulty: 'wizard',
+                }),
+        ],
+        [
+            'content_status',
+            () =>
+                raw('questions').insert({
+                    category_id: category.categoryId,
+                    text: `enum content ${sandbox.name}`,
+                    difficulty: 'beginner',
+                    status: 'wizard',
+                }),
+        ],
+        [
+            'question_source',
+            () =>
+                raw('questions').insert({
+                    category_id: category.categoryId,
+                    text: `enum source ${sandbox.name}`,
+                    difficulty: 'beginner',
+                    source: 'wizard',
+                }),
+        ],
+        [
+            'assessment_status',
+            () =>
+                raw('assessments').insert({
+                    user_id: member.userId,
+                    category_id: category.categoryId,
+                    requested_level: 'beginner',
+                    status: 'wizard',
+                }),
+        ],
+        [
+            'plan_status',
+            () =>
+                raw('recommendation_plans').insert({
+                    user_id: member.userId,
+                    category_id: category.categoryId,
+                    topic_title: `enum plan ${sandbox.name}`,
+                    priority: 1,
+                    progress_status: 'wizard',
+                }),
+        ],
+        [
+            'xp_reason',
+            () =>
+                raw('xp_events').insert({
+                    user_id: member.userId,
+                    amount: 1,
+                    reason: 'wizard',
+                    code: 'first_assessment',
+                }),
+        ],
     ];
 
     it.each(cases)('%s rejects a value outside the type', async (_name, run) => {
@@ -641,13 +725,14 @@ describe('enums', () => {
         expect(error?.code).toBe('22P02');
     });
 
-    it("plan_status uses underscores, not the old spaced spelling", async () => {
+    it('plan_status uses underscores, not the old spaced spelling', async () => {
         // The old hand-made schema used ('not started', 'in progress',
         // 'completed') WITH SPACES, and every layer carried a comment warning
         // about it. If a project were ever rebuilt from that version, this is
         // the test that says so rather than letting a status silently fail to
         // save.
-        const { data: plan } = await raw('recommendation_plans').insert({
+        const { data: plan } = await raw('recommendation_plans')
+            .insert({
                 user_id: member.userId,
                 category_id: category.categoryId,
                 topic_title: `Underscores ${sandbox.name}`,
@@ -658,12 +743,14 @@ describe('enums', () => {
 
         expect(plan!.progress_status).toBe('not_started');
 
-        const spaced = await raw('recommendation_plans').update({ progress_status: 'in progress' })
+        const spaced = await raw('recommendation_plans')
+            .update({ progress_status: 'in progress' })
             .eq('recommendation_id', plan!.recommendation_id);
 
         expect(spaced.error?.code).toBe('22P02');
 
-        const underscored = await raw('recommendation_plans').update({ progress_status: 'in_progress' })
+        const underscored = await raw('recommendation_plans')
+            .update({ progress_status: 'in_progress' })
             .eq('recommendation_id', plan!.recommendation_id);
 
         expect(underscored.error).toBeNull();

@@ -73,7 +73,10 @@ export function OverviewTiles({ overview, weakest }: OverviewTilesProps) {
                     <p className="text-xs font-medium uppercase tracking-wide text-subtle-foreground">
                         Weakest area
                     </p>
-                    <p className="mt-1.5 truncate text-lg font-semibold tracking-tight text-foreground" title={weakest.name}>
+                    <p
+                        className="mt-1.5 truncate text-lg font-semibold tracking-tight text-foreground"
+                        title={weakest.name}
+                    >
                         {weakest.name}
                     </p>
                     <Chip tone="danger" className="mt-1.5">

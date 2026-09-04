@@ -27,7 +27,12 @@ import * as profileRepo from '../repositories/profile.repo';
 import * as assessmentRepo from '../repositories/assessment.repo';
 import * as planRepo from '../repositories/plan.repo';
 import * as xpRepo from '../repositories/xp.repo';
-import { deriveBadges, deriveOverallLevel, deriveQuests, earnedBadgeCodes } from '../domain/derived';
+import {
+    deriveBadges,
+    deriveOverallLevel,
+    deriveQuests,
+    earnedBadgeCodes,
+} from '../domain/derived';
 import { APP_TIMEZONE, LEADERBOARD_SIZE } from '../domain/constants';
 import type { AppError } from '../errors';
 import { err, ok, unwrapOr, type Result } from '../result';
@@ -44,73 +49,71 @@ export function today(): string {
  * The student layout renders a header on every page and the profile page reads
  * the same rows again underneath it. Without this the two fetch independently.
  */
-const loadDashboard = cache(
-    async (userId: string): Promise<Result<ProfileDashboard, AppError>> => {
-        const supabase = await createClient();
+const loadDashboard = cache(async (userId: string): Promise<Result<ProfileDashboard, AppError>> => {
+    const supabase = await createClient();
 
-        const [profile, interests, catalog, assessments, plan, xp, streak] = await Promise.all([
-            profileRepo.findByUserId(supabase, userId),
-            profileRepo.listInterests(supabase, userId),
-            profileRepo.listActiveCategories(supabase),
-            assessmentRepo.listByUser(supabase, userId),
-            planRepo.listByUser(supabase, userId),
-            xpRepo.totalFor(supabase, userId),
-            xpRepo.streakFor(supabase, userId),
-        ]);
+    const [profile, interests, catalog, assessments, plan, xp, streak] = await Promise.all([
+        profileRepo.findByUserId(supabase, userId),
+        profileRepo.listInterests(supabase, userId),
+        profileRepo.listActiveCategories(supabase),
+        assessmentRepo.listByUser(supabase, userId),
+        planRepo.listByUser(supabase, userId),
+        xpRepo.totalFor(supabase, userId),
+        xpRepo.streakFor(supabase, userId),
+    ]);
 
-        // Only the member's own row is fatal. Every other section degrades to
-        // its empty state rather than taking the whole page down.
-        if (!profile.ok) return err(profile.error);
+    // Only the member's own row is fatal. Every other section degrades to
+    // its empty state rather than taking the whole page down.
+    if (!profile.ok) return err(profile.error);
 
-        const interestList = unwrapOr(interests, []);
-        const assessmentList = unwrapOr(assessments, []);
-        const planList = unwrapOr(plan, []);
-        const streakDays = unwrapOr(streak, 0);
+    const interestList = unwrapOr(interests, []);
+    const assessmentList = unwrapOr(assessments, []);
+    const planList = unwrapOr(plan, []);
+    const streakDays = unwrapOr(streak, 0);
 
-        const input = {
-            assessments: assessmentList,
-            plan: planList,
-            levels: interestList.map((interest) => interest.level),
-            today: today(),
-        };
+    const input = {
+        assessments: assessmentList,
+        plan: planList,
+        levels: interestList.map((interest) => interest.level),
+        today: today(),
+    };
 
-        // Record anything newly earned, then read every badge date back from the
-        // ledger. Both calls are cheap and the write is a no-op once a badge is
-        // already there.
-        await xpRepo.awardBadges(supabase, userId, earnedBadgeCodes(input, streakDays));
+    // Record anything newly earned, then read every badge date back from the
+    // ledger. Both calls are cheap and the write is a no-op once a badge is
+    // already there.
+    await xpRepo.awardBadges(supabase, userId, earnedBadgeCodes(input, streakDays));
 
-        const [badgeAwards, board] = await Promise.all([
-            xpRepo.badgeAwardsFor(supabase, userId),
-            xpRepo.leaderboard(supabase, userId, LEADERBOARD_SIZE),
-        ]);
+    const [badgeAwards, board] = await Promise.all([
+        xpRepo.badgeAwardsFor(supabase, userId),
+        xpRepo.leaderboard(supabase, userId, LEADERBOARD_SIZE),
+    ]);
 
-        const withAwards = { ...input, badgeAwards: unwrapOr(badgeAwards, {}) };
-        const leaderboard = unwrapOr(board, { entries: [], myRank: null });
+    const withAwards = { ...input, badgeAwards: unwrapOr(badgeAwards, {}) };
+    const leaderboard = unwrapOr(board, { entries: [], myRank: null });
 
-        return ok({
-            profile: profile.value,
-            interests: interestList,
-            catalog: unwrapOr(catalog, []),
-            assessments: assessmentList,
-            plan: planList,
+    return ok({
+        profile: profile.value,
+        interests: interestList,
+        catalog: unwrapOr(catalog, []),
+        assessments: assessmentList,
+        plan: planList,
 
-            // A badge award is itself XP, so the total is read after the write.
-            xp: unwrapOr(await xpRepo.totalFor(supabase, userId), unwrapOr(xp, 0)),
-            streak: streakDays,
-            lastActiveOn:
-                interestList
-                    .map((interest) => interest.assessedAt)
-                    .filter((date): date is string => date !== null)
-                    .sort()
-                    .at(-1) ?? null,
-            overallLevel: deriveOverallLevel(input.levels),
-            badges: deriveBadges(withAwards, streakDays),
-            quests: deriveQuests(input),
-            leaderboard: leaderboard.entries,
-            myRank: leaderboard.myRank,
-        });
-    },
-);
+        // A badge award is itself XP, so the total is read after the write.
+        xp: unwrapOr(await xpRepo.totalFor(supabase, userId), unwrapOr(xp, 0)),
+        streak: streakDays,
+        lastActiveOn:
+            interestList
+                .map((interest) => interest.assessedAt)
+                .filter((date): date is string => date !== null)
+                .sort()
+                .at(-1) ?? null,
+        overallLevel: deriveOverallLevel(input.levels),
+        badges: deriveBadges(withAwards, streakDays),
+        quests: deriveQuests(input),
+        leaderboard: leaderboard.entries,
+        myRank: leaderboard.myRank,
+    });
+});
 
 export function getProfileDashboard(userId: string): Promise<Result<ProfileDashboard, AppError>> {
     return loadDashboard(userId);
@@ -155,4 +158,3 @@ export async function setCategoryLevel(
     const supabase = await createClient();
     return profileRepo.setCategoryLevel(supabase, userId, categoryId, level);
 }
-

@@ -37,7 +37,9 @@ function safeNext(formData: FormData): string | null {
 }
 
 export async function loginAction(formData: FormData): Promise<void> {
-    const email = String(formData.get('email') ?? '').trim().toLowerCase();
+    const email = String(formData.get('email') ?? '')
+        .trim()
+        .toLowerCase();
     const password = String(formData.get('password') ?? '');
 
     if (!email || !password) {

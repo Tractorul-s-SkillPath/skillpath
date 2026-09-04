@@ -48,7 +48,11 @@ export function CategoryForm() {
                 />
             </Field>
 
-            <Field label="Description" htmlFor="category-description" error={state.fields?.description}>
+            <Field
+                label="Description"
+                htmlFor="category-description"
+                error={state.fields?.description}
+            >
                 <textarea
                     id="category-description"
                     name="description"

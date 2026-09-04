@@ -53,7 +53,12 @@ function questionForm(
     data.set('text', overrides.text ?? 'What does an index change?');
     data.set('difficulty', overrides.difficulty ?? 'beginner');
 
-    const options = overrides.options ?? ([['The query plan', true], ['The row order', false]] as Array<[string, boolean]>);
+    const options =
+        overrides.options ??
+        ([
+            ['The query plan', true],
+            ['The row order', false],
+        ] as Array<[string, boolean]>);
 
     options.forEach(([text, correct], index) => {
         data.set(`option_text_${index}`, text);
@@ -133,7 +138,13 @@ describe('createQuestionAction', () => {
         await createQuestionAction(
             CATEGORY,
             IDLE,
-            questionForm({ options: [['A', true], ['B', true], ['C', false]] }),
+            questionForm({
+                options: [
+                    ['A', true],
+                    ['B', true],
+                    ['C', false],
+                ],
+            }),
         );
 
         const call = vi.mocked(questionService.createQuestion).mock.calls[0][0];
@@ -144,7 +155,12 @@ describe('createQuestionAction', () => {
         const result = await createQuestionAction(
             CATEGORY,
             IDLE,
-            questionForm({ options: [['A', false], ['B', false]] }),
+            questionForm({
+                options: [
+                    ['A', false],
+                    ['B', false],
+                ],
+            }),
         );
 
         expect(result.status).toBe('error');
@@ -153,7 +169,11 @@ describe('createQuestionAction', () => {
     });
 
     it('rejects a single-option question', async () => {
-        const result = await createQuestionAction(CATEGORY, IDLE, questionForm({ options: [['A', true]] }));
+        const result = await createQuestionAction(
+            CATEGORY,
+            IDLE,
+            questionForm({ options: [['A', true]] }),
+        );
 
         expect(result.status).toBe('error');
         expect(questionService.createQuestion).not.toHaveBeenCalled();

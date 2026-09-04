@@ -63,10 +63,7 @@ export default async function AdminAccountPage() {
                             Update your password regularly to keep your account secure.
                         </p>
                     </div>
-                    <Link
-                        href="/settings/password"
-                        className={buttonClass('secondary', 'sm')}
-                    >
+                    <Link href="/settings/password" className={buttonClass('secondary', 'sm')}>
                         Change password
                     </Link>
                 </div>

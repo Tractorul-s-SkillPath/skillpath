@@ -39,30 +39,57 @@ beforeEach(() => {
 
 describe('setUserStatusAction', () => {
     it('sends the TARGET status, so two clicks land on the same state', async () => {
-        await setUserStatusAction(IDLE, form({ userId: '00000000-0000-4000-8000-000000000007', status: 'inactive' }));
-        await setUserStatusAction(IDLE, form({ userId: '00000000-0000-4000-8000-000000000007', status: 'inactive' }));
+        await setUserStatusAction(
+            IDLE,
+            form({ userId: '00000000-0000-4000-8000-000000000007', status: 'inactive' }),
+        );
+        await setUserStatusAction(
+            IDLE,
+            form({ userId: '00000000-0000-4000-8000-000000000007', status: 'inactive' }),
+        );
 
         // Not a toggle. An earlier version posted `currentStatus` and flipped
         // it server-side, which made the outcome depend on how stale the page
         // was.
-        expect(userAdminService.setUserStatus).toHaveBeenNthCalledWith(1, '00000000-0000-4000-8000-000000000007', 'inactive');
-        expect(userAdminService.setUserStatus).toHaveBeenNthCalledWith(2, '00000000-0000-4000-8000-000000000007', 'inactive');
+        expect(userAdminService.setUserStatus).toHaveBeenNthCalledWith(
+            1,
+            '00000000-0000-4000-8000-000000000007',
+            'inactive',
+        );
+        expect(userAdminService.setUserStatus).toHaveBeenNthCalledWith(
+            2,
+            '00000000-0000-4000-8000-000000000007',
+            'inactive',
+        );
     });
 
     it('names what happened in the message', async () => {
-        expect(await setUserStatusAction(IDLE, form({ userId: '00000000-0000-4000-8000-000000000007', status: 'active' }))).toEqual({
+        expect(
+            await setUserStatusAction(
+                IDLE,
+                form({ userId: '00000000-0000-4000-8000-000000000007', status: 'active' }),
+            ),
+        ).toEqual({
             status: 'success',
             message: 'Account activated.',
         });
 
-        expect(await setUserStatusAction(IDLE, form({ userId: '00000000-0000-4000-8000-000000000007', status: 'inactive' }))).toEqual({
+        expect(
+            await setUserStatusAction(
+                IDLE,
+                form({ userId: '00000000-0000-4000-8000-000000000007', status: 'inactive' }),
+            ),
+        ).toEqual({
             status: 'success',
             message: 'Account deactivated.',
         });
     });
 
     it('revalidates the users table', async () => {
-        await setUserStatusAction(IDLE, form({ userId: '00000000-0000-4000-8000-000000000007', status: 'active' }));
+        await setUserStatusAction(
+            IDLE,
+            form({ userId: '00000000-0000-4000-8000-000000000007', status: 'active' }),
+        );
 
         expect(revalidatePath).toHaveBeenCalledWith('/admin/users');
     });
@@ -70,7 +97,10 @@ describe('setUserStatusAction', () => {
     it.each([
         ['a non-numeric id', { userId: 'abc', status: 'active' }],
         ['a negative id', { userId: '-1', status: 'active' }],
-        ['a status outside the enum', { userId: '00000000-0000-4000-8000-000000000007', status: 'banned' }],
+        [
+            'a status outside the enum',
+            { userId: '00000000-0000-4000-8000-000000000007', status: 'banned' },
+        ],
     ])('rejects %s without calling the service', async (_label, fields) => {
         const result = await setUserStatusAction(IDLE, form(fields));
 
@@ -85,7 +115,10 @@ describe('setUserStatusAction', () => {
             err(appError('forbidden', "You don't have access to that.")),
         );
 
-        const result = await setUserStatusAction(IDLE, form({ userId: '00000000-0000-4000-8000-000000000007', status: 'inactive' }));
+        const result = await setUserStatusAction(
+            IDLE,
+            form({ userId: '00000000-0000-4000-8000-000000000007', status: 'inactive' }),
+        );
 
         expect(result.status).toBe('error');
         expect(result.message).toBe("You don't have access to that.");

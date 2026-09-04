@@ -63,7 +63,8 @@ describe('questionSchema', () => {
     });
 
     it('rejects a difficulty outside the skill-level enum', () => {
-        expect(questionSchema.safeParse({ ...validQuestion, difficulty: 'expert' }).success)
-            .toBe(false);
+        expect(questionSchema.safeParse({ ...validQuestion, difficulty: 'expert' }).success).toBe(
+            false,
+        );
     });
 });

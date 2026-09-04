@@ -103,9 +103,7 @@ export function AssessmentRunner({
             </div>
 
             <header className="mt-6">
-                <h1 className="text-xl font-semibold tracking-tight text-foreground">
-                    {title}
-                </h1>
+                <h1 className="text-xl font-semibold tracking-tight text-foreground">{title}</h1>
                 <p className="mt-1 text-sm text-muted-foreground">
                     Answer in any order — every answer is saved the moment you pick it. Unanswered
                     questions count as incorrect, and the clock submits for you when it runs out.
@@ -113,7 +111,10 @@ export function AssessmentRunner({
             </header>
 
             {error && (
-                <p role="alert" className="mt-4 rounded-lg border border-border bg-danger-soft px-4 py-3 text-sm text-danger">
+                <p
+                    role="alert"
+                    className="mt-4 rounded-lg border border-border bg-danger-soft px-4 py-3 text-sm text-danger"
+                >
                     {error}
                 </p>
             )}

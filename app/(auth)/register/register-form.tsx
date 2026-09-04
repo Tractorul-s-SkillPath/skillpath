@@ -124,7 +124,10 @@ export default function RegisterForm({ categories }: RegisterFormProps) {
                         required
                         className="h-4 w-4 rounded border-border text-accent focus:ring-accent"
                     />
-                    <label htmlFor="managerApproval" className="text-[0.8125rem] text-muted-foreground">
+                    <label
+                        htmlFor="managerApproval"
+                        className="text-[0.8125rem] text-muted-foreground"
+                    >
                         I received manager approval for the admin role
                     </label>
                 </div>

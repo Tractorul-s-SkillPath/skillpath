@@ -107,9 +107,7 @@ describe('listActiveCategories', () => {
         expect(result.ok).toBe(true);
         if (!result.ok) return;
 
-        expect(result.value.map((c) => c.categoryId)).not.toContain(
-            GENERAL_KNOWLEDGE_CATEGORY_ID,
-        );
+        expect(result.value.map((c) => c.categoryId)).not.toContain(GENERAL_KNOWLEDGE_CATEGORY_ID);
     });
 
     it('excludes a deactivated category and orders by name', async () => {
@@ -193,10 +191,7 @@ describe('syncInterests', () => {
         const first = await sandbox.createCategory();
         const second = await sandbox.createCategory();
 
-        await profileRepo.syncInterests(db, member.userId, [
-            first.categoryId,
-            second.categoryId,
-        ]);
+        await profileRepo.syncInterests(db, member.userId, [first.categoryId, second.categoryId]);
         await profileRepo.syncInterests(db, member.userId, [second.categoryId]);
 
         const result = await profileRepo.listInterests(db, member.userId);
@@ -257,8 +252,12 @@ describe('syncInterests', () => {
 describe('listInterests', () => {
     it('resolves the category name and sorts by it', async () => {
         const member = await sandbox.createUser();
-        const zebra = await sandbox.createCategory({ name: `Sbx zzz ${sandbox.name}`.slice(0, 60) });
-        const apple = await sandbox.createCategory({ name: `Sbx aaa ${sandbox.name}`.slice(0, 60) });
+        const zebra = await sandbox.createCategory({
+            name: `Sbx zzz ${sandbox.name}`.slice(0, 60),
+        });
+        const apple = await sandbox.createCategory({
+            name: `Sbx aaa ${sandbox.name}`.slice(0, 60),
+        });
 
         await profileRepo.syncInterests(db, member.userId, [zebra.categoryId, apple.categoryId]);
 

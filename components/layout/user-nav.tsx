@@ -89,10 +89,7 @@ export function UserNav({
                     size={14}
                     strokeWidth={2}
                     aria-hidden="true"
-                    className={cn(
-                        'interactive text-subtle-foreground',
-                        open && 'rotate-180',
-                    )}
+                    className={cn('interactive text-subtle-foreground', open && 'rotate-180')}
                 />
             </button>
 

@@ -25,7 +25,12 @@ import {
     interestsSchema,
     nameSchema,
 } from '../../../lib/validation/profile.schema';
-import { fieldErrors, formError, formSuccess, type FormState } from '../../../lib/validation/common';
+import {
+    fieldErrors,
+    formError,
+    formSuccess,
+    type FormState,
+} from '../../../lib/validation/common';
 import type { Result } from '../../../lib/result';
 import type { AppError } from '../../../lib/errors';
 
@@ -94,7 +99,11 @@ export async function setCategoryLevelAction(
     if (!parsed.success) return formError('Pick one of the three levels.');
 
     return settle(
-        await profileService.setCategoryLevel(user.userId, parsed.data.categoryId, parsed.data.level),
+        await profileService.setCategoryLevel(
+            user.userId,
+            parsed.data.categoryId,
+            parsed.data.level,
+        ),
         'Level updated.',
     );
 }

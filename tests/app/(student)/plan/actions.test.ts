@@ -44,7 +44,10 @@ describe('updatePlanStatusAction', () => {
     it('takes the user id from the session, not the form', async () => {
         // The form below claims to be user 999. The service must still be
         // called with the session's id.
-        await updatePlanStatusAction(IDLE, form({ recommendationId: '5', status: 'completed', userId: '999' }));
+        await updatePlanStatusAction(
+            IDLE,
+            form({ recommendationId: '5', status: 'completed', userId: '999' }),
+        );
 
         expect(planService.setItemStatus).toHaveBeenCalledWith(MEMBER_ID, 5, 'completed');
     });
@@ -61,7 +64,12 @@ describe('updatePlanStatusAction', () => {
     it('sends only the two fields the schema allows', async () => {
         await updatePlanStatusAction(
             IDLE,
-            form({ recommendationId: '5', status: 'completed', topicTitle: 'rewritten', priority: '1' }),
+            form({
+                recommendationId: '5',
+                status: 'completed',
+                topicTitle: 'rewritten',
+                priority: '1',
+            }),
         );
 
         // SP-063 AC3: three arguments, and neither of the crafted ones is
@@ -70,10 +78,16 @@ describe('updatePlanStatusAction', () => {
     });
 
     it('reports a success message that names what happened', async () => {
-        const done = await updatePlanStatusAction(IDLE, form({ recommendationId: '5', status: 'completed' }));
+        const done = await updatePlanStatusAction(
+            IDLE,
+            form({ recommendationId: '5', status: 'completed' }),
+        );
         expect(done).toEqual({ status: 'success', message: 'Done — XP updated.' });
 
-        const moved = await updatePlanStatusAction(IDLE, form({ recommendationId: '5', status: 'in_progress' }));
+        const moved = await updatePlanStatusAction(
+            IDLE,
+            form({ recommendationId: '5', status: 'in_progress' }),
+        );
         expect(moved).toEqual({ status: 'success', message: 'Updated.' });
     });
 
@@ -88,7 +102,10 @@ describe('updatePlanStatusAction', () => {
     });
 
     it('rejects an unparseable input without calling the service', async () => {
-        const result = await updatePlanStatusAction(IDLE, form({ recommendationId: 'abc', status: 'wizard' }));
+        const result = await updatePlanStatusAction(
+            IDLE,
+            form({ recommendationId: 'abc', status: 'wizard' }),
+        );
 
         expect(result.status).toBe('error');
         expect(planService.setItemStatus).not.toHaveBeenCalled();
@@ -101,9 +118,16 @@ describe('updatePlanStatusAction', () => {
             err(appError('not_found', 'That plan item no longer exists.')),
         );
 
-        const result = await updatePlanStatusAction(IDLE, form({ recommendationId: '5', status: 'completed' }));
+        const result = await updatePlanStatusAction(
+            IDLE,
+            form({ recommendationId: '5', status: 'completed' }),
+        );
 
-        expect(result).toEqual({ status: 'error', message: 'That plan item no longer exists.', fields: undefined });
+        expect(result).toEqual({
+            status: 'error',
+            message: 'That plan item no longer exists.',
+            fields: undefined,
+        });
         expect(revalidatePath).not.toHaveBeenCalled();
     });
 });

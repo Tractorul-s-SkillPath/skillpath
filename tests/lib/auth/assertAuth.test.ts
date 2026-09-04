@@ -67,10 +67,7 @@ describe('assertAuth', () => {
         vi.mocked(getCurrentUser).mockResolvedValue(null);
         await expect(assertAuth()).rejects.toThrow();
 
-        expect(vi.mocked(redirect).mock.calls).toEqual([
-            ['/login?error=disabled'],
-            ['/login'],
-        ]);
+        expect(vi.mocked(redirect).mock.calls).toEqual([['/login?error=disabled'], ['/login']]);
     });
 
     it('rejects any status that is not exactly active', async () => {

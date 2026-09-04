@@ -9,21 +9,21 @@
 > npm run test:db     # the database-backed suite — needs the test project
 > ```
 >
-> | Suite | Files | Tests | Needs a database | CI |
-> |---|---|---|---|---|
-> | `npm run test:coverage` | 44 | 493 | no | `ci.yml` |
-> | `npm run test:db` | 12 | 221 | **yes** | `db.yml` |
-> |  ↳ `SKILLPATH_DB_TEST_KEEP=1` | | | | keeps the rows so you can look at them |
-> | `npm run test:e2e` | 2 | 2 journeys | **yes** | `e2e.yml` |
+> | Suite                        | Files | Tests      | Needs a database | CI                                     |
+> | ---------------------------- | ----- | ---------- | ---------------- | -------------------------------------- |
+> | `npm run test:coverage`      | 44    | 493        | no               | `ci.yml`                               |
+> | `npm run test:db`            | 12    | 221        | **yes**          | `db.yml`                               |
+> | ↳ `SKILLPATH_DB_TEST_KEEP=1` |       |            |                  | keeps the rows so you can look at them |
+> | `npm run test:e2e`           | 2     | 2 journeys | **yes**          | `e2e.yml`                              |
 >
-> | | Statements | Branches | Functions | Lines |
-> |---|---|---|---|---|
-> | **All** | 99.11% | 93.75% | 98.36% | 99.74% |
-> | `lib/services` | **100%** | **100%** | **100%** | **100%** |
-> | `lib/auth` | **100%** | **100%** | **100%** | **100%** |
-> | `lib/validation` | 100% | 75% | 100% | 100% |
-> | `lib/domain` | 97.59% | 85.05% | 96.42% | 99.26% |
-> | *threshold* | *75* | *70* | *75* | *75* |
+> |                  | Statements | Branches | Functions | Lines    |
+> | ---------------- | ---------- | -------- | --------- | -------- |
+> | **All**          | 99.11%     | 93.75%   | 98.36%    | 99.74%   |
+> | `lib/services`   | **100%**   | **100%** | **100%**  | **100%** |
+> | `lib/auth`       | **100%**   | **100%** | **100%**  | **100%** |
+> | `lib/validation` | 100%       | 75%      | 100%      | 100%     |
+> | `lib/domain`     | 97.59%     | 85.05%   | 96.42%    | 99.26%   |
+> | _threshold_      | _75_       | _70_     | _75_      | _75_     |
 >
 > `lib/auth` used to read 26% because `session.ts` — HMAC cookie signing — had
 > no tests at all. **SP-121 is closed**: it is now the most heavily tested file
@@ -36,7 +36,7 @@
 > **SP-120 is closed too.** `current-user.ts` — password hashing, password
 > verification, and who counts as an administrator — is tested in
 > `tests/lib/auth/current-user.test.ts` against the real test project, under
-> `npm run test:db`. It stays out of the *gate* because the gate's suite has no
+> `npm run test:db`. It stays out of the _gate_ because the gate's suite has no
 > database, not because it is untested. Note while reading ARCHITECTURE §0: it
 > records this file as signing anyone in on an email alone. That is no longer
 > true — passwords are hashed with scrypt and verified — and there is now a test
@@ -67,18 +67,18 @@ reason the folder is shaped this way.
 
 ## What runs, and what each layer needs
 
-| Layer | In the gate | Style | Doubles |
-|---|---|---|---|
-| `tests/lib/domain` | yes | table-driven, pure | none |
-| `tests/lib/validation` | yes | valid / invalid / boundary per schema | none |
-| `tests/lib/services` | yes | behaviour | repository fakes, see below |
-| `tests/lib/auth` | yes | fake session / fake cookie jar | `getCurrentUser`, `next/navigation`, `next/headers` |
-| `tests/lib/repositories/paging` | yes | pure | none |
-| `tests/lib/repositories/*.repo` | no | integration | real test database |
-| `tests/db` | no | SQL: policies, triggers, constraints | real test database |
-| `tests/app` | no | action contract + RTL where there is logic | service fake |
-| `tests/components` | no | RTL, logic-bearing components only | none |
-| `e2e` | no | one whole journey, in a browser | none — a real test project |
+| Layer                           | In the gate | Style                                      | Doubles                                             |
+| ------------------------------- | ----------- | ------------------------------------------ | --------------------------------------------------- |
+| `tests/lib/domain`              | yes         | table-driven, pure                         | none                                                |
+| `tests/lib/validation`          | yes         | valid / invalid / boundary per schema      | none                                                |
+| `tests/lib/services`            | yes         | behaviour                                  | repository fakes, see below                         |
+| `tests/lib/auth`                | yes         | fake session / fake cookie jar             | `getCurrentUser`, `next/navigation`, `next/headers` |
+| `tests/lib/repositories/paging` | yes         | pure                                       | none                                                |
+| `tests/lib/repositories/*.repo` | no          | integration                                | real test database                                  |
+| `tests/db`                      | no          | SQL: policies, triggers, constraints       | real test database                                  |
+| `tests/app`                     | no          | action contract + RTL where there is logic | service fake                                        |
+| `tests/components`              | no          | RTL, logic-bearing components only         | none                                                |
+| `e2e`                           | no          | one whole journey, in a browser            | none — a real test project                          |
 
 `tests/app` and `tests/components` are **not written yet** — see "What is still
 owed" below.
@@ -105,7 +105,7 @@ the rest into more filters.
 
 ## How service tests substitute repositories
 
-`docs/TESTING.md` used to promise in-memory fakes *injected* into services. That
+`docs/TESTING.md` used to promise in-memory fakes _injected_ into services. That
 is not what happens, because services do not take their repositories as
 arguments — each one reaches for a module namespace:
 
@@ -123,7 +123,7 @@ So the substitution happens at the module boundary instead:
 ```ts
 vi.mock('../../../lib/repositories/plan.repo');
 vi.mock('../../../lib/supabase/server', () => ({
-    createClient: vi.fn(async () => FAKE_CLIENT),
+  createClient: vi.fn(async () => FAKE_CLIENT),
 }));
 ```
 
@@ -174,20 +174,20 @@ npm run test:e2e:dev    # dev server instead, for writing one
 
 One spec, `e2e/baseline-journey.spec.ts`: register → baseline → results → plan,
 one member, one continuous path. `e2e/README.md` is the setup; what belongs
-*here* is why the suite has one of these and not thirty.
+_here_ is why the suite has one of these and not thirty.
 
 **It exists for three failures that are invisible from `npm test`**, and every
 step in it earns its place against one of them:
 
 - **`grade_assessment()` returning the wrong score.** The scoring is
   `SECURITY DEFINER` SQL, because the answer key must not travel. So
-  `grading.service.test.ts` can only assert the RPC is *called* — the fake
+  `grading.service.test.ts` can only assert the RPC is _called_ — the fake
   returns whatever it is handed. The journey answers a known 12 of 20 and pins
   `60%` exactly, then checks the per-band breakdown separately: the score comes
   from `assessments.total_score` and the bands from the `is_correct` snapshots,
   two writes of the same RPC, and they must agree.
 - **A session cookie nobody verifies.** `middleware.ts` checks only that the
-  cookie is *present* — deliberately, it cannot do better on the Edge runtime.
+  cookie is _present_ — deliberately, it cannot do better on the Edge runtime.
   So the last step forges the signature and expects `/login`. Without it, a
   build that skipped the HMAC comparison would pass this file end to end, and
   `session.test.ts` cannot see the cookie actually being set by a real response.
@@ -204,7 +204,7 @@ step in it earns its place against one of them:
   refuses to start if they match — the same rule `tests/db/README.md` states.
   `playwright.config.ts` never reuses a running server and never uses port 3000,
   because a dev server left open is pointed at the demo project.
-- **A fresh member every run, unique in email *and* name.** Not tidiness:
+- **A fresh member every run, unique in email _and_ name.** Not tidiness:
   `loginAction` rejects a duplicate of either, and the baseline is one attempt
   per member — a fixture account could take this journey exactly once.
 
@@ -225,7 +225,7 @@ longer exist (`lib/supabase/client.ts`, `lib/supabase/middleware.ts`, and
 `lib/supabase/admin.ts`, which had a mirror of its own at
 `tests/lib/supabase/admin.test.ts`). **The mirror scheme only runs one way.** A
 missing mirror is obvious at a glance, which is the point of the folder shape;
-an *orphaned* mirror is invisible, because a docblock-only spec is not in
+an _orphaned_ mirror is invisible, because a docblock-only spec is not in
 `include` and so never fails. Deleting a source file therefore leaves a test
 file behind silently. The cheap check:
 
@@ -251,16 +251,16 @@ Beyond those, `vitest.config.ts` excludes named files for two different reasons:
 
 ## What is still owed
 
-| | Why |
-|---|---|
+|                                                                       | Why                                                                                                                                                                                                                                                                                                         |
+| --------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `tests/components` (5 files) and the 4 `.tsx` files under `tests/app` | neither `@testing-library/react` nor `@vitejs/plugin-react` is installed, so a `.tsx` test cannot run at all. The first component test starts by adding them. The nine `.ts` **Server Action** specs under `tests/app` are now written — they substitute the service, so they need no React and no database |
-| `tests/app/(student)/assessments/start/[categoryId]/page.test.ts` | its source is a server component that finds-or-creates a run and redirects; needs the service mocked and a throwing `redirect` |
-| `tests/lib/ai` (6 files) | `lib/ai/` is six comment-only files — no implementation to call |
-| `tests/lib/domain/{scoring,weak-areas,feedback}` | same: written spec, no function |
-| `tests/lib/services/{ai,auth,progress}` | same |
-| `tests/lib/repositories/progress.repo` | same |
-| `tests/lib/logger` and `tests/middleware` | `lib/logger.ts` is comment-only; `middleware.ts` is real and its test is simply unwritten |
-| `tests/db/rls-*` (7 files) | **blocked on the product.** RLS is not enabled on any table, so there are no policies to exercise and no user token to hold. See `tests/db/README.md` |
+| `tests/app/(student)/assessments/start/[categoryId]/page.test.ts`     | its source is a server component that finds-or-creates a run and redirects; needs the service mocked and a throwing `redirect`                                                                                                                                                                              |
+| `tests/lib/ai` (6 files)                                              | `lib/ai/` is six comment-only files — no implementation to call                                                                                                                                                                                                                                             |
+| `tests/lib/domain/{scoring,weak-areas,feedback}`                      | same: written spec, no function                                                                                                                                                                                                                                                                             |
+| `tests/lib/services/{ai,auth,progress}`                               | same                                                                                                                                                                                                                                                                                                        |
+| `tests/lib/repositories/progress.repo`                                | same                                                                                                                                                                                                                                                                                                        |
+| `tests/lib/logger` and `tests/middleware`                             | `lib/logger.ts` is comment-only; `middleware.ts` is real and its test is simply unwritten                                                                                                                                                                                                                   |
+| `tests/db/rls-*` (7 files)                                            | **blocked on the product.** RLS is not enabled on any table, so there are no policies to exercise and no user token to hold. See `tests/db/README.md`                                                                                                                                                       |
 
 Everything above except the last two rows is blocked on source that does not
 exist yet, not on test effort.
@@ -269,7 +269,7 @@ exist yet, not on test effort.
 
 - **SP-118 is closed, and it found a real divergence.** The XP amounts and level
   thresholds exist in both `lib/domain/constants.ts` and the SQL. A test
-  asserting `XP_PER_ASSESSMENT === 50` does *not* close this — it compares the
+  asserting `XP_PER_ASSESSMENT === 50` does _not_ close this — it compares the
   constant to itself, and the check was recorded here as blocked on the
   migration not being in the repository.
 
@@ -299,11 +299,11 @@ exist yet, not on test effort.
   case for it, so the admin gets "Something went wrong. Try again." The header of
   `filters.schema.ts` says clamping `?page=` to 1..10 000 makes a hand-edited
   page number safe; it does not, because safety needs the page to be inside
-  *this* result set. Reachable without touching the URL: page to the end of the
+  _this_ result set. Reachable without touching the URL: page to the end of the
   members list, then narrow the filter. Pinned as-is, in `user.repo.test.ts`.
 - **`lib/domain/derived.ts` is the weakest domain file** at 75% branches. It is
   the largest pure module in the codebase and drives badges, quests and the
-  overall level. Its `dayOf` test used to assert only that the output *looked*
+  overall level. Its `dayOf` test used to assert only that the output _looked_
   like a date (`/^\d{4}-\d{2}-\d{2}$/`), which passes when the function reads
   the server's clock instead of `APP_TIMEZONE` — the one bug that matters, since
   streaks group by this value. It now pins a timestamp that falls on different

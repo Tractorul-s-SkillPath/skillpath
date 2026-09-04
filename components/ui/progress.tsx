@@ -36,7 +36,10 @@ export function Progress({ value, max = 100, label, tone = 'accent', className }
             className={cn('h-2 w-full overflow-hidden rounded-full bg-surface-muted', className)}
         >
             <div
-                className={cn('h-full rounded-full transition-[width] duration-500 ease-out', TONES[tone])}
+                className={cn(
+                    'h-full rounded-full transition-[width] duration-500 ease-out',
+                    TONES[tone],
+                )}
                 style={{ width: `${pct}%` }}
             />
         </div>

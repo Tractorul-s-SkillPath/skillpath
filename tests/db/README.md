@@ -29,11 +29,11 @@ trigger on plan completion. Nothing in `npm test` can see any of them.
 
 ## What is here
 
-| File | |
-|---|---|
-| `constraints.test.ts` | 41 cases — every check, unique index, foreign key and enum, asserted by constraint name |
-| `triggers.test.ts` | grading writes `category_progress` and `xp_events`; plan completion stamps `completed_at` and pays once; `updated_at` is maintained |
-| `rls-*.test.ts` (7) | **Blocked, not unwritten.** See below |
+| File                  |                                                                                                                                     |
+| --------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `constraints.test.ts` | 41 cases — every check, unique index, foreign key and enum, asserted by constraint name                                             |
+| `triggers.test.ts`    | grading writes `category_progress` and `xp_events`; plan completion stamps `completed_at` and pays once; `updated_at` is maintained |
+| `rls-*.test.ts` (7)   | **Blocked, not unwritten.** See below                                                                                               |
 
 ## Seeing what a run actually did
 
@@ -83,7 +83,7 @@ delete from users                where last_name like '%-repo-%' or last_name li
 ```
 
 Same idea as `E2E_CLEAN=1` in the Playwright suite, pointed the other way: that
-one opts *in* to cleaning because keeping is its default; this one opts *out*.
+one opts _in_ to cleaning because keeping is its default; this one opts _out_.
 
 ## Fixtures
 

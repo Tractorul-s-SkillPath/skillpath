@@ -305,9 +305,19 @@ describe('completing a plan item', () => {
     async function aPlanItem() {
         const run = await sitAPaper(3);
 
-        const written = await planRepo.insertMany(db, run.userId, run.categoryId, run.assessmentId, [
-            { topicTitle: `Trigger topic ${sandbox.name}`, description: 'Study it.', priority: 1 },
-        ]);
+        const written = await planRepo.insertMany(
+            db,
+            run.userId,
+            run.categoryId,
+            run.assessmentId,
+            [
+                {
+                    topicTitle: `Trigger topic ${sandbox.name}`,
+                    description: 'Study it.',
+                    priority: 1,
+                },
+            ],
+        );
 
         if (!written.ok) throw new Error('could not write a plan');
 

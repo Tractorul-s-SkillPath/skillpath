@@ -46,7 +46,9 @@ export async function listByUser(
 
     if (error) return err(fromPostgrestError(error, 'assessments.listByUser'));
 
-    return ok(data.map((row) => toAssessment(row, row.skill_categories?.name ?? 'Unknown category')));
+    return ok(
+        data.map((row) => toAssessment(row, row.skill_categories?.name ?? 'Unknown category')),
+    );
 }
 
 /**
