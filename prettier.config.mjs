@@ -1,6 +1,8 @@
 /**
- * Prettier — formatting only. This is not a linter and does not replace one;
- * ESLint (SP-122) is still absent, so nothing here catches a bug.
+ * Prettier — formatting only. This is not a linter and does not replace one:
+ * nothing in this file catches a bug. ESLint is the half that reads what the
+ * code does, and it landed with SP-122 — see the order note at the top of
+ * `eslint.config.mjs` for why the two do not fight over the same line.
  *
  * Every option below is a deviation from a Prettier default, chosen to match
  * what the codebase already does so adopting the formatter is a whitespace

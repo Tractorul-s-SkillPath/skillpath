@@ -6,11 +6,13 @@
  * ---------------------------------------------------------------------------
  * WHY THIS FILE MATTERS MORE THAN AN ORDINARY TEST
  *
- * There are no migrations in the repository. ARCHITECTURE §0 calls that "the
- * largest single gap in the project": the live schema was applied by hand in
- * the SQL editor, and `lib/supabase/database.types.ts` — hand-written — is the
- * only in-repo description of it. Nobody can recreate the database from a
- * clone.
+ * `supabase/migrations/` is the schema now, so this file is no longer the only
+ * in-repo record of what the database enforces — but it is still the only
+ * EXECUTABLE one. A migration says what was applied to some database once; this
+ * file asks a live project, by constraint name, what is true there today. The
+ * gap between those two is drift: a hand-edit in the SQL editor, or a migration
+ * nobody applied. `lib/supabase/database.types.ts` is hand-written and drifts
+ * the same way, which is the other reason to ask rather than to read.
  *
  * So this file is not checking that Postgres enforces constraints. It is the
  * repository's only executable record of WHICH constraints exist, asserted

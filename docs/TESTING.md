@@ -1,6 +1,6 @@
 # Testing — SkillPath
 
-> ## Status: running in CI. 56 files, 714 tests, gate green.
+> ## Status: running in CI. 55 files, 702 tests, gate green.
 >
 > ```
 > npm test            # watch
@@ -11,14 +11,17 @@
 >
 > | Suite                        | Files | Tests      | Needs a database | CI                                     |
 > | ---------------------------- | ----- | ---------- | ---------------- | -------------------------------------- |
-> | `npm run test:coverage`      | 44    | 493        | no               | `ci.yml`                               |
+> | `npm run test:coverage`      | 43    | 481        | no               | `ci.yml`                               |
 > | `npm run test:db`            | 12    | 221        | **yes**          | `db.yml`                               |
 > | ↳ `SKILLPATH_DB_TEST_KEEP=1` |       |            |                  | keeps the rows so you can look at them |
 > | `npm run test:e2e`           | 2     | 2 journeys | **yes**          | `e2e.yml`                              |
 >
+> The `test:db` row is the one number here nobody re-counts often — it needs the
+> test project, so a pass that has no database leaves it as last recorded.
+>
 > |                  | Statements | Branches | Functions | Lines    |
 > | ---------------- | ---------- | -------- | --------- | -------- |
-> | **All**          | 99.11%     | 93.75%   | 98.36%    | 99.74%   |
+> | **All**          | 99.04%     | 93.13%   | 98.26%    | 99.72%   |
 > | `lib/services`   | **100%**   | **100%** | **100%**  | **100%** |
 > | `lib/auth`       | **100%**   | **100%** | **100%**  | **100%** |
 > | `lib/validation` | 100%       | 75%      | 100%      | 100%     |
@@ -37,10 +40,11 @@
 > verification, and who counts as an administrator — is tested in
 > `tests/lib/auth/current-user.test.ts` against the real test project, under
 > `npm run test:db`. It stays out of the _gate_ because the gate's suite has no
-> database, not because it is untested. Note while reading ARCHITECTURE §0: it
-> records this file as signing anyone in on an email alone. That is no longer
-> true — passwords are hashed with scrypt and verified — and there is now a test
-> that keeps it that way.
+> database, not because it is untested. The scrypt hash/verify pair this note
+> used to describe is gone with it: credentials belong to Supabase Auth now
+> (`signInWithPassword`), and `public.users` has no `password` column. ARCHITECTURE
+> §0 has caught up and no longer records this file as signing anyone in on an
+> email alone.
 
 ## The one thing to know before you add a test file
 
@@ -78,7 +82,7 @@ reason the folder is shaped this way.
 | `tests/db`                      | no          | SQL: policies, triggers, constraints       | real test database                                  |
 | `tests/app`                     | no          | action contract + RTL where there is logic | service fake                                        |
 | `tests/components`              | no          | RTL, logic-bearing components only         | none                                                |
-| `e2e`                           | no          | one whole journey, in a browser            | none — a real test project                          |
+| `e2e`                           | no          | two whole journeys, in a browser           | none — a real test project                          |
 
 `tests/app` and `tests/components` are **not written yet** — see "What is still
 owed" below.
@@ -172,9 +176,11 @@ npm run test:e2e        # build + start + one journey, ~3 min
 npm run test:e2e:dev    # dev server instead, for writing one
 ```
 
-One spec, `e2e/baseline-journey.spec.ts`: register → baseline → results → plan,
-one member, one continuous path. `e2e/README.md` is the setup; what belongs
-_here_ is why the suite has one of these and not thirty.
+Two specs. `e2e/baseline-journey.spec.ts` — one member, one continuous path:
+register → baseline → results → plan. `e2e/admin-question.spec.ts` — two roles:
+an admin writes a question, a student sits it, and the answer key does not
+travel. `e2e/README.md` is the setup; what belongs _here_ is why the suite has
+two of these and not thirty.
 
 **It exists for three failures that are invisible from `npm test`**, and every
 step in it earns its place against one of them:
@@ -209,8 +215,9 @@ step in it earns its place against one of them:
   per member — a fixture account could take this journey exactly once.
 
 **Keep it to a few whole journeys.** A step here costs a database round trip and
-a browser; a second spec is worth writing when it reaches a path this one cannot
-(the admin's question-bank round trip is the obvious candidate), never to
+a browser; a third spec is worth writing when it reaches a path neither of these
+can (the admin's question-bank round trip was the obvious candidate and is now
+the second spec), never to
 re-check something a service test already pins.
 
 ## Deliberately not tested
@@ -243,11 +250,14 @@ Beyond those, `vitest.config.ts` excludes named files for two different reasons:
 - **Source is still comment-only** — `scoring`, `weak-areas` and `feedback` in
   `lib/domain`; `ai`, `auth` and `progress` in `lib/services`. The spec is
   written, the function is not. Delete the exclude line when the code lands.
-- **Cannot be tested this way** — `tests/lib/auth/current-user.test.ts`.
+- **Cannot be tested _in the gate_** — `tests/lib/auth/current-user.test.ts`.
   `lib/auth/current-user.ts` builds its own supabase-js queries instead of going
-  through a repository, and mocking supabase-js is ruled out. It is testable
-  against a real test database, or after its data access moves behind
-  `user.repo`. Tracked as **SP-120**.
+  through a repository, and mocking supabase-js is ruled out. So it is excluded
+  from `vitest.config.ts` and included in `vitest.config.db.ts`, where it runs
+  against the real test project. **SP-120 is closed** — this entry is about
+  which config owns the file, not about the file being untested. The refactor
+  that would move its data access behind `user.repo` is still worth doing; it
+  would move the test back into the gate.
 
 ## What is still owed
 
@@ -260,7 +270,7 @@ Beyond those, `vitest.config.ts` excludes named files for two different reasons:
 | `tests/lib/services/{ai,auth,progress}`                               | same                                                                                                                                                                                                                                                                                                        |
 | `tests/lib/repositories/progress.repo`                                | same                                                                                                                                                                                                                                                                                                        |
 | `tests/lib/logger` and `tests/middleware`                             | `lib/logger.ts` is comment-only; `middleware.ts` is real and its test is simply unwritten                                                                                                                                                                                                                   |
-| `tests/db/rls-*` (7 files)                                            | **blocked on the product.** RLS is not enabled on any table, so there are no policies to exercise and no user token to hold. See `tests/db/README.md`                                                                                                                                                       |
+| `tests/db/rls-*` (7 files)                                            | **unblocked, and now owed.** Both reasons they were blocked are gone: RLS is enabled with policies, and Supabase Auth gives a real per-user token to hold. They are still excluded in `vitest.config.db.ts`. See `tests/db/README.md`                                                                       |
 
 Everything above except the last two rows is blocked on source that does not
 exist yet, not on test effort.

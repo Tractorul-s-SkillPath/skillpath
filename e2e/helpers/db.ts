@@ -17,9 +17,17 @@
  *     the URL in .env.e2e. If the app under test were still pointed at the demo
  *     project, the row the browser just created would not be here.
  *
- * Works with the anon key alone because RLS is off (ARCHITECTURE §0). When
- * SP-004 turns it on, these reads need the service role and this file is where
- * that change lands.
+ * This header used to say it works with the anon key alone, because RLS was
+ * off. It does not any more, and `testDb()` below already reflects that: RLS is
+ * enabled, the anon role matches no policy on `users`, `assessments`,
+ * `student_responses` or `recommendation_plans` — every one of them is scoped
+ * `user_id = auth.uid()`, and this client holds no session — so the reads came
+ * back empty and the fixture inserts were rejected with 42501. It uses the
+ * **service role**, which is the right key for a verification helper: it is
+ * asserting what the server wrote, not impersonating a member.
+ *
+ * That means `.env.e2e` needs `SUPABASE_SERVICE_ROLE_KEY` alongside the URL and
+ * the publishable key. `e2eEnv()` refuses to start without it.
  */
 
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';

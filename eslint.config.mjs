@@ -60,6 +60,21 @@ export default [
     {
         name: 'skillpath/project',
         rules: {
+            /*
+             * `any` is banned by ARCHITECTURE.md §8. Until this line the ban
+             * was a convention that nothing enforced, which is the kind of
+             * rule that holds right up until the afternoon someone is in a
+             * hurry.
+             *
+             * `error` and not `warn` because it costs nothing to hold the line
+             * here: there is not one `any` in the 269 files this config lints,
+             * so the rule starts green and every future hit is new code. The
+             * escape hatch is `unknown` plus a narrowing check, and where that
+             * genuinely will not do, an `eslint-disable-next-line` with a
+             * comment saying why — same bar as the two suppressions already in
+             * the tree (app/error.tsx, components/ui/avatar.tsx).
+             */
+            '@typescript-eslint/no-explicit-any': 'error',
             '@typescript-eslint/no-unused-vars': [
                 'warn',
                 { argsIgnorePattern: '^_', varsIgnorePattern: '^_', caughtErrors: 'all' },

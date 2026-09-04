@@ -127,9 +127,10 @@ One mirror is still owed:
 | ----------------------------------- | --------------------------------------------------------------------------------------------------------- | ------------------ |
 | `lib/repositories/progress.repo.ts` | the source is comment-only — a sketch of `upsert` / `listForUser` / `scoreTrend` with no function to call | the source landing |
 
-And seven are blocked on the product rather than on effort: the `tests/db/rls-*`
-specs describe Row Level Security, which is not enabled on any table. See
-`tests/db/README.md`.
+And seven are owed rather than blocked: the `tests/db/rls-*` specs describe Row
+Level Security, which **is** now enabled with policies, and Supabase Auth gives
+them the per-user token they always needed. They are still excluded in
+`vitest.config.db.ts`. See `tests/db/README.md`.
 
 ## Rules
 

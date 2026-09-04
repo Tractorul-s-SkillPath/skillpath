@@ -20,13 +20,19 @@
  *     resetDatabase()          truncate in FK order, then reseed, between suites
  *
  * The first three describe Supabase Auth plus Row Level Security. This project
- * has neither (ARCHITECTURE §0): there is a plain `users` table and a signed
- * cookie of our own, so there is no user token to hold, and RLS is off, so the
- * anon key already reads and writes every table. A `studentClient(userId)` here
- * could only be the same anon client with a label on it — and a label that
- * implies an authorization boundary nobody applied is worse than no helper at
- * all, because every assertion written against it would pass for the wrong
- * reason. So there is ONE client, named for what it is.
+ * had neither when they were written: a plain `users` table and a signed cookie
+ * of our own meant there was no user token to hold, and with RLS off the anon
+ * key already read and wrote every table. A `studentClient(userId)` could only
+ * have been the same anon client with a label on it — and a label implying an
+ * authorization boundary nobody applied is worse than no helper at all, because
+ * every assertion written against it passes for the wrong reason. So there is
+ * ONE client, named for what it is.
+ *
+ * BOTH OF THOSE FACTS HAVE CHANGED. Supabase Auth owns credentials and RLS is
+ * enabled with policies, so a real `studentClient` is now buildable and the
+ * seven `tests/db/rls-*` specs are owed rather than blocked. This file has not
+ * grown one yet — when it does, the reasoning above is the bar it has to clear:
+ * a per-user client is worth having only if it carries a genuine token.
  *
  * `resetDatabase()` is gone for a different reason: truncate-and-reseed makes
  * every test file own the whole database, which means they cannot run in
@@ -551,10 +557,11 @@ export class Sandbox {
      *
      * The order is the foreign keys' and not a preference. `student_responses`
      * points at both an assessment and a question, so it goes before either;
-     * `answers` cascades from `questions` in this project but is deleted
-     * explicitly anyway, because with no migrations in the repository
-     * (ARCHITECTURE §0) that cascade is a property of one hosted database
-     * rather than something the repository can promise.
+     * `answers` cascades from `questions` in this project and is deleted
+     * explicitly anyway. The migrations now promise that cascade, so this is
+     * belt-and-braces rather than the necessity it was — but a test project
+     * that drifted from the migrations is exactly what `tests/db` exists to
+     * catch, and teardown should not be the thing that discovers it.
      */
     async destroy(): Promise<void> {
         // KEEPING THE ROWS SO YOU CAN LOOK AT THEM.

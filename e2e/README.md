@@ -11,7 +11,7 @@ npm run test:e2e          # build + start + run
 npm run test:e2e:dev      # dev server instead, ~40s faster per iteration
 ```
 
-## Why these exist when there are 365 unit tests
+## Why these exist when there are 481 unit tests
 
 Five things in the product are load-bearing and cannot be reached from
 `npm test`. These two files are the only thing that touches them.
@@ -29,22 +29,40 @@ Five things in the product are load-bearing and cannot be reached from
 1. **A second Supabase project.** Not the one `.env.local` names —
    `e2e/helpers/env.ts` compares the two and refuses to run if they match.
 2. **The schema in it.** Same tables, views, triggers and functions;
-   `grade_assessment()` in particular, or the journey grades nothing. With no
-   migrations in the repository (ARCHITECTURE §0) the two databases drift, so
-   **run `e2e/schema-patch.sql` in the test project's SQL editor** — it carries
-   the two differences a column-by-column diff of the two projects found, and
-   explains each. `global-setup.ts` re-checks the important one before every run.
+   `grade_assessment()` in particular, or the journey grades nothing. Apply
+   `supabase/migrations/` in filename order — with the CLI (`supabase db push`)
+   or by pasting each file into the test project's SQL editor. `global-setup.ts`
+   re-checks the one that matters most before every run.
+
+   > This step used to say **run `e2e/schema-patch.sql`**, a hand-written patch
+   > carrying the two differences a column-by-column diff of the two projects
+   > had found. That file is not in the repository — it was written when the
+   > schema was not either, and there is no reason to reconstruct it now that
+   > the migrations are the schema. Apply them and the two projects agree by
+   > construction rather than by diff.
+
 3. **`.env.e2e`** at the repository root — `NEXT_PUBLIC_SUPABASE_URL`,
-   `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SESSION_SECRET`. Gitignored. The block at
-   the bottom of `.env.example` is the template.
+   `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`,
+   `SESSION_SECRET`. Gitignored. The block at the bottom of `.env.example` is
+   the template. The service-role key is not optional: RLS is on in the test
+   project, and `e2e/helpers/db.ts` reads rows scoped to `auth.uid()` while
+   holding no session, so the anon key matches no policy and every check comes
+   back empty. `e2eEnv()` refuses to start without it, and separately refuses if
+   it is the same key as the demo project's.
 4. **Seed it:** `npm run seed:e2e`. The baseline paper is twenty questions and
    `startBaseline()` refuses a shorter one, so an unseeded project cannot open
    a run at all. `global-setup.ts` checks this before the browser starts and
    says so. The seed is also where `admin@skillpath.test` comes from, and the
-   admin journey has no way around it: `loginAction` refuses to register an
-   administrator through the form (`?error=manager_approval_required`), which
-   is the point — a signup form does not hand out accounts that can read the
-   answer key.
+   admin journey uses it rather than registering its own administrator.
+
+   > That used to be a hard constraint — `registerAction` rejected the
+   > administrator role outright. It no longer does.
+   > `20260904090000_signup_role_from_metadata.sql` wired the form's role
+   > through on purpose, so `/register` with the approval box ticked now creates
+   > an admin; `?error=manager_approval_required` fires only when the box is
+   > _not_ ticked, and the box is ticked by the person asking for the role. The
+   > seeded account stays the journey's route in because a fixed identity is
+   > better for a test, not because the form refuses.
 
 ## How it runs
 
