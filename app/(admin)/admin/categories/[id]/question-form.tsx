@@ -19,8 +19,12 @@ import { useActionState, useEffect, useRef, useState } from 'react';
 import { createQuestionAction } from './actions';
 import { AnswerRows } from './answer-rows';
 import { IDLE } from '../../../../../lib/validation/common';
-import { QUESTION_TEXT_MAX } from '../../../../../lib/validation/question.schema';
-import { Field } from '../../../../../components/ui/field';
+import {
+    QUESTION_TEXT_MAX,
+    STUDY_ADVICE_MAX,
+    TOPIC_TITLE_MAX,
+} from '../../../../../lib/validation/question.schema';
+import { Field, Input } from '../../../../../components/ui/field';
 import { SubmitButton } from '../../../../../components/submit-button';
 import { FormStatus } from '../../../../../components/form-status';
 
@@ -80,6 +84,36 @@ export function QuestionForm({ categoryId }: { categoryId: number }) {
                     <option value="intermediate">Intermediate</option>
                     <option value="advanced">Advanced</option>
                 </select>
+            </Field>
+
+            <Field
+                label="Topic"
+                htmlFor="question-topic"
+                error={state.fields?.topicTitle}
+                hint="optional"
+            >
+                <Input
+                    id="question-topic"
+                    name="topic_title"
+                    maxLength={TOPIC_TITLE_MAX}
+                    placeholder="Indexes"
+                />
+            </Field>
+
+            <Field
+                label="Study advice"
+                htmlFor="question-advice"
+                error={state.fields?.studyAdvice}
+                hint={`shown when missed · up to ${STUDY_ADVICE_MAX}`}
+            >
+                <textarea
+                    id="question-advice"
+                    name="study_advice"
+                    rows={2}
+                    maxLength={STUDY_ADVICE_MAX}
+                    placeholder="Reread how a B-tree is maintained on insert."
+                    className={TEXTAREA_CLASS}
+                />
             </Field>
 
             <AnswerRows key={formKey} fields={state.fields} />

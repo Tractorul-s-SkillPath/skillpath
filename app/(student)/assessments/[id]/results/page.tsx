@@ -10,6 +10,7 @@
  * 404 that cannot be told apart from a missing one (SP-053 AC2).
  */
 
+import { Suspense } from 'react';
 import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
 import { assertAuth } from '../../../../../lib/auth/assertAuth';
@@ -20,6 +21,7 @@ import { Section } from '../../../../../components/ui/card';
 import { Chip } from '../../../../../components/ui/chip';
 import { ScoreSummary } from './score-summary';
 import { ResponseReview } from './response-review';
+import { AiFeedback, AiFeedbackSkeleton } from './ai-feedback-box';
 
 export const metadata = { title: 'Results · SkillPath' };
 export const dynamic = 'force-dynamic';
@@ -73,6 +75,25 @@ export default async function AssessmentResultsPage({
                 />
             </div>
 
+            {/* SP-093. Above the plan because it is the sentence that frames it,
+                and inside a Suspense boundary so a provider call cannot hold up
+                a page that is already correct without it (§6.2). The Section
+                itself is not suspended — the heading is there from the first
+                byte, and only the paragraph arrives late. */}
+            <Section
+                title="Your feedback"
+                description="Written for this run, from the questions you actually missed."
+                className="rise stagger-2"
+            >
+                <Suspense fallback={<AiFeedbackSkeleton />}>
+                    <AiFeedback
+                        userId={user.userId}
+                        firstName={user.user.first_name || undefined}
+                        results={results.value}
+                    />
+                </Suspense>
+            </Section>
+
             {recommendations.length > 0 && (
                 <Section
                     title="What to focus on"
@@ -82,7 +103,7 @@ export default async function AssessmentResultsPage({
                             View your plan
                         </Link>
                     }
-                    className="rise stagger-2"
+                    className="rise stagger-3"
                 >
                     <ul className="space-y-3">
                         {recommendations.map((item) => (
@@ -110,12 +131,12 @@ export default async function AssessmentResultsPage({
             <Section
                 title="Question review"
                 description="What you picked and what was right, question by question."
-                className="rise stagger-3"
+                className="rise stagger-4"
             >
                 <ResponseReview review={review} />
             </Section>
 
-            <div className="rise stagger-4 flex justify-end">
+            <div className="rise stagger-5 flex justify-end">
                 <Link href="/dashboard" className={buttonClass('primary')}>
                     Back to your dashboard
                 </Link>

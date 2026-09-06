@@ -130,6 +130,12 @@ export type AssessmentRow = {
     created_at: string;
     started_at: string | null;
     submitted_at: string | null;
+    /**
+     * SP-093. Written once, after grading, by lib/services/ai.service.ts.
+     * Null means nobody has generated any — AI off, or the provider failed —
+     * and the page falls back to lib/domain/feedback.ts.
+     */
+    ai_feedback: string | null;
 };
 
 export type StudentResponseRow = {
@@ -341,6 +347,8 @@ export type Database = {
                     | 'started_at'
                     | 'session_id'
                     | 'time_limit_seconds'
+                    // Written after grading, never at insert (SP-093).
+                    | 'ai_feedback'
                 > & {
                     session_id?: string | null;
                     time_limit_seconds?: number | null;

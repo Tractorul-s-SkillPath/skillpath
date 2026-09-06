@@ -82,6 +82,7 @@ const anAssessmentRow = (overrides: Partial<AssessmentRow> = {}): AssessmentRow 
     created_at: '2026-01-01T00:00:00Z',
     started_at: '2026-01-01T00:00:00Z',
     submitted_at: '2026-01-01T00:10:00Z',
+    ai_feedback: null,
     ...overrides,
 });
 

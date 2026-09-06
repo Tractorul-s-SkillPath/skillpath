@@ -118,6 +118,9 @@ export function anAdminQuestion(overrides: Partial<AdminQuestion> = {}): AdminQu
         text: 'What does an index cost on write?',
         difficulty: 'intermediate',
         status: 'active',
+        topicTitle: null,
+        studyAdvice: null,
+        source: 'manual',
         answers: [
             { answerId: 1, text: 'Nothing', isCorrect: false, position: 1 },
             { answerId: 2, text: 'Extra work per insert', isCorrect: true, position: 2 },

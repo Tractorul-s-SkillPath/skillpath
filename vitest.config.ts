@@ -35,6 +35,7 @@ export default defineConfig({
         environment: 'node',
         setupFiles: ['./tests/setup.ts'],
         include: [
+            'tests/lib/ai/**/*.test.ts',
             'tests/lib/domain/**/*.test.ts',
             'tests/lib/validation/**/*.test.ts',
             'tests/lib/services/**/*.test.ts',
@@ -67,15 +68,14 @@ export default defineConfig({
             'tests/db/**',
             'tests/lib/repositories/*.repo.test.ts',
             // Inside the domain glob above, but the source is still
-            // comment-only: scoring.ts, weak-areas.ts and feedback.ts have a
-            // written spec and no function to call. Delete a line here when the
-            // function it names lands.
+            // comment-only: scoring.ts and weak-areas.ts have a written spec
+            // and no function to call. Delete a line here when the function it
+            // names lands — feedback.ts came off this list with SP-093.
             'tests/lib/domain/scoring.test.ts',
             'tests/lib/domain/weak-areas.test.ts',
-            'tests/lib/domain/feedback.test.ts',
-            // Same again for the service layer: ai, auth and progress are
-            // comment-only files with no function to call.
-            'tests/lib/services/ai.service.test.ts',
+            // Same again for the service layer: auth and progress are
+            // comment-only files with no function to call. ai.service came off
+            // this list with SP-093 too.
             'tests/lib/services/auth.service.test.ts',
             'tests/lib/services/progress.service.test.ts',
             // Different reason: lib/auth/current-user.ts builds its own
@@ -93,6 +93,11 @@ export default defineConfig({
         coverage: {
             provider: 'v8',
             include: [
+                // The whole AI layer, added when tests/lib/ai stopped being six
+                // docblock-only specs. It was outside the gate for as long as
+                // it was untested, which meant the untrusted-input boundary and
+                // the guardrails were the least measured code in the project.
+                'lib/ai/**/*.ts',
                 'lib/domain/**/*.ts',
                 'lib/services/**/*.ts',
                 'lib/validation/**/*.ts',

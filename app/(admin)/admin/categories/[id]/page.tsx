@@ -2,7 +2,7 @@
  * The question bank for one category.
  *
  * Layer: PAGE
- * Stories: SP-033, SP-034
+ * Stories: SP-033, SP-034, SP-092
  *
  * This is the one screen in the app that shows `isCorrect`. Everything a
  * student can reach is served the same rows with that field removed
@@ -20,6 +20,8 @@ import { getCategory } from '../../../../../lib/services/category.service';
 import { listQuestionsByCategory } from '../../../../../lib/services/question.service';
 import { unwrapOr } from '../../../../../lib/result';
 import QuestionForm from './question-form';
+import { GenerateQuestionsForm } from './generate-questions-form';
+import { DeleteDraftButton } from './delete-draft-button';
 import EditQuestionForm from './edit-question-form';
 import { StatusToggle } from '../../status-toggle';
 import { Section } from '../../../../../components/ui/card';
@@ -86,12 +88,24 @@ export default async function AdminCategoryQuestionsPage({
             </header>
 
             <div className="grid gap-5 lg:grid-cols-[22rem_1fr] lg:items-start">
-                <Section
-                    title="New question"
-                    description="Two to six options, at least one of them correct."
-                >
-                    <QuestionForm categoryId={categoryId} />
-                </Section>
+                <div className="space-y-5">
+                    <Section
+                        title="New question"
+                        description="Two to six options, at least one of them correct."
+                    >
+                        <QuestionForm categoryId={categoryId} />
+                    </Section>
+
+                    {/* SP-092. Below the hand-written form, not instead of it:
+                        generation is a way to start a question, and the form
+                        above is still how one gets finished. */}
+                    <Section
+                        title="Generate with AI"
+                        description="Drafts for you to review. Never live until you say so."
+                    >
+                        <GenerateQuestionsForm categoryId={categoryId} />
+                    </Section>
+                </div>
 
                 <Section
                     title="Question bank"
@@ -139,6 +153,14 @@ export default async function AdminCategoryQuestionsPage({
                                                     {question.status === 'inactive' ? (
                                                         <Chip tone="muted">inactive</Chip>
                                                     ) : null}
+                                                    {/* SP-092: a draft has to
+                                                        LOOK like a draft, or
+                                                        "a human reviewed it"
+                                                        is unverifiable from
+                                                        this screen. */}
+                                                    {question.source === 'ai' ? (
+                                                        <Chip tone="warm">AI draft</Chip>
+                                                    ) : null}
                                                 </div>
 
                                                 <div className="flex items-start gap-2 border-l border-border pl-3">
@@ -167,6 +189,22 @@ export default async function AdminCategoryQuestionsPage({
                                                         }
                                                         describedAs={question.text}
                                                     />
+
+                                                    {/* Rejection, and only for
+                                                        a draft nobody has been
+                                                        shown. Anything else
+                                                        retires with the toggle
+                                                        above, because answers
+                                                        already given refer to
+                                                        it (D4). */}
+                                                    {question.source === 'ai' &&
+                                                    question.status === 'inactive' ? (
+                                                        <DeleteDraftButton
+                                                            questionId={question.questionId}
+                                                            categoryId={categoryId}
+                                                            questionText={question.text}
+                                                        />
+                                                    ) : null}
                                                 </div>
                                             </div>
                                         </div>

@@ -189,6 +189,31 @@ export async function createWithResponses(
 }
 
 /**
+ * Store the generated feedback on a submitted run (SP-093).
+ *
+ * The `user_id` clause is the same ownership boundary findOwn uses, and it is
+ * belt to RLS's braces: the policy on `assessments` is already
+ * `user_id = auth.uid()`, so a client holding somebody else's id updates zero
+ * rows either way. Written once — ai.service only calls this when the column is
+ * still null, which is what makes the text stable across refreshes (§6.4).
+ */
+export async function saveAiFeedback(
+    supabase: Client,
+    userId: string,
+    assessmentId: number,
+    feedback: string,
+): Promise<Result<void, AppError>> {
+    const { error } = await supabase
+        .from('assessments')
+        .update({ ai_feedback: feedback })
+        .eq('assessment_id', assessmentId)
+        .eq('user_id', userId);
+
+    if (error) return err(fromPostgrestError(error, 'assessments.saveAiFeedback'));
+    return ok(undefined);
+}
+
+/**
  * Grade an assessment and return the percentage.
  *
  * A thin wrapper over the SQL function, on purpose: the score, the per-response

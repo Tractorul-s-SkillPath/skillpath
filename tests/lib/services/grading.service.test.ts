@@ -1,7 +1,7 @@
 /**
  * Tests for lib/services/grading.service.ts.
  *
- * Stories: SP-046, SP-053, SP-055, SP-115, SP-116, SP-117
+ * Stories: SP-046, SP-053, SP-055, SP-091, SP-115, SP-116, SP-117
  *
  * THE SCORE IS NOT COMPUTED HERE and these tests must not pretend otherwise.
  * submit() takes no score and could not write one if it did — grading is the
@@ -16,6 +16,8 @@ import * as assessmentRepo from '../../../lib/repositories/assessment.repo';
 import * as responseRepo from '../../../lib/repositories/response.repo';
 import * as planRepo from '../../../lib/repositories/plan.repo';
 import * as categoryRepo from '../../../lib/repositories/category.repo';
+import * as profileRepo from '../../../lib/repositories/profile.repo';
+import * as aiService from '../../../lib/services/ai.service';
 import { GENERAL_KNOWLEDGE_CATEGORY_ID } from '../../../lib/domain/constants';
 import type { ReviewItem } from '../../../lib/domain/types';
 import { FAKE_CLIENT, aRepoFailure } from '../../helpers/in-memory-repos';
@@ -26,6 +28,11 @@ vi.mock('../../../lib/repositories/assessment.repo');
 vi.mock('../../../lib/repositories/response.repo');
 vi.mock('../../../lib/repositories/plan.repo');
 vi.mock('../../../lib/repositories/category.repo');
+// Read only to give the plan prompt a first name (SP-094). It is not on the
+// critical path — a failure here costs a greeting, not a plan — which is why
+// the tests below cover the unreadable case as well as the ordinary one.
+vi.mock('../../../lib/repositories/profile.repo');
+vi.mock('../../../lib/services/ai.service');
 vi.mock('../../../lib/supabase/server', () => ({
     createClient: vi.fn(async () => FAKE_CLIENT),
 }));
@@ -68,6 +75,24 @@ beforeEach(() => {
     vi.mocked(assessmentRepo.grade).mockResolvedValue({ ok: true, value: 72 });
     vi.mocked(responseRepo.listForReview).mockResolvedValue({ ok: true, value: [] });
     vi.mocked(planRepo.insertMany).mockResolvedValue({ ok: true, value: undefined });
+    vi.mocked(aiService.enhancePlan).mockResolvedValue(0);
+    // The fallback, off by default: every test below that does not set this up
+    // is about a bank the RULES can read, and drafting must not run for those.
+    vi.mocked(aiService.draftPlan).mockResolvedValue([]);
+    vi.mocked(profileRepo.findByUserId).mockResolvedValue({
+        ok: true,
+        value: {
+            userId: MEMBER_ID,
+            // A full name on purpose: the prompt must only ever see "Ana", and
+            // firstNameOnly in lib/ai/guardrails is what makes that true.
+            firstName: 'Ana',
+            lastName: 'Popescu',
+            email: 'ana.popescu@example.com',
+            role: 'student',
+            status: 'active',
+            joinedAt: '2026-01-01T00:00:00Z',
+        },
+    });
     vi.mocked(planRepo.listByUser).mockResolvedValue({ ok: true, value: [] });
     vi.mocked(categoryRepo.findById).mockResolvedValue({ ok: true, value: aCategory() });
 });
@@ -184,16 +209,65 @@ describe('submit', () => {
             expect(items).toEqual([]);
         });
 
-        it('is not built for a category run — only the baseline generates a plan', async () => {
+        it('is built for a category run too, against that category (SP-060)', async () => {
+            // The inverse of this test used to live here: "only the baseline
+            // generates a plan". That was never a rule, it was the shape of a
+            // gap — category questions had no topic to recommend — and the
+            // admin form collects one now.
             vi.mocked(assessmentRepo.findOwn).mockResolvedValue({
                 ok: true,
                 value: aRow({ category_id: CATEGORY_RUN }),
             });
+            vi.mocked(categoryRepo.findById).mockResolvedValue({
+                ok: true,
+                value: aCategory({ name: 'Databases' }),
+            });
+            vi.mocked(responseRepo.listForReview).mockResolvedValue({
+                ok: true,
+                value: [aReviewItem({ isCorrect: false })],
+            });
 
             await submit(MEMBER_ID, RUN_ID);
 
-            expect(responseRepo.listForReview).not.toHaveBeenCalled();
-            expect(planRepo.insertMany).not.toHaveBeenCalled();
+            const [, , categoryId, , items] = vi.mocked(planRepo.insertMany).mock.calls[0]!;
+            expect(categoryId).toBe(CATEGORY_RUN);
+            expect(items).toHaveLength(1);
+            expect(items[0].description).toContain('your Databases assessment');
+        });
+
+        it('names the run honestly when the category cannot be read', async () => {
+            // A failed lookup costs a phrase, never the plan. "your last
+            // assessment" is true; a category name invented here would not be.
+            vi.mocked(assessmentRepo.findOwn).mockResolvedValue({
+                ok: true,
+                value: aRow({ category_id: CATEGORY_RUN }),
+            });
+            vi.mocked(categoryRepo.findById).mockResolvedValue({
+                ok: false,
+                error: aRepoFailure(),
+            });
+            vi.mocked(responseRepo.listForReview).mockResolvedValue({
+                ok: true,
+                value: [aReviewItem({ isCorrect: false })],
+            });
+
+            await submit(MEMBER_ID, RUN_ID);
+
+            const items = vi.mocked(planRepo.insertMany).mock.calls[0]?.[4];
+            expect(items?.[0].description).toContain('your last assessment');
+        });
+
+        it('does not read the category name for the baseline, which names itself', async () => {
+            vi.mocked(responseRepo.listForReview).mockResolvedValue({
+                ok: true,
+                value: [aReviewItem({ isCorrect: false })],
+            });
+
+            await submit(MEMBER_ID, RUN_ID);
+
+            expect(categoryRepo.findById).not.toHaveBeenCalled();
+            const items = vi.mocked(planRepo.insertMany).mock.calls[0]?.[4];
+            expect(items?.[0].description).toContain('your baseline assessment');
         });
 
         it('still returns the score when the plan cannot be written', async () => {
@@ -224,6 +298,211 @@ describe('submit', () => {
                 value: { score: 72 },
             });
             expect(planRepo.insertMany).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('the AI elaboration on top of it (SP-091)', () => {
+        beforeEach(() => {
+            vi.mocked(responseRepo.listForReview).mockResolvedValue({
+                ok: true,
+                value: [aReviewItem({ isCorrect: false, topicTitle: 'Indexes' })],
+            });
+        });
+
+        it('is offered the rows the rules just produced, with their rule text', async () => {
+            await submit(MEMBER_ID, RUN_ID);
+
+            // Same titles and same text as insertMany got — that is what makes
+            // the model elaborate on the plan rather than write a second one.
+            const inserted = vi.mocked(planRepo.insertMany).mock.calls[0]?.[4] ?? [];
+
+            expect(aiService.enhancePlan).toHaveBeenCalledWith(MEMBER_ID, {
+                assessmentId: RUN_ID,
+                score: 72,
+                firstName: 'Ana',
+                topics: inserted.map((item) => ({
+                    topicTitle: item.topicTitle,
+                    ruleDescription: item.description,
+                })),
+            });
+        });
+
+        it('gives the plan prompt a first name (SP-091, SP-094)', async () => {
+            // This used to be structurally impossible. submit() is called with
+            // a user id and nothing else, so `PlanSubject.firstName` was never
+            // populated by the only caller there is: the feedback prompt got a
+            // name because its page already had the profile, and the plan
+            // prompt was permanently nameless.
+            await submit(MEMBER_ID, RUN_ID);
+
+            expect(profileRepo.findByUserId).toHaveBeenCalledWith(FAKE_CLIENT, MEMBER_ID);
+            expect(vi.mocked(aiService.enhancePlan).mock.calls[0][1].firstName).toBe('Ana');
+        });
+
+        it('costs a greeting, not a plan, when the profile cannot be read', async () => {
+            vi.mocked(profileRepo.findByUserId).mockResolvedValue({
+                ok: false,
+                error: aRepoFailure(),
+            });
+
+            await submit(MEMBER_ID, RUN_ID);
+
+            expect(aiService.enhancePlan).toHaveBeenCalled();
+            expect(vi.mocked(aiService.enhancePlan).mock.calls[0][1].firstName).toBeUndefined();
+        });
+
+        it('does not read a profile when there is no plan to decorate', async () => {
+            // The lookup sits INSIDE the branch that has rows, so a run with
+            // nothing to recommend does not pay for a query whose only use is a
+            // prompt that is never built. This used to be demonstrated with a
+            // category run, back when a category run could not produce a plan
+            // at all; a full-marks paper is the honest way to say it now.
+            vi.mocked(responseRepo.listForReview).mockResolvedValue({
+                ok: true,
+                value: [aReviewItem({ isCorrect: true })],
+            });
+
+            await submit(MEMBER_ID, RUN_ID);
+
+            expect(profileRepo.findByUserId).not.toHaveBeenCalled();
+            expect(aiService.enhancePlan).not.toHaveBeenCalled();
+        });
+
+        it('is not attempted when the rule-based rows were not written', async () => {
+            // Nothing to decorate, and a model call for rows that do not exist
+            // is money spent on an update that matches nothing.
+            vi.mocked(planRepo.insertMany).mockResolvedValue({ ok: false, error: aRepoFailure() });
+            vi.spyOn(console, 'error').mockImplementation(() => {});
+
+            await submit(MEMBER_ID, RUN_ID);
+
+            expect(aiService.enhancePlan).not.toHaveBeenCalled();
+        });
+
+        it('cannot turn a graded run into an error', async () => {
+            // enhancePlan is documented never to throw. If that ever changes,
+            // this is the test that says what it would cost.
+            vi.mocked(aiService.enhancePlan).mockRejectedValue(new Error('boom'));
+            vi.spyOn(console, 'error').mockImplementation(() => {});
+
+            await expect(submit(MEMBER_ID, RUN_ID)).resolves.toEqual({
+                ok: true,
+                value: { score: 72 },
+            });
+        });
+    });
+
+    describe('the drafted plan, when the rules have nothing to say', () => {
+        /** A bank written before topic_title existed: a real question, no annotation. */
+        const anUnannotatedMiss = (overrides: Partial<ReviewItem> = {}) =>
+            aReviewItem({
+                isCorrect: false,
+                text: 'Which clause filters rows before grouping?',
+                topicTitle: null,
+                studyAdvice: null,
+                ...overrides,
+            });
+
+        const aDraftedRow = {
+            topicTitle: 'Filtering',
+            description: 'This came out of the beginner questions you missed in your run.',
+            aiDescription: 'Why filtering is the thing to fix first.',
+            priority: 1,
+        };
+
+        beforeEach(() => {
+            vi.mocked(assessmentRepo.findOwn).mockResolvedValue({
+                ok: true,
+                value: aRow({ category_id: CATEGORY_RUN }),
+            });
+            vi.mocked(responseRepo.listForReview).mockResolvedValue({
+                ok: true,
+                value: [anUnannotatedMiss()],
+            });
+            vi.mocked(aiService.draftPlan).mockResolvedValue([aDraftedRow]);
+        });
+
+        it('is shown the questions themselves, and the phrase naming the run', async () => {
+            await submit(MEMBER_ID, RUN_ID);
+
+            expect(aiService.draftPlan).toHaveBeenCalledWith(MEMBER_ID, {
+                score: 72,
+                // From the category, not from the form — aCategory()'s name.
+                runLabel: `${aCategory().name} assessment`,
+                firstName: 'Ana',
+                missed: [
+                    { text: 'Which clause filters rows before grouping?', difficulty: 'beginner' },
+                ],
+            });
+        });
+
+        it('writes what it drafted, through the same statement a rule plan uses', async () => {
+            await submit(MEMBER_ID, RUN_ID);
+
+            expect(planRepo.insertMany).toHaveBeenCalledWith(
+                FAKE_CLIENT,
+                MEMBER_ID,
+                CATEGORY_RUN,
+                RUN_ID,
+                [aDraftedRow],
+            );
+        });
+
+        it('does not then send the drafted rows back for enhancement', async () => {
+            // They already carry the model's paragraph. A second call would
+            // spend money asking a model to elaborate its own prose, and
+            // overwrite a good paragraph with a worse one.
+            await submit(MEMBER_ID, RUN_ID);
+
+            expect(aiService.enhancePlan).not.toHaveBeenCalled();
+        });
+
+        it('names the baseline as the baseline', async () => {
+            vi.mocked(assessmentRepo.findOwn).mockResolvedValue({ ok: true, value: aRow() });
+
+            await submit(MEMBER_ID, RUN_ID);
+
+            expect(vi.mocked(aiService.draftPlan).mock.calls[0][1].runLabel).toBe(
+                'baseline assessment',
+            );
+        });
+
+        it('is not asked when the rules produced rows of their own', async () => {
+            // Rules first, always: deterministic, free, and written by somebody
+            // who knows the material. The model only fills a silence.
+            vi.mocked(responseRepo.listForReview).mockResolvedValue({
+                ok: true,
+                value: [aReviewItem({ isCorrect: false, topicTitle: 'Indexes' })],
+            });
+
+            await submit(MEMBER_ID, RUN_ID);
+
+            expect(aiService.draftPlan).not.toHaveBeenCalled();
+            expect(aiService.enhancePlan).toHaveBeenCalled();
+        });
+
+        it('is not asked when the member missed nothing at all', async () => {
+            vi.mocked(responseRepo.listForReview).mockResolvedValue({
+                ok: true,
+                value: [aReviewItem({ isCorrect: true })],
+            });
+
+            await submit(MEMBER_ID, RUN_ID);
+
+            expect(aiService.draftPlan).not.toHaveBeenCalled();
+            expect(profileRepo.findByUserId).not.toHaveBeenCalled();
+        });
+
+        it('leaves the score alone when drafting produces nothing', async () => {
+            // Provider off, down, or rate limited. The member is exactly where
+            // they were before this feature existed: graded, paid, no plan.
+            vi.mocked(aiService.draftPlan).mockResolvedValue([]);
+
+            await expect(submit(MEMBER_ID, RUN_ID)).resolves.toEqual({
+                ok: true,
+                value: { score: 72 },
+            });
+            expect(vi.mocked(planRepo.insertMany).mock.calls[0]?.[4]).toEqual([]);
         });
     });
 });

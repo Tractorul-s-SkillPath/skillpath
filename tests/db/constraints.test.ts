@@ -261,6 +261,30 @@ describe('assessments', () => {
 
         await db.from('assessments').delete().eq('assessment_id', data!.assessment_id);
     });
+
+    it('refuses an ai_feedback longer than the schema allows (SP-093)', async () => {
+        // The bound mirrors feedbackResponseSchema in lib/ai/schemas.ts. Model
+        // output is untrusted input, and the database says so too — a bug that
+        // skips the Zod parse must not land a 50KB generation in a column a
+        // page renders.
+        const { error } = await raw('assessments').insert(
+            submitted({ ai_feedback: 'x'.repeat(1501) }),
+        );
+
+        expect(error?.code).toBe('23514');
+        expect(error?.message).toContain('ai_feedback');
+    });
+
+    it('accepts a null ai_feedback, which is what an ungenerated run looks like', async () => {
+        const { data, error } = await raw('assessments')
+            .insert(submitted({ ai_feedback: null }))
+            .select('assessment_id')
+            .single();
+
+        expect(error).toBeNull();
+
+        await db.from('assessments').delete().eq('assessment_id', data!.assessment_id);
+    });
 });
 
 describe('student_responses', () => {
@@ -536,6 +560,37 @@ describe('recommendation_plans', () => {
 
         expect(error?.code).toBe('23514');
         expect(error?.message).toContain('recommendation_plans_priority_check');
+    });
+
+    it('refuses an ai_description longer than the schema allows (SP-091)', async () => {
+        // The mirror of the ai_feedback bound on `assessments`, added because
+        // this column did not have one: it was plain `text` while
+        // enhancedPlanItemSchema in lib/ai/schemas.ts bounded it at 600 and a
+        // plan page renders it the same way a results page renders the other.
+        // A length that only exists in TypeScript is a length the database will
+        // happily accept without it.
+        const { error } = await raw('recommendation_plans').insert(
+            item({ ai_description: 'x'.repeat(601) }),
+        );
+
+        expect(error?.code).toBe('23514');
+        expect(error?.message).toContain('recommendation_plans_ai_description_length');
+    });
+
+    it('accepts a null ai_description, which is what an un-enhanced row looks like', async () => {
+        // D5: the rule text is the half that has to survive. A provider that is
+        // off or down leaves this null on purpose, and the plan still renders.
+        const { data, error } = await raw('recommendation_plans')
+            .insert(item({ ai_description: null }))
+            .select('recommendation_id')
+            .single();
+
+        expect(error).toBeNull();
+
+        await db
+            .from('recommendation_plans')
+            .delete()
+            .eq('recommendation_id', data!.recommendation_id);
     });
 
     it('does NOT cap priority at 3', async () => {

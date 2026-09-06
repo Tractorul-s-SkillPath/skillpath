@@ -107,7 +107,7 @@ lib/
 docs/           ARCHITECTURE.md · BACKLOG.md · TESTING.md
 supabase/       migrations/ — the schema of record — plus config.toml, seed.sql
 scripts/        seed.mjs, seed-users.mjs
-tests/          Vitest: 43 files, 481 tests. tests/db/ needs a live project
+tests/          Vitest: 45 files, 555 tests. tests/db/ needs a live project
 e2e/            Playwright specs and their global setup
 ```
 
@@ -133,11 +133,33 @@ its results page and `/plan` are all real, grading runs server-side through the
 `grade_assessment()` RPC, and the E2E baseline journey walks register → baseline
 → results → plan against a live database on every run.
 
-**Not built:** the three AI features — `lib/ai/` is six comment-only files, 92
-lines, no implementations. Four other source files are still comment-only
-sketches: `lib/domain/{scoring,weak-areas,feedback}.ts` and
-`lib/repositories/progress.repo.ts`, which is why there is no score-trend chart.
-Their tests are written and waiting, excluded by name in `vitest.config.ts`.
+**Also working: the AI Feedback Assistant** (SP-093). A submitted run's results
+page carries a short, specific note built from the questions that run actually
+got wrong. It is generated once and stored in `assessments.ai_feedback`, so the
+same result always reads the same way, and it renders inside a `<Suspense>`
+boundary so the provider cannot hold up a page that is already correct. With
+`AI_ENABLED=false`, or a provider that is down, the rule-based text in
+`lib/domain/feedback.ts` takes over and no error is shown. `AI_PROVIDER`
+defaults to a deterministic mock, which is what CI and a laptop with no API key
+both run.
+
+**Also working: the AI Study Recommendation Enhancer** (SP-091). When the
+baseline is submitted the rule-based plan is written first, and only then is it
+handed to a provider to elaborate: each row gains an `ai_description` saying why
+that topic matters for this member's score. It is stored, not regenerated per
+view, and `/plan` renders the rule text with or without it.
+
+**Also working: the AI Question Generator** (SP-092). "Generate with AI" on a
+category's question bank takes a difficulty and a count and writes drafts
+straight into the bank — `inactive` and marked `AI draft`, so they cannot be
+drawn into anyone's assessment. Reviewing one is the controls that were already
+there: edit it, activate it, or delete it. Deleting is scoped to inactive AI
+drafts; a question members have answered is deactivated instead, never removed.
+
+**Not built:** three source files are still comment-only sketches —
+`lib/domain/{scoring,weak-areas}.ts` and `lib/repositories/progress.repo.ts`,
+which is why there is no score-trend chart. Their tests are written and waiting,
+excluded by name in `vitest.config.ts`.
 
 [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) §0 has the full built/not-built
 breakdown, and [`docs/BACKLOG.md`](docs/BACKLOG.md) has the stories with their
