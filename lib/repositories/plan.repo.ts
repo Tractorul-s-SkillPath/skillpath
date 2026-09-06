@@ -31,6 +31,7 @@ export interface NewPlanItem {
     topicTitle: string;
     description: string;
     priority: number;
+    aiDescription?: string;
 }
 
 /**
@@ -57,6 +58,7 @@ export async function insertMany(
             topic_title: item.topicTitle,
             rule_description: item.description,
             priority: item.priority,
+            ai_description: item.aiDescription,
         })),
     );
 

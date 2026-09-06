@@ -12,8 +12,7 @@
  * cannot be expressed as an argument (SP-055).
  *
  * What this service adds AFTER the grade is the baseline plan: wrong paper
- * positions in, recommendation_plans rows out, via the pure map in
- * lib/domain/baseline.ts. Rules decide, AI decorates later (D5).
+ * positions in, ai_study_plans rows out.
  *
  * Test: tests/lib/services/grading.service.test.ts
  */
@@ -23,13 +22,13 @@ import { createClient } from '../supabase/server';
 import * as assessmentRepo from '../repositories/assessment.repo';
 import * as categoryRepo from '../repositories/category.repo';
 import * as responseRepo from '../repositories/response.repo';
-import * as planRepo from '../repositories/plan.repo';
-import { bandBreakdown, buildBaselineRecommendations, type BandScore } from '../domain/baseline';
+import { bandBreakdown, type BandScore } from '../domain/baseline';
 import { GENERAL_KNOWLEDGE_CATEGORY_ID } from '../domain/constants';
 import { estimateLevel } from '../domain/levels';
 import { appError, type AppError } from '../errors';
-import { err, ok, unwrapOr, type Result } from '../result';
-import type { PlanItem, ReviewItem, SkillLevel } from '../domain/types';
+import { err, ok, type Result } from '../result';
+import type { ReviewItem, SkillLevel } from '../domain/types';
+import { generateAndSaveStudyPlan } from './ai.service';
 
 /**
  * Submit an in-progress run (SP-046, SP-115).
@@ -60,34 +59,34 @@ export async function submit(
     // after grading, and a skipped question is as much a gap as a missed one.
     // A failure here must not eat the score: the run is graded and paid by now,
     // so the plan degrades to empty rather than turning success into an error.
-    if (assessment.value.category_id === GENERAL_KNOWLEDGE_CATEGORY_ID) {
+if (assessment.value.category_id === GENERAL_KNOWLEDGE_CATEGORY_ID) {
         const review = await responseRepo.listForReview(supabase, assessmentId);
 
         if (review.ok) {
             const missed = review.value
                 .filter((item) => !item.isCorrect)
                 .map((item) => ({
-                    difficulty: item.difficulty,
                     topicTitle: item.topicTitle,
                     studyAdvice: item.studyAdvice,
                 }));
 
-            const inserted = await planRepo.insertMany(
-                supabase,
-                userId,
-                GENERAL_KNOWLEDGE_CATEGORY_ID,
-                assessmentId,
-                buildBaselineRecommendations(missed),
-            );
+            const aiPlan = await generateAndSaveStudyPlan(userId, assessmentId, missed);
 
-            if (!inserted.ok) {
-                console.error('[grading] baseline plan not written:', inserted.error.message);
+            if (aiPlan.ok) {
+                const itemsToInsert = aiPlan.value.recommendations.map((rec: any, index: number) => {
+                    const actionText = rec.actionItems.map((a: string) => `• ${a}`).join('\n');
+                    return {
+                        topicTitle: rec.title,
+                        description: rec.rationale,
+                        priority: index + 1,
+                        aiDescription: `⏱️ Timp estimat: ~${rec.estimatedMinutes} minute\n\nPași de acțiune:\n${actionText}`
+                    };
+                });
+
+                await planRepo.insertMany(supabase, userId, GENERAL_KNOWLEDGE_CATEGORY_ID, assessmentId, itemsToInsert);
             }
         }
     }
-
-    return ok({ score: graded.value });
-}
 
 /** Everything the results page renders, in one shape. */
 export interface AssessmentResults {
@@ -100,8 +99,8 @@ export interface AssessmentResults {
     submittedAt: string | null;
     bands: BandScore[];
     review: ReviewItem[];
-    /** The plan rows THIS run generated, most urgent first. */
-    recommendations: PlanItem[];
+    /** The AI generated plan. */
+    aiPlan: any;
 }
 
 /**
@@ -129,10 +128,14 @@ export async function getResults(
 
     const score = Number(row.total_score ?? 0);
 
-    // PlanItem does not carry assessment_id, and for the baseline it does not
-    // need to: one attempt means every plan row in this category came from this
-    // run. Revisit when retakes or per-category runs write into the same list.
-    const plan = unwrapOr(await planRepo.listByUser(supabase, userId), []);
+    const { data: aiPlanData } = await supabase
+        .from('ai_study_plans')
+        .select('plan_data')
+        .eq('user_id', userId)
+        .eq('assessment_id', assessmentId)
+        .maybeSingle();
+
+    const aiPlan = aiPlanData?.plan_data || null;
 
     // Headline material only, so a failed read degrades to a wrong-ish title
     // rather than a lost results page.
@@ -148,6 +151,6 @@ export async function getResults(
         submittedAt: row.submitted_at,
         bands: bandBreakdown(review.value),
         review: review.value,
-        recommendations: plan.filter((item) => item.categoryId === row.category_id),
+        aiPlan,
     });
 }

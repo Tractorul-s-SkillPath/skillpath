@@ -57,17 +57,16 @@ export function PlanItemCard({ item }: { item: PlanItem }) {
                     </Chip>
                 </div>
 
-                {/* Rule-based text first and always; the AI elaboration is
-                    decoration, so a provider outage leaves the item complete
-                    rather than blank (SP-091 AC3). */}
+                {/* Rule-based text first and always */}
                 {item.description ? (
                     <p className="mt-1 max-w-prose text-[0.8125rem] leading-relaxed text-muted-foreground">
                         {item.description}
                     </p>
                 ) : null}
 
+                {/* AI Elaboration with whitespace-pre-wrap to respect newlines */}
                 {item.aiDescription ? (
-                    <p className="mt-1.5 max-w-prose text-[0.8125rem] leading-relaxed text-subtle-foreground">
+                    <p className="mt-2.5 max-w-prose text-[0.8125rem] leading-relaxed text-subtle-foreground whitespace-pre-wrap">
                         {item.aiDescription}
                     </p>
                 ) : null}
