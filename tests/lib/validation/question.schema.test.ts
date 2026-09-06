@@ -67,4 +67,75 @@ describe('questionSchema', () => {
             false,
         );
     });
+
+    describe('the topic and its advice (SP-060)', () => {
+        const withPair = {
+            ...validQuestion,
+            topicTitle: '  Component model  ',
+            studyAdvice: '  Reread how props flow down.  ',
+        };
+
+        it('accepts a question with neither, which is most of the bank', () => {
+            const parsed = questionSchema.safeParse(validQuestion);
+
+            expect(parsed.success).toBe(true);
+            if (!parsed.success) return;
+            expect(parsed.data.topicTitle).toBeNull();
+            expect(parsed.data.studyAdvice).toBeNull();
+        });
+
+        it('trims both, because a topic is matched verbatim against a plan row', () => {
+            const parsed = questionSchema.safeParse(withPair);
+
+            expect(parsed.success).toBe(true);
+            if (!parsed.success) return;
+            expect(parsed.data.topicTitle).toBe('Component model');
+            expect(parsed.data.studyAdvice).toBe('Reread how props flow down.');
+        });
+
+        it('reads an empty input as absent rather than as a too-short topic', () => {
+            // What an untouched text input actually posts. Reporting "use at
+            // least 2 characters" for a field the admin deliberately skipped
+            // would be a message about nothing.
+            const parsed = questionSchema.safeParse({
+                ...validQuestion,
+                topicTitle: '',
+                studyAdvice: '   ',
+            });
+
+            expect(parsed.success).toBe(true);
+            if (!parsed.success) return;
+            expect(parsed.data.topicTitle).toBeNull();
+        });
+
+        it('refuses a topic with no advice — half a pair is worth nothing', () => {
+            const parsed = questionSchema.safeParse({
+                ...validQuestion,
+                topicTitle: 'Component model',
+            });
+
+            expect(parsed.success).toBe(false);
+        });
+
+        it('refuses advice with no topic to attach it to', () => {
+            const parsed = questionSchema.safeParse({
+                ...validQuestion,
+                studyAdvice: 'Reread how props flow down.',
+            });
+
+            expect(parsed.success).toBe(false);
+        });
+
+        it('refuses a topic the plan table would refuse, at the same length', () => {
+            // recommendation_plans.topic_title is `between 2 and 200`, and this
+            // value is copied into it verbatim months later.
+            const parsed = questionSchema.safeParse({
+                ...validQuestion,
+                topicTitle: 'x'.repeat(201),
+                studyAdvice: 'Reread it.',
+            });
+
+            expect(parsed.success).toBe(false);
+        });
+    });
 });

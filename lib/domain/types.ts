@@ -240,6 +240,15 @@ export interface AdminQuestion {
     text: string;
     difficulty: SkillLevel;
     status: 'active' | 'inactive';
+    /**
+     * Who wrote it. `ai` is the whole point of SP-092's human-in-the-loop rule:
+     * a draft has to be *visibly* a draft, or "an admin reviewed it" is a claim
+     * nobody can check from the screen.
+     */
+    source: 'manual' | 'ai';
+    /** What the question tests, and what to reread when it is missed. Null on the bank written before SP-060. */
+    topicTitle: string | null;
+    studyAdvice: string | null;
     answers: AdminAnswer[];
 }
 

@@ -1,6 +1,6 @@
 # Testing — SkillPath
 
-> ## Status: running in CI. 55 files, 702 tests, gate green.
+> ## Status: running in CI. 63 files, 909 tests, gate green.
 >
 > ```
 > npm test            # watch
@@ -11,7 +11,7 @@
 >
 > | Suite                        | Files | Tests      | Needs a database | CI                                     |
 > | ---------------------------- | ----- | ---------- | ---------------- | -------------------------------------- |
-> | `npm run test:coverage`      | 43    | 481        | no               | `ci.yml`                               |
+> | `npm run test:coverage`      | 51    | 688        | no               | `ci.yml`                               |
 > | `npm run test:db`            | 12    | 221        | **yes**          | `db.yml`                               |
 > | ↳ `SKILLPATH_DB_TEST_KEEP=1` |       |            |                  | keeps the rows so you can look at them |
 > | `npm run test:e2e`           | 2     | 2 journeys | **yes**          | `e2e.yml`                              |
@@ -21,12 +21,20 @@
 >
 > |                  | Statements | Branches | Functions | Lines    |
 > | ---------------- | ---------- | -------- | --------- | -------- |
-> | **All**          | 99.04%     | 93.13%   | 98.26%    | 99.72%   |
-> | `lib/services`   | **100%**   | **100%** | **100%**  | **100%** |
+> | **All**          | 98.29%     | 94.32%   | 95.97%    | 98.8%    |
 > | `lib/auth`       | **100%**   | **100%** | **100%**  | **100%** |
+> | `lib/services`   | 98.95%     | 98.67%   | 98.03%    | 99.2%    |
+> | `lib/ai`         | 97%        | 96.11%   | 91.8%     | 97.28%   |
 > | `lib/validation` | 100%       | 75%      | 100%      | 100%     |
-> | `lib/domain`     | 97.59%     | 85.05%   | 96.42%    | 99.26%   |
+> | `lib/domain`     | 98%        | 86.53%   | 96.92%    | 99.39%   |
 > | _threshold_      | _75_       | _70_     | _75_      | _75_     |
+>
+> `lib/ai` joined the gate when `tests/lib/ai` stopped being six docblock-only
+> specs. It had been outside it for as long as it was untested, which meant the
+> untrusted-input boundary and the safety guardrails were the least measured
+> code in the project. The uncovered lines that remain are the mock provider's
+> `hang` sentinels — a promise that never settles cannot be executed to
+> completion by a coverage run, which is the point of it.
 >
 > `lib/auth` used to read 26% because `session.ts` — HMAC cookie signing — had
 > no tests at all. **SP-121 is closed**: it is now the most heavily tested file
@@ -73,6 +81,7 @@ reason the folder is shaped this way.
 
 | Layer                           | In the gate | Style                                      | Doubles                                             |
 | ------------------------------- | ----------- | ------------------------------------------ | --------------------------------------------------- |
+| `tests/lib/ai`                  | yes         | table-driven; `fetch` faked in one file    | global `fetch`, in `openai-compatible.test.ts` only |
 | `tests/lib/domain`              | yes         | table-driven, pure                         | none                                                |
 | `tests/lib/validation`          | yes         | valid / invalid / boundary per schema      | none                                                |
 | `tests/lib/services`            | yes         | behaviour                                  | repository fakes, see below                         |
@@ -247,9 +256,10 @@ done
 
 Beyond those, `vitest.config.ts` excludes named files for two different reasons:
 
-- **Source is still comment-only** — `scoring`, `weak-areas` and `feedback` in
-  `lib/domain`; `ai`, `auth` and `progress` in `lib/services`. The spec is
-  written, the function is not. Delete the exclude line when the code lands.
+- **Source is still comment-only** — `scoring` and `weak-areas` in `lib/domain`;
+  `auth` and `progress` in `lib/services`. The spec is written, the function is
+  not. Delete the exclude line when the code lands. (`feedback` and `ai.service`
+  came off this list with SP-093, and `lib/ai` with the tests described below.)
 - **Cannot be tested _in the gate_** — `tests/lib/auth/current-user.test.ts`.
   `lib/auth/current-user.ts` builds its own supabase-js queries instead of going
   through a repository, and mocking supabase-js is ruled out. So it is excluded
@@ -265,9 +275,8 @@ Beyond those, `vitest.config.ts` excludes named files for two different reasons:
 | --------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `tests/components` (5 files) and the 4 `.tsx` files under `tests/app` | neither `@testing-library/react` nor `@vitejs/plugin-react` is installed, so a `.tsx` test cannot run at all. The first component test starts by adding them. The nine `.ts` **Server Action** specs under `tests/app` are now written — they substitute the service, so they need no React and no database |
 | `tests/app/(student)/assessments/start/[categoryId]/page.test.ts`     | its source is a server component that finds-or-creates a run and redirects; needs the service mocked and a throwing `redirect`                                                                                                                                                                              |
-| `tests/lib/ai` (6 files)                                              | `lib/ai/` is six comment-only files — no implementation to call                                                                                                                                                                                                                                             |
-| `tests/lib/domain/{scoring,weak-areas,feedback}`                      | same: written spec, no function                                                                                                                                                                                                                                                                             |
-| `tests/lib/services/{ai,auth,progress}`                               | same                                                                                                                                                                                                                                                                                                        |
+| `tests/lib/domain/{scoring,weak-areas}`                               | written spec, no function                                                                                                                                                                                                                                                                                   |
+| `tests/lib/services/{auth,progress}`                                  | same                                                                                                                                                                                                                                                                                                        |
 | `tests/lib/repositories/progress.repo`                                | same                                                                                                                                                                                                                                                                                                        |
 | `tests/lib/logger` and `tests/middleware`                             | `lib/logger.ts` is comment-only; `middleware.ts` is real and its test is simply unwritten                                                                                                                                                                                                                   |
 | `tests/db/rls-*` (7 files)                                            | **unblocked, and now owed.** Both reasons they were blocked are gone: RLS is enabled with policies, and Supabase Auth gives a real per-user token to hold. They are still excluded in `vitest.config.db.ts`. See `tests/db/README.md`                                                                       |

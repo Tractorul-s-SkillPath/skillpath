@@ -24,7 +24,7 @@ import { fromPostgrestError, type AppError } from '../errors';
 import { err, ok, type Result } from '../result';
 import type { AdminQuestion } from '../domain/types';
 import { toAdminQuestion } from './mappers';
-import type { ContentStatus } from '../supabase/database.types';
+import type { ContentStatus, QuestionSource } from '../supabase/database.types';
 
 type Client = SupabaseClient<Database>;
 
@@ -37,9 +37,24 @@ export interface NewQuestion {
     categoryId: number;
     text: string;
     difficulty: SkillLevel;
+    /**
+     * The plan's two columns (SP-060). Null for a question that is not meant to
+     * produce a recommendation — which is every question written before the
+     * form asked for them.
+     */
+    topicTitle?: string | null;
+    studyAdvice?: string | null;
     answers: NewAnswer[];
     /** The admin writing it. Recorded so an AI-generated bank stays tellable apart. */
     createdBy: string;
+    /**
+     * Defaults to a live, hand-written question, because that is what every
+     * caller but SP-092's generator is. A generated draft passes
+     * `source: 'ai'` and `status: 'inactive'` together — see the note on
+     * insertWithAnswers about why they are two fields and not one.
+     */
+    source?: QuestionSource;
+    status?: ContentStatus;
 }
 
 /**
@@ -117,7 +132,10 @@ export async function insertWithAnswers(
             category_id: question.categoryId,
             text: question.text,
             difficulty: question.difficulty,
-            source: 'manual',
+            topic_title: question.topicTitle ?? null,
+            study_advice: question.studyAdvice ?? null,
+            source: question.source ?? 'manual',
+            status: question.status ?? 'active',
             created_by: question.createdBy,
         })
         .select('question_id')
@@ -180,4 +198,48 @@ export async function setStatus(
     }
 
     return { ok: true, value: undefined };
+}
+
+/**
+ * Delete a question outright (SP-092 AC3, the "reject" half).
+ *
+ * The ONLY hard delete in the question bank, and it exists because a rejected
+ * AI draft is not history — nobody was ever shown it. Everything else retires
+ * with `setStatus`, because `student_responses.is_correct` is a snapshot of
+ * what a member was told (D4) and deleting the question underneath it would
+ * leave that snapshot describing nothing.
+ *
+ * The database enforces that distinction independently: `student_responses`
+ * and `assessment_questions` both reference this table `on delete restrict`,
+ * so a question that has ever been served refuses to go. That arrives as
+ * 23503, which `fromPostgrestError` already turns into a sentence an admin can
+ * read. The service's own inactive+ai check is the first gate, not the only one.
+ *
+ * `on delete cascade` on `answers` takes the options with it.
+ */
+export async function remove(
+    supabase: Client,
+    questionId: number,
+): Promise<Result<void, AppError>> {
+    const { error } = await supabase.from('questions').delete().eq('question_id', questionId);
+
+    if (error) return err(fromPostgrestError(error, 'questions.remove'));
+    return ok(undefined);
+}
+
+/** One question with its answer key, for a service that must check it before acting. */
+export async function findById(
+    supabase: Client,
+    questionId: number,
+): Promise<Result<AdminQuestion | null, AppError>> {
+    const { data, error } = await supabase
+        .from('questions')
+        .select('*, answers(*)')
+        .eq('question_id', questionId)
+        .maybeSingle();
+
+    if (error) return err(fromPostgrestError(error, 'questions.findById'));
+    if (!data) return ok(null);
+
+    return ok(toAdminQuestion(data, data.answers ?? []));
 }

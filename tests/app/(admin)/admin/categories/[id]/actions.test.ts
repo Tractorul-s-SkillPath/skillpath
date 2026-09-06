@@ -1,7 +1,7 @@
 /**
  * Question actions, scoped to one category.
  *
- * Layer: ACTION. Stories: SP-033, SP-034, SP-035, SP-036
+ * Layer: ACTION. Stories: SP-033, SP-034, SP-035, SP-036, SP-092
  *
  * Three things here are worth a test, and all three are bugs the source header
  * records as fixed:
@@ -28,6 +28,8 @@ import {
     createQuestionAction,
     editQuestionAction,
     setQuestionStatusAction,
+    generateQuestionsAction,
+    deleteQuestionAction,
 } from '../../../../../../app/(admin)/admin/categories/[id]/actions';
 import * as questionService from '../../../../../../lib/services/question.service';
 import { revalidatePath } from 'next/cache';
@@ -96,6 +98,10 @@ describe('createQuestionAction', () => {
             categoryId: CATEGORY,
             text: 'What does an index change?',
             difficulty: 'beginner',
+            // Absent from the form is null, not '' — the columns are nullable
+            // and a question without a topic simply never becomes a plan row.
+            topicTitle: null,
+            studyAdvice: null,
             answers: [
                 { text: 'The query plan', isCorrect: true },
                 { text: 'The row order', isCorrect: false },
@@ -329,5 +335,148 @@ describe('setQuestionStatusAction', () => {
 
         expect(result.status).toBe('error');
         expect(revalidatePath).not.toHaveBeenCalled();
+    });
+});
+
+// -----------------------------------------------------------------------------
+// SP-092 — generate and reject
+// -----------------------------------------------------------------------------
+
+function generateForm(fields: Record<string, string>): FormData {
+    const form = new FormData();
+    for (const [name, value] of Object.entries(fields)) form.append(name, value);
+    return form;
+}
+
+describe('generateQuestionsAction', () => {
+    beforeEach(() => {
+        vi.mocked(questionService.generateDraftQuestions).mockResolvedValue(
+            ok({ added: 3, requested: 3 }),
+        );
+    });
+
+    it('passes the category from the route, never from the form', async () => {
+        // Same rule as created_by: the id the admin is looking at, not one a
+        // forged post could name.
+        await generateQuestionsAction(
+            7,
+            IDLE,
+            generateForm({ difficulty: 'beginner', count: '3', categoryId: '999' }),
+        );
+
+        expect(questionService.generateDraftQuestions).toHaveBeenCalledWith({
+            categoryId: 7,
+            difficulty: 'beginner',
+            count: 3,
+        });
+    });
+
+    it('reports how many drafts landed', async () => {
+        const state = await generateQuestionsAction(
+            7,
+            IDLE,
+            generateForm({ difficulty: 'beginner', count: '3' }),
+        );
+
+        expect(state.status).toBe('success');
+        expect(state.message).toContain('3 drafts added');
+        expect(revalidatePath).toHaveBeenCalledWith('/admin/categories/7');
+    });
+
+    it('says how many of how many when some were unusable', async () => {
+        vi.mocked(questionService.generateDraftQuestions).mockResolvedValue(
+            ok({ added: 2, requested: 5 }),
+        );
+
+        const state = await generateQuestionsAction(
+            7,
+            IDLE,
+            generateForm({ difficulty: 'beginner', count: '5' }),
+        );
+
+        expect(state.message).toContain('2 of 5');
+    });
+
+    it('renders a generation failure as a message, never a throw (AC4)', async () => {
+        vi.mocked(questionService.generateDraftQuestions).mockResolvedValue(
+            err(appError('unavailable', 'Generation failed — try again.')),
+        );
+
+        const state = await generateQuestionsAction(
+            7,
+            IDLE,
+            generateForm({ difficulty: 'beginner', count: '3' }),
+        );
+
+        expect(state).toMatchObject({
+            status: 'error',
+            message: 'Generation failed — try again.',
+        });
+        expect(revalidatePath).not.toHaveBeenCalled();
+    });
+
+    it('rejects a count outside the bounds before calling the service', async () => {
+        const state = await generateQuestionsAction(
+            7,
+            IDLE,
+            generateForm({ difficulty: 'beginner', count: '500' }),
+        );
+
+        expect(state.status).toBe('error');
+        expect(state.fields?.count).toBeTruthy();
+        expect(questionService.generateDraftQuestions).not.toHaveBeenCalled();
+    });
+
+    it('rejects a difficulty the enum does not name', async () => {
+        const state = await generateQuestionsAction(
+            7,
+            IDLE,
+            generateForm({ difficulty: 'impossible', count: '3' }),
+        );
+
+        expect(state.status).toBe('error');
+        expect(questionService.generateDraftQuestions).not.toHaveBeenCalled();
+    });
+});
+
+describe('deleteQuestionAction', () => {
+    it('deletes the named draft and refreshes the bank', async () => {
+        vi.mocked(questionService.deleteDraftQuestion).mockResolvedValue(ok(undefined));
+
+        const state = await deleteQuestionAction(
+            IDLE,
+            generateForm({ questionId: '900', categoryId: '7' }),
+        );
+
+        expect(questionService.deleteDraftQuestion).toHaveBeenCalledWith(900);
+        expect(state.status).toBe('success');
+        expect(revalidatePath).toHaveBeenCalledWith('/admin/categories/7');
+    });
+
+    it('renders the service refusal rather than swallowing it', async () => {
+        // The service refuses anything that is not an inactive AI draft, and
+        // that refusal is the only thing standing between a forged questionId
+        // and a deleted question members have answered.
+        vi.mocked(questionService.deleteDraftQuestion).mockResolvedValue(
+            err(appError('conflict', 'Only an inactive AI draft can be deleted.')),
+        );
+
+        const state = await deleteQuestionAction(
+            IDLE,
+            generateForm({ questionId: '900', categoryId: '7' }),
+        );
+
+        expect(state).toMatchObject({
+            status: 'error',
+            message: 'Only an inactive AI draft can be deleted.',
+        });
+        expect(revalidatePath).not.toHaveBeenCalled();
+    });
+
+    it('refuses a malformed id without reaching the service', async () => {
+        const state = await deleteQuestionAction(IDLE, generateForm({ questionId: 'abc' }));
+
+        expect(state.status).toBe('error');
+        expect(questionService.deleteDraftQuestion).not.toHaveBeenCalled();
     });
 });

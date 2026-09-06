@@ -3,7 +3,7 @@
  *
  * Layer: ACTION — assertAdmin (in the service) -> zod -> service ->
  * revalidatePath (§3)
- * Stories: SP-033, SP-034, SP-035, SP-036
+ * Stories: SP-033, SP-034, SP-035, SP-036, SP-092
  *
  * The options are read as `isCorrect`, which is the name `NewQuestion` and
  * `insertWithAnswers` use. An earlier version built them as `is_correct` — the
@@ -21,7 +21,11 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { z } from 'zod';
 import * as questionService from '../../../../../lib/services/question.service';
-import { questionSchema, ANSWERS_MAX } from '../../../../../lib/validation/question.schema';
+import {
+    questionSchema,
+    generateQuestionsSchema,
+    ANSWERS_MAX,
+} from '../../../../../lib/validation/question.schema';
 import {
     fieldErrors,
     formError,
@@ -71,6 +75,8 @@ export async function createQuestionAction(
         categoryId,
         text: formData.get('text') ?? '',
         difficulty: formData.get('difficulty'),
+        topicTitle: formData.get('topic_title') ?? '',
+        studyAdvice: formData.get('study_advice') ?? '',
         answers: readAnswers(formData),
     });
 
@@ -107,6 +113,8 @@ export async function editQuestionAction(
         categoryId,
         text: formData.get('text') ?? '',
         difficulty: formData.get('difficulty'),
+        topicTitle: formData.get('topic_title') ?? '',
+        studyAdvice: formData.get('study_advice') ?? '',
         answers: readAnswers(formData),
     });
 
@@ -162,4 +170,79 @@ export async function setQuestionStatusAction(
             ? 'Question activated.'
             : 'Question deactivated — answers already given are untouched.',
     );
+}
+
+/**
+ * Generate AI drafts for this category (SP-092).
+ *
+ * The drafts land in the bank below, inactive and labelled — there is no
+ * separate review queue, because "an inactive question an admin has to
+ * activate" IS the review queue and the screen already knows how to render it.
+ * That also means edit / activate / delete work on a draft on day one, with no
+ * second set of controls to keep in step with the first.
+ *
+ * Every failure below is a message, never a throw: AC4 is that malformed model
+ * output reads as "generation failed, try again" and never as a 500.
+ */
+export async function generateQuestionsAction(
+    categoryId: number,
+    _prev: FormState,
+    formData: FormData,
+): Promise<FormState> {
+    const parsed = generateQuestionsSchema.safeParse({
+        categoryId,
+        difficulty: formData.get('difficulty'),
+        count: formData.get('count'),
+    });
+
+    if (!parsed.success) return formError('Check the fields below.', fieldErrors(parsed.error));
+
+    const result = await questionService.generateDraftQuestions(parsed.data);
+
+    if (!result.ok) return formError(result.error.message, result.error.fields);
+
+    revalidatePath(`/admin/categories/${categoryId}`);
+
+    const { added, requested } = result.value;
+
+    // The count is the honest one, not the one that was asked for. A model that
+    // returned six usable questions out of ten, or an insert that dropped one,
+    // has to show up here rather than in a log nobody reads.
+    return formSuccess(
+        added === requested
+            ? `${added} draft${added === 1 ? '' : 's'} added below — review, then activate.`
+            : `${added} of ${requested} drafts were usable and are below — review, then activate.`,
+    );
+}
+
+/**
+ * Reject a draft (SP-092 AC3).
+ *
+ * A real delete, and the only one in this file. The service refuses anything
+ * that is not an inactive AI draft, so the worst a forged questionId achieves
+ * is a sentence explaining that.
+ */
+export async function deleteQuestionAction(
+    _prev: FormState,
+    formData: FormData,
+): Promise<FormState> {
+    const parsed = z
+        .object({
+            questionId: z.coerce.number().int().positive(),
+            categoryId: z.coerce.number().int().positive(),
+        })
+        .safeParse({
+            questionId: formData.get('questionId'),
+            categoryId: formData.get('categoryId'),
+        });
+
+    if (!parsed.success) return formError('That draft could not be deleted.');
+
+    const result = await questionService.deleteDraftQuestion(parsed.data.questionId);
+
+    if (!result.ok) return formError(result.error.message, result.error.fields);
+
+    revalidatePath(`/admin/categories/${parsed.data.categoryId}`);
+
+    return formSuccess('Draft deleted.');
 }

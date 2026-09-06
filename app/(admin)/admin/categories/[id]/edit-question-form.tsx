@@ -17,8 +17,12 @@ import Link from 'next/link';
 import { editQuestionAction } from './actions';
 import { AnswerRows } from './answer-rows';
 import { IDLE } from '../../../../../lib/validation/common';
-import { QUESTION_TEXT_MAX } from '../../../../../lib/validation/question.schema';
-import { Field } from '../../../../../components/ui/field';
+import {
+    QUESTION_TEXT_MAX,
+    STUDY_ADVICE_MAX,
+    TOPIC_TITLE_MAX,
+} from '../../../../../lib/validation/question.schema';
+import { Field, Input } from '../../../../../components/ui/field';
 import { SubmitButton } from '../../../../../components/submit-button';
 import { FormStatus } from '../../../../../components/form-status';
 import { buttonClass } from '../../../../../components/ui/button';
@@ -90,6 +94,37 @@ export function EditQuestionForm({ question, categoryId }: EditQuestionFormProps
                         <option value="intermediate">Intermediate</option>
                         <option value="advanced">Advanced</option>
                     </select>
+                </Field>
+
+                <Field
+                    label="Topic"
+                    htmlFor={`edit-topic-${question.questionId}`}
+                    error={state.fields?.topicTitle}
+                    hint="optional"
+                >
+                    <Input
+                        id={`edit-topic-${question.questionId}`}
+                        name="topic_title"
+                        maxLength={TOPIC_TITLE_MAX}
+                        defaultValue={question.topicTitle ?? ''}
+                        placeholder="Indexes"
+                    />
+                </Field>
+
+                <Field
+                    label="Study advice"
+                    htmlFor={`edit-advice-${question.questionId}`}
+                    error={state.fields?.studyAdvice}
+                    hint={`shown when missed · up to ${STUDY_ADVICE_MAX}`}
+                >
+                    <textarea
+                        id={`edit-advice-${question.questionId}`}
+                        name="study_advice"
+                        rows={2}
+                        maxLength={STUDY_ADVICE_MAX}
+                        defaultValue={question.studyAdvice ?? ''}
+                        className={TEXTAREA_CLASS}
+                    />
                 </Field>
 
                 <AnswerRows defaults={question.answers} fields={state.fields} />

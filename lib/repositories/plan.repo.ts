@@ -31,6 +31,13 @@ export interface NewPlanItem {
     topicTitle: string;
     description: string;
     priority: number;
+    /**
+     * Only ever set by `ai.service.draftPlan`, whose rows arrive with their
+     * paragraph already written — the model authored the topic, so there is no
+     * second pass to decorate it with. A rule-built row leaves this undefined
+     * and is decorated afterwards, which is still the ordinary path.
+     */
+    aiDescription?: string;
 }
 
 /**
@@ -39,6 +46,27 @@ export interface NewPlanItem {
  * `progress_status` and `completed_at` are left to their defaults — a new item
  * is `not_started` by definition. `assessment_id` records which run produced
  * the advice (SP-065's "latest assessment wins" needs to know).
+ *
+ * AN UPSERT, NOT AN INSERT, SINCE SP-060. The baseline is one attempt, so every
+ * row it wrote was new; a category run may be retaken, and
+ * `recommendation_plans_topic_unique (user_id, category_id, topic_title)` makes
+ * the second run's overlapping topics a constraint violation. That failure
+ * would arrive in a path that logs and swallows — a member retakes an
+ * assessment and their plan silently stops updating.
+ *
+ * WHAT A CONFLICT UPDATES, AND WHAT IT DELIBERATELY DOES NOT. The advice, the
+ * priority and the run it came from are rewritten, because the newest run is
+ * the one that knows. `progress_status` and `completed_at` are not in the
+ * payload at all, so an item a member already finished stays finished and the
+ * XP the trigger paid for it is not re-paid. `ai_description` IS cleared: it
+ * was written about the previous run's rule text, and ai.service re-decorates
+ * these rows moments later — a stale paragraph under fresh advice is worse than
+ * no paragraph.
+ *
+ * THIS IS NOT SP-065. A topic the member has stopped missing keeps its row,
+ * with its old `assessment_id`; supersession — deciding when an item from an
+ * earlier run should disappear — is still that story's to write. This only
+ * makes a retake update rather than fail.
  */
 export async function insertMany(
     supabase: Client,
@@ -49,19 +77,75 @@ export async function insertMany(
 ): Promise<Result<void, AppError>> {
     if (items.length === 0) return ok(undefined);
 
-    const { error } = await supabase.from('recommendation_plans').insert(
+    const { error } = await supabase.from('recommendation_plans').upsert(
         items.map((item) => ({
             user_id: userId,
             category_id: categoryId,
             assessment_id: assessmentId,
             topic_title: item.topicTitle,
             rule_description: item.description,
+            // Null for a rule-built row, which is what makes the conflict case
+            // CLEAR a stale paragraph written about the previous run's advice.
+            // A drafted row supplies its own, so the same statement covers both
+            // and neither leaves the column describing text that is gone.
+            ai_description: item.aiDescription ?? null,
             priority: item.priority,
         })),
+        { onConflict: 'user_id,category_id,topic_title' },
     );
 
     if (error) return err(fromPostgrestError(error, 'recommendation_plans.insertMany'));
     return ok(undefined);
+}
+
+/**
+ * Add the AI elaboration to rows that already exist (SP-091).
+ *
+ * A SECOND statement, deliberately, rather than an `ai_description` on
+ * insertMany. D5 splits the columns so the plan renders correctly with AI
+ * disabled or failing, and folding the AI text into the insert would undo
+ * that: a slow or broken provider would delay or lose the rule-based rows
+ * themselves, which are the half that has to survive. Insert the rules, then
+ * decorate — this only ever ADDS.
+ *
+ * Matched on `topic_title` within one run, which the
+ * `recommendation_plans_topic_unique (user_id, category_id, topic_title)`
+ * constraint makes a key rather than a guess. One statement per item: there
+ * are at most twenty, this happens once per run, and PostgREST has no way to
+ * send twenty different values for one column in a single update that does not
+ * also rewrite every other column on the row.
+ *
+ * Returns how many rows were decorated. A failure is reported, not thrown —
+ * the caller logs it and leaves the plan as it is.
+ */
+export async function setAiDescriptions(
+    supabase: Client,
+    userId: string,
+    assessmentId: number,
+    items: Array<{ topicTitle: string; aiDescription: string }>,
+): Promise<Result<number, AppError>> {
+    if (items.length === 0) return ok(0);
+
+    const results = await Promise.all(
+        items.map((item) =>
+            supabase
+                .from('recommendation_plans')
+                .update({ ai_description: item.aiDescription }, { count: 'exact' })
+                .eq('user_id', userId)
+                .eq('assessment_id', assessmentId)
+                .eq('topic_title', item.topicTitle),
+        ),
+    );
+
+    const failure = results.find((result) => result.error)?.error;
+    if (failure) return err(fromPostgrestError(failure, 'recommendation_plans.setAiDescriptions'));
+
+    // ROWS TOUCHED, NOT STATEMENTS SENT. This returned `items.length`, which is
+    // the number of updates ATTEMPTED — a title matching no row reported itself
+    // as a decorated row, and the caller logged a number it had not achieved.
+    // `count: 'exact'` makes PostgREST report what it actually matched, which
+    // is the only version of this number worth returning.
+    return ok(results.reduce((total, result) => total + (result.count ?? 0), 0));
 }
 
 /** Every plan item, most urgent first. */

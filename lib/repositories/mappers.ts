@@ -175,6 +175,9 @@ export function toAdminQuestion(row: QuestionRow, answers: AnswerRow[]): AdminQu
         text: row.text,
         difficulty: row.difficulty,
         status: row.status,
+        source: row.source,
+        topicTitle: row.topic_title,
+        studyAdvice: row.study_advice,
         answers: [...answers].sort((a, b) => a.position - b.position).map(toAdminAnswer),
     };
 }
