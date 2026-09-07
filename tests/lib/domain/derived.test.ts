@@ -120,6 +120,86 @@ describe('derived.ts domain logic', () => {
             expect(perfectBadge?.earned).toBe(true);
             expect(perfectBadge?.earnedAt).toBe('2026-06-01T12:00:00Z');
         });
+
+        it('should qualify for Explorer, Well Rounded, and Comeback badges', () => {
+            const input: DerivationInput = {
+                assessments: [
+                    {
+                        assessmentId: 1,
+                        categoryId: 1,
+                        categoryName: 'Databases',
+                        status: 'submitted',
+                        score: 50,
+                        resultLevel: 'beginner',
+                        createdAt: '2026-06-01T10:00:00Z',
+                        submittedAt: '2026-06-01T10:05:00Z',
+                    },
+                    {
+                        assessmentId: 2,
+                        categoryId: 1,
+                        categoryName: 'Databases',
+                        status: 'submitted',
+                        score: 75,
+                        resultLevel: 'intermediate',
+                        createdAt: '2026-06-02T10:00:00Z',
+                        submittedAt: '2026-06-02T10:05:00Z',
+                    },
+                    {
+                        assessmentId: 3,
+                        categoryId: 2,
+                        categoryName: 'APIs',
+                        status: 'submitted',
+                        score: 80,
+                        resultLevel: 'intermediate',
+                        createdAt: '2026-06-03T10:00:00Z',
+                        submittedAt: '2026-06-03T10:05:00Z',
+                    },
+                    {
+                        assessmentId: 4,
+                        categoryId: 3,
+                        categoryName: 'Security',
+                        status: 'submitted',
+                        score: 85,
+                        resultLevel: 'advanced',
+                        createdAt: '2026-06-04T10:00:00Z',
+                        submittedAt: '2026-06-04T10:05:00Z',
+                    },
+                ],
+                plan: [],
+                levels: ['intermediate', 'intermediate', 'advanced'],
+                today: '2026-06-04',
+            };
+
+            const codes = earnedBadgeCodes(input, 0);
+            expect(codes).toContain('explorer');
+            expect(codes).toContain('well_rounded');
+            expect(codes).toContain('comeback');
+        });
+
+        it('should qualify for plan-related badges (first_plan_item and plan_finisher)', () => {
+            const input: DerivationInput = {
+                assessments: [],
+                plan: [
+                    {
+                        recommendationId: 1,
+                        categoryId: 10,
+                        categoryName: 'Databases',
+                        topicTitle: 'Indexes',
+                        description: 'Read about indexes',
+                        status: 'completed',
+                        priority: 1,
+                        aiDescription: 'Test',
+                        completedAt: '2026-06-01T10:00:00Z',
+                    },
+                ],
+                levels: [],
+                today: '2026-06-01',
+            };
+
+            const codes = earnedBadgeCodes(input, 0);
+            expect(codes).toContain('first_plan_item');
+            expect(codes).toContain('plan_finisher');
+        });
     });
 
     describe('deriveQuests', () => {
