@@ -29,7 +29,10 @@ describe('categorySchema', () => {
     });
 
     it('trims whitespace from name and description', () => {
-        const result = categorySchema.safeParse({ name: '  Databases  ', description: '  Trimmed  ' });
+        const result = categorySchema.safeParse({
+            name: '  Databases  ',
+            description: '  Trimmed  ',
+        });
         expect(result.success).toBe(true);
         if (result.success) {
             expect(result.data.name).toBe('Databases');
@@ -38,8 +41,12 @@ describe('categorySchema', () => {
     });
 
     it('handles null or undefined description gracefully', () => {
-        expect(categorySchema.safeParse({ name: 'Databases', description: null }).success).toBe(true);
-        expect(categorySchema.safeParse({ name: 'Databases', description: undefined }).success).toBe(true);
+        expect(categorySchema.safeParse({ name: 'Databases', description: null }).success).toBe(
+            true,
+        );
+        expect(
+            categorySchema.safeParse({ name: 'Databases', description: undefined }).success,
+        ).toBe(true);
     });
 
     it('rejects a description longer than 500 characters', () => {
@@ -51,13 +58,23 @@ describe('categorySchema', () => {
 
 describe('categoryStatusSchema', () => {
     it('accepts valid category status payload with coercion', () => {
-        expect(categoryStatusSchema.safeParse({ categoryId: 1, status: 'active' }).success).toBe(true);
-        expect(categoryStatusSchema.safeParse({ categoryId: '5', status: 'inactive' }).success).toBe(true);
+        expect(categoryStatusSchema.safeParse({ categoryId: 1, status: 'active' }).success).toBe(
+            true,
+        );
+        expect(
+            categoryStatusSchema.safeParse({ categoryId: '5', status: 'inactive' }).success,
+        ).toBe(true);
     });
 
     it('rejects invalid categoryId or unaccepted status values', () => {
-        expect(categoryStatusSchema.safeParse({ categoryId: 0, status: 'active' }).success).toBe(false);
-        expect(categoryStatusSchema.safeParse({ categoryId: -2, status: 'active' }).success).toBe(false);
-        expect(categoryStatusSchema.safeParse({ categoryId: 1, status: 'pending' }).success).toBe(false);
+        expect(categoryStatusSchema.safeParse({ categoryId: 0, status: 'active' }).success).toBe(
+            false,
+        );
+        expect(categoryStatusSchema.safeParse({ categoryId: -2, status: 'active' }).success).toBe(
+            false,
+        );
+        expect(categoryStatusSchema.safeParse({ categoryId: 1, status: 'pending' }).success).toBe(
+            false,
+        );
     });
 });
