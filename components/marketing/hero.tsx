@@ -71,7 +71,7 @@ export function Hero() {
                          * 4.5:1 AA minimum. Subtle is for de-emphasis inside a card that
                          * already has context, not for a line someone has to read. */}
                         <p className="mt-5 text-[0.8125rem] text-muted-foreground">
-                            Free to use · Starting with React, SQL and Testing
+                            Free to use · AI-powered · Starting with React, SQL and Testing
                         </p>
                     </div>
 

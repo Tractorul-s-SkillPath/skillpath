@@ -21,6 +21,7 @@
 
 import { describe, expect, it } from 'vitest';
 import {
+    buildDraftPlanPrompt,
     buildEnhancePlanPrompt,
     buildFeedbackPrompt,
     buildGenerateQuestionsPrompt,
@@ -194,5 +195,40 @@ describe('the difficulty band is spelled out, not just named', () => {
         expect(buildGenerateQuestionsPrompt({ ...A_QUESTION_CONTEXT, count: 7 })).toContain(
             'exactly 7',
         );
+    });
+});
+
+const A_DRAFT_PLAN_CONTEXT = {
+    firstName: 'Ana',
+    score: 55,
+    runLabel: 'SQL assessment',
+    missed: [
+        { text: 'What is a primary key?', difficulty: 'beginner' as const },
+        { text: 'Explain deadlock handling.', difficulty: 'advanced' as const },
+    ],
+};
+
+describe('buildDraftPlanPrompt and edge coverage', () => {
+    it('produces a non-empty prompt for draft plan and handles missing firstName', () => {
+        const draftPrompt = buildDraftPlanPrompt(A_DRAFT_PLAN_CONTEXT);
+        expect(draftPrompt.length).toBeGreaterThan(0);
+        expect(draftPrompt).toContain('SQL assessment');
+        expect(draftPrompt).toContain('Ana');
+
+        const anonymousDraft = buildDraftPlanPrompt({
+            ...A_DRAFT_PLAN_CONTEXT,
+            firstName: undefined,
+        });
+        expect(anonymousDraft).toContain('A student');
+        expect(anonymousDraft).not.toContain('undefined');
+    });
+
+    it('validates keys for draft plan context shape', () => {
+        expect(Object.keys(A_DRAFT_PLAN_CONTEXT).sort()).toEqual([
+            'firstName',
+            'missed',
+            'runLabel',
+            'score',
+        ]);
     });
 });

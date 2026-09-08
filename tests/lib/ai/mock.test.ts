@@ -233,4 +233,35 @@ describe('the injectable failure modes', () => {
             );
         }
     });
+
+    it('throws on the "throw" sentinel in draftPlan', async () => {
+        await expect(
+            mockProvider.draftPlan({
+                firstName: 'Ana',
+                score: 50,
+                runLabel: 'throw',
+                missed: [{ text: 'Error test', difficulty: 'beginner' }],
+            }),
+        ).rejects.toThrow(/throw mode/);
+    });
+
+    it('never settles on the "hang" sentinel in draftPlan', async () => {
+        const sentinel = Symbol('still pending');
+        const settledOrNot = (work: Promise<unknown>) =>
+            Promise.race([
+                work.then(() => 'settled'),
+                new Promise((resolve) => setTimeout(() => resolve(sentinel), 20)),
+            ]);
+
+        await expect(
+            settledOrNot(
+                mockProvider.draftPlan({
+                    firstName: 'Ana',
+                    score: 50,
+                    runLabel: 'hang',
+                    missed: [{ text: 'Error test', difficulty: 'beginner' }],
+                }),
+            ),
+        ).resolves.toBe(sentinel);
+    });
 });
